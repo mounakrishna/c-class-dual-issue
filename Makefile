@@ -141,11 +141,11 @@ release-verilog-artifacts: generate_verilog generate_boot_files link_verilator
 
 .PHONY: regress
 regress: ## To run regressions on the core.
-	@SHAKTI_HOME=$$PWD perl -I$(SHAKTI_HOME)/verification/verif-scripts $(SHAKTI_HOME)/verification/verif-scripts/makeRegress.pl $(opts)
+	@SHAKTI_HOME=$$PWD python3 $(SHAKTI_HOME)/verification/verif-scripts/makeRegress.py --shaktiHome=$(SHAKTI_HOME) $(opts)
 
 .PHONY: test
 test: ## To run a single riscv-test on the core.
-	@SHAKTI_HOME=$$PWD CONFIG_LOG=0 perl -I$(SHAKTI_HOME)/verification/verif-scripts $(SHAKTI_HOME)/verification/verif-scripts/makeTest.pl $(opts)
+	@SHAKTI_HOME=$$PWD python3 $(SHAKTI_HOME)/verification/verif-scripts/makeTest.py --shaktiHome=$(SHAKTI_HOME) $(opts)
 
 .PHONY: simonly
 simonly: ## To run a single riscv-test on the core.

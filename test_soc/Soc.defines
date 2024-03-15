@@ -22,8 +22,8 @@
 `define UartEnd     'h11340
 `define ClintBase   'h0200_0000
 `define ClintEnd    'h020B_FFFF
-`define SignBase    'h0002_0000
-`define SignEnd     'h0002_000c
+`define SignBase    'h0005_0000
+`define SignEnd     'h0005_000c
 `define DebugBase   'h0000_0000
 `define DebugEnd    'h0000_0FFF
 

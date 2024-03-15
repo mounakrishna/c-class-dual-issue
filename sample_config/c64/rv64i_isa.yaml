@@ -20,8 +20,8 @@ hart0:
         priv_mode : M
     ISA: RV64IMAFDCSUZicsr_Zifencei
     User_Spec_Version: '2.3'
-    pmp_granularity: 1
-    physical_addr_sz: 32
+    pmp_granularity: 0
+    physical_addr_sz: 56
     supported_xlen:
       - 64
     misa:
@@ -586,10 +586,10 @@ hart0:
                 warl:
                     dependency_fields: [pmpcfg0::pmp0cfg]
                     legal:
-                      - "pmp0cfg[7] in [0] -> pmpaddr0[63:0] bitmask [0x3FFFFFFE,0x0000000000000000]"
+                      - "pmp0cfg[7] in [0] -> pmpaddr0[63:0] bitmask [0x1FFFFFFFFFFFFF,0x0000000000000000]"
                     wr_illegal:
                       - Unchanged
-        reset-val: 0x3FFFFFFE
+        reset-val: 0
     pmpaddr1:
         rv32:
             accessible: false
@@ -599,7 +599,7 @@ hart0:
                 warl:
                     dependency_fields: [pmpcfg0::pmp1cfg]
                     legal:
-                      - "pmp1cfg[7] in [0] -> pmpaddr1[63:0] bitmask [0x3FFFFFFE,0x0000000000000000]"
+                      - "pmp1cfg[7] in [0] -> pmpaddr1[63:0] bitmask [0x1FFFFFFFFFFFFF,0x0000000000000000]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -612,7 +612,7 @@ hart0:
                 warl:
                     dependency_fields: [pmpcfg0::pmp2cfg]
                     legal:
-                      - "pmp2cfg[7] in [0] -> pmpaddr2[63:0] bitmask [0x3FFFFFFE,0x0000000000000000]"
+                      - "pmp2cfg[7] in [0] -> pmpaddr2[63:0] bitmask [0x1FFFFFFFFFFFFF,0x0000000000000000]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -625,7 +625,7 @@ hart0:
                 warl:
                     dependency_fields: [pmpcfg0::pmp3cfg]
                     legal:
-                      - "pmp3cfg[7] in [0] -> pmpaddr3[63:0] bitmask [0x3FFFFFFE,0x0000000000000000]"
+                      - "pmp3cfg[7] in [0] -> pmpaddr3[63:0] bitmask [0x1FFFFFFFFFFFFF,0x0000000000000000]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0

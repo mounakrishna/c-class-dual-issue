@@ -1,0 +1,1 @@
+python3 -m configure.main --ispec sample_config/c64/rv64i_isa.yaml --customspec sample_config/c64/rv64i_custom.yaml --gspec sample_config/c64/csr_grouping64.yaml --dspec sample_config/c64/rv64i_debug.yaml --cspec sample_config/c64/core64.yaml $1 $2

@@ -2,7 +2,7 @@
 length_check_fields=['reset_pc']
 
 bsc_cmd = '''bsc -u -verilog -elab -vdir {0} -bdir {1} -info-dir {1} \
-+RTS -K40000M -RTS -check-assert  -keep-fires \
++RTS -K4000M -RTS -check-assert  -keep-fires \
 -opt-undetermined-vals -remove-false-rules -remove-empty-rules \
 -remove-starved-rules -remove-dollar -unspecified-to X -show-schedule \
 -show-module-use -cross-info {2}'''
@@ -67,11 +67,11 @@ common_verilog:
   url: https://gitlab.com/shaktiproject/common_verilog
   checkout: master
 verification:
-  url: https://gitlab.com/shaktiproject/verification_environment/verification
-  checkout: 5.0.0
+  url: git@github.com:Mindgrove-Technologies/verification.git
+  checkout: master
   recursive: True
   patch:
-    - [riscv-tests/env , verification/patches/riscv-tests-shakti-signature.patch]
+    - [riscv-tests/env , verification/patches/riscv-tests-shakti-signature-machine.patch]
 benchmarks:
   url: https://gitlab.com/shaktiproject/cores/benchmarks
   checkout: c-class-chnages
