@@ -362,7 +362,7 @@ typedef struct{
 `endif
   Privilege_mode mode;
   Bit#(`xlen) pc;
-  Bit#(32) instruction;
+  Vector#(`issue, Bit#(32)) instruction;
   CommitLogType inst_type;
 } CommitLogPacket deriving(Bits, FShow, Eq);
 // ------------------------------------------------------------------------------------------
@@ -379,16 +379,18 @@ typedef struct{
 } Stage0PC#(numeric type addr) deriving(Bits, Eq, FShow);
 
 // -- structure of the first pipeline stage -----------------//
+
 typedef struct{
 `ifdef compressed
   Bool upper_err;
   Bool compressed;
+  Bool issue; //Is set True when 2 compressed instruction are enqued to the next stage.
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
 `endif
 	Bit#(`vaddr) program_counter;
-	Bit#(32) instruction;
+	Vector#(`issue, Maybe#(Bit#(32))) instruction;
 	Bit#(`iesize) epochs;
   Bool trap ;
   Bit#(`causesize) cause;

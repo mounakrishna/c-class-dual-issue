@@ -200,7 +200,7 @@ package TbSoc;
       let stime <- $stime;
       if (soc.commitlog matches tagged Valid .idump) begin
     `ifndef openocd `ifndef cocotb_sim
-      if(idump.instruction=='h00006f||idump.instruction =='h00a001)
+      if(idump.instruction[0]=='h00006f||idump.instruction[0] =='h00a001)
         $finish(0);
       else
     `endif `endif
@@ -211,19 +211,19 @@ package TbSoc;
         end
         rg_inst_count <= rg_inst_count + 1;
 
-        if (idump.instruction[1:0] == 'b11)
-        	$fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%8h", idump.instruction, ")");
+        if (idump.instruction[0][1:0] == 'b11)
+        	$fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%8h", idump.instruction[0], ")");
         else
-          $fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%4h", idump.instruction[15:0], ")");
+          $fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%4h", idump.instruction[0][15:0], ")");
 
         if (idump.inst_type matches tagged REG .d) begin
 
         `ifdef spfpu
-        if (!(idump.instruction[31:25] =='b0001001 && idump.instruction[14:0] == 'b000000001110011)) begin
+        if (!(idump.instruction[0][31:25] =='b0001001 && idump.instruction[0][14:0] == 'b000000001110011)) begin
           Bit#(`xlen) wdata_fflags = fn_probe_csr(`FFLAGS);
           Bit#(`xlen) flags = zeroExtend(d.fflags);
         // !flags &&
-        if( flags!=0 && fn_fflags_print(idump.instruction[31:25],idump.instruction[6:0], d.irf)) begin 
+        if( flags!=0 && fn_fflags_print(idump.instruction[0][31:25],idump.instruction[0][6:0], d.irf)) begin 
           //Flags not zero. Destination reg is FRF.
           if (valueOf(`flen) == 64) begin
             $fwrite(dump, " ", fn_csr_to_str(`FFLAGS), " 0x%16h", wdata_fflags);
@@ -236,8 +236,8 @@ package TbSoc;
       `endif
           // let csr_address = `FFLAGS; // mstatus
           // Bit#(`xlen) wdata = fn_probe_csr(`ifdef hypervisor fn_address_virtual(csr_address,idump.v) `else csr_address `endif );
-          if (!((idump.instruction[31:25] =='b0001001 || idump.instruction[31:25]== 'b0010001 || 
-               idump.instruction[31:25] =='b0110001)&& idump.instruction[14:0] == 'b000000001110011)) begin
+          if (!((idump.instruction[0][31:25] =='b0001001 || idump.instruction[0][31:25]== 'b0010001 || 
+               idump.instruction[0][31:25] =='b0110001)&& idump.instruction[0][14:0] == 'b000000001110011)) begin
             if (d.irf && valueOf(`xlen) == 64 && d.rd != 0)
               $fwrite(dump, " x%0d", d.rd, " 0x%16h", d.wdata);
             if (d.irf && valueOf(`xlen) == 32 && d.rd != 0)
@@ -275,11 +275,11 @@ package TbSoc;
           if (valueOf(`xlen) == 32 && d.rd != 0)
             $fwrite(dump, " x%0d", d.rd, " 0x%8h", d.rdata);
           Bit#(`xlen) wdata = fn_probe_csr(csr_address);
-          if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
-            //$display("Tb: Dumping instruction: %h", idump.instruction);
-           `logLevel( tb, 0, $format("\n %h", idump.instruction))
+          if (!(d.op==2'b10 && idump.instruction[0][19:15] == 0)) begin
+            //$display("Tb: Dumping instruction: %h", idump.instruction[0]);
+           `logLevel( tb, 0, $format("\n %h", idump.instruction[0]))
            `ifdef hypervisor
-            if(idump.instruction=='h10200073 && csr_address== 'h300) begin //sret
+            if(idump.instruction[0]=='h10200073 && csr_address== 'h300) begin //sret
               Bit#(`xlen) hstatus = fn_probe_csr('h600);
               //$display("Tb: %h", hstatus);
               `logLevel( tb, 0, $format("\n hstatus: %h", hstatus))
@@ -314,7 +314,7 @@ package TbSoc;
         if (csr_address == `FCSR) begin
           Bit#(`xlen) wdata_fflags = fn_probe_csr(`FFLAGS);
           Bit#(`xlen) wdata_frm = fn_probe_csr(`FRM);
-          if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
+          if (!(d.op==2'b10 && idump.instruction[0][19:15] == 0)) begin
           if (valueOf(`xlen) == 64) begin
                   $fwrite(dump, " ", fn_csr_to_str(`FFLAGS), " 0x%16h", wdata_fflags);
                   // if(lv_fssr_print)                     
@@ -333,7 +333,7 @@ package TbSoc;
             csr_address = `MSTATUS;
             Bit#(`xlen) wdata = fn_probe_csr(csr_address);
             if ( !rg_prev_mstatus_valid || (wdata!=rg_prev_mstatus)   ) begin 
-            if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
+            if (!(d.op==2'b10 && idump.instruction[0][19:15] == 0)) begin
               if (valueOf(`xlen) == 64) 
                 $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%16h", wdata);
               if (valueOf(`xlen) == 32)

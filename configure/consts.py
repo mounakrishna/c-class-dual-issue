@@ -51,9 +51,6 @@ include depends.mk
 '''
 
 dependency_yaml='''
-caches_mmu:
-  url: https://gitlab.com/shaktiproject/uncore/caches_mmu
-  checkout: 14.1.0
 common_bsv:
   url: https://gitlab.com/shaktiproject/common_bsv
   checkout: master
@@ -73,8 +70,8 @@ verification:
   patch:
     - [riscv-tests/env , verification/patches/riscv-tests-shakti-signature-machine.patch]
 benchmarks:
-  url: https://gitlab.com/shaktiproject/cores/benchmarks
-  checkout: c-class-chnages
+  url: git@github.com:Mindgrove-Technologies/benchmarks.git
+  checkout: master
 csrbox:
   url: https://gitlab.com/shaktiproject/cores/csrbox
   checkout: Floating_point

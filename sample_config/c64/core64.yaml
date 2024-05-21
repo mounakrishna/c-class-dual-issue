@@ -5,12 +5,14 @@ isb_sizes:
     isb_s3s4: 8
     isb_s4s5: 8
 num_harts: 1
+waw_stalls: False
 merged_rf: False
 s_extension:
   itlb_size: 4
   dtlb_size: 4
 total_events : 31
 iepoch_size: 2
+issue: 2
 m_extension:
   mul_stages_in : 1
   mul_stages_out: 1

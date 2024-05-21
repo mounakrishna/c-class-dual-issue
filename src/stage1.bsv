@@ -196,12 +196,12 @@ package stage1;
     // check if it is compressed. If so then the lower 16 bits form an instruction which is sent to
     // the next stage, the upper 16 - bits are stored to rg_instruction and rg_action is set to
     // CheckPrev to ensure that in the next resposne we first probe rg_instruction.
-    // 4. if rg_Action if set to CheckPrev then we first probe the lower 2 - bits of the
+    // 4. if rg_Action is set to CheckPrev then we first probe the lower 2 - bits of the
     // rg_instruction which leads to two possibilities. Either rg_instruction could hold a
     // compressed instruction from the previous response, in which case the current memory response
     // is not dequed and rg_instruction is sent to the next stage. This can happen due to state - 3
     // mentioned above. The other possibility is that rg_instruction holds the lower 16 - bits of a
-    // 32 - bit isntruction, in which case we have concatenate the lower 16 - bits of the response with
+    // 32 - bit isntruction, in which case we have to concatenate the lower 16 - bits of the response with
     // rg_instruction and send to the next, and also store the upper 16 - bits of the response into
     // rg_instruction. rg_Action in this case will remain CheckPrev so that the upper bits of this
     // repsonse are probed in the next cycle.
@@ -217,10 +217,13 @@ package stage1;
       Bool trap = False;
 
       // local variable to hold the instruction to be enqueued
-      Bit#(32) final_instruction=?;
+      Vector#(`issue, Maybe#(Bit#(32))) final_instruction= replicate(tagged Invalid);
 
       // local variable to indicate if the instruction being analysed is compressed or not
       Bool compressed = False;
+
+      // local variable to indicate if two compressed instructions are paired and issued to decode stage.
+      Bool issue = False;
 
       // local variable indicating if the current instruction under analysis should be enqueued to
       // the next stage or dropped.
@@ -244,8 +247,9 @@ package stage1;
           btbresponse.prediction = 1;
         end
       `endif
-        if(rg_prev.instruction[1 : 0] == 2'b11)begin
-          final_instruction={imem_resp.word[15 : 0], rg_prev.instruction};
+        if(rg_prev.instruction[1 : 0] == 2'b11) begin
+          let instructions = {imem_resp.word[15:0], rg_prev.instruction};
+          final_instruction[0] = tagged Valid instructions;
           trap = imem_resp.trap;
           deq_response;
 
@@ -263,9 +267,13 @@ package stage1;
         `endif
           rg_receiving_upper <= True;
         end
-        else begin
+        else begin 
           compressed = True;
-          final_instruction = zeroExtend(rg_prev.instruction);
+          final_instruction[0] = tagged Valid zeroExtend(rg_prev.instruction);
+          if (imem_resp.word[1:0] != 2'b11) 
+            final_instruction[1] = tagged Valid zeroExtend(imem_resp.word[15:0]);
+          else
+            final_instruction[1] = tagged Invalid;
           rg_action <= None;
           rg_receiving_upper <= False;
           stage0pc.address = rg_prev.pc;
@@ -296,7 +304,8 @@ package stage1;
         else begin
           rg_action <= None;
           compressed = True;
-          final_instruction = zeroExtend(imem_resp.word[31 : 16]);
+          final_instruction[0] = tagged Valid zeroExtend(imem_resp.word[31 : 16]);
+          final_instruction[1] = tagged Invalid;
           trap = imem_resp.trap;
           stage0pc.address[1] = 1;
         end
@@ -307,14 +316,19 @@ package stage1;
         deq_response;
         // if instruction is 32-bit simply pass it on
         if(imem_resp.word[1 : 0] == 'b11)begin
-          final_instruction = imem_resp.word;
+          final_instruction[0] = tagged Valid imem_resp.word;
+          final_instruction[1] = tagged Invalid;
           rg_action <= None;
         end
       `ifdef compressed
         // if instruction from cache is compressed
         else if(wr_csr_misa_c == 1) begin
           compressed = True;
-          final_instruction = zeroExtend(imem_resp.word[15 : 0]);
+          final_instruction[0] = tagged Valid zeroExtend(imem_resp.word[15 : 0]);
+          if (imem_resp.word[17:16] == 2'b11)
+            final_instruction[1] = tagged Invalid;
+          else
+            final_instruction[1] = tagged Valid zeroExtend(imem_resp.word[31:16]);
           lv_prev.instruction = truncateLSB(imem_resp.word);
           lv_prev.pc = stage0pc.address;
         `ifdef bpu
@@ -346,10 +360,15 @@ package stage1;
         cause = trig_cause;
       end
     `endif
-      Bit#(32) inst = final_instruction;
+      Vector#(`issue, Bit#(32)) inst;
+      inst[0] = fromMaybe(0, final_instruction[0]);
+      inst[1] = fromMaybe(0, final_instruction[1]);
     `ifdef compressed
       if(compressed)
-        final_instruction = fn_decompress(truncate(final_instruction));
+        final_instruction[0] = tagged Valid fn_decompress(truncate(fromMaybe(0, final_instruction[0])));
+        final_instruction[1] = isValid(final_instruction[1]) ? 
+                                                    tagged Valid fn_decompress(truncate(fromMaybe(0, final_instruction[1]))):
+                                                    tagged Invalid;
     `endif
 			let pipedata = PIPE1{program_counter : stage0pc.address,
                     instruction : final_instruction,

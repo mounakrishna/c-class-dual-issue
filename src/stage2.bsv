@@ -261,7 +261,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
     // --- extract the fields from the packet received from the stage1 ---- //
     let pc = rx_pipe1.u.first.program_counter;
-    let inst = rx_pipe1.u.first.instruction;
+    Bit#(32) inst = fromMaybe(0, rx_pipe1.u.first.instruction[0]);
     let epochs = rx_pipe1.u.first.epochs;
     let trap = rx_pipe1.u.first.trap;
     let trapcause = rx_pipe1.u.first.cause;
