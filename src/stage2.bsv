@@ -261,7 +261,6 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
     // --- extract the fields from the packet received from the stage1 ---- //
     let pc = rx_pipe1.u.first.program_counter;
-    Bit#(32) inst = fromMaybe(0, rx_pipe1.u.first.instruction[0]);
     let epochs = rx_pipe1.u.first.epochs;
     let trap = rx_pipe1.u.first.trap;
     let trapcause = rx_pipe1.u.first.cause;
@@ -277,64 +276,124 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     `logLevel( stage2, 0, $format("[%2d]STAGE2: csrs:",hartid,fshow(wr_csrs)))
 
     // ----------------------------- perform decode ------------------------ //
-    let decoded <- decoder_func(inst, trap, 
-                                trapcause, wr_csrs,
-                                rg_microtrap, rg_microtrap_cause
-                                `ifdef compressed ,compressed `endif
-                                `ifdef debug ,wr_debug_info, rg_step_done `endif );
-    let imm = decoded.meta.immediate;
-    let func_cause = decoded.meta.funct_cause;
-    let instrType = decoded.meta.inst_type;
-    let word32 = decode_word32(inst,wr_csrs.csr_misa[2]);
-  `ifdef spfpu
-    RFType rf1type = `ifdef spfpu decoded.op_type.rs1type == FloatingRF ? FRF : `endif IRF;
-    RFType rf2type = `ifdef spfpu decoded.op_type.rs2type == FloatingRF ? FRF : `endif IRF;
-  `endif
-    `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc, inst))
-    // ---------------------------------------------------------------------------------------- //
-    // ---------------------- generate bad-address value in case of traps --------------------- //
-    Bit#(`xlen) mtval = 0;
-    if(func_cause == `Illegal_inst )
-      mtval = zeroExtend(inst); // for mtval
-    else if(func_cause == `Breakpoint )
-      mtval = zeroExtend(pc); // for mtval
-`ifdef supervisor
-  `ifdef compressed
-    else if(func_cause == `Inst_pagefault && highbyte_err)
-      mtval = zeroExtend(pc) + 2;
-  `endif
-    else if(func_cause == `Inst_pagefault)
-      mtval = zeroExtend(pc);
-`endif
+    Vector#(`issue, DecodeOut) decoded_inst;
+    Vector#(`issue, Bit#(32)) imm;
+    Vector#(`issue, Bit#(TMax#(`causesize, 7))) func_cause; 
+    Vector#(`issue, Bool) word32;
+    Vector#(`issue, RFType) rf1type;
+    Vector#(`issue, RFType) rf2type;
+    Vector#(`issue, Bit#(`xlen)) mtval;
+    Vector#(`issue, Bit#(5)) frf_rs3addr;
+    for (Integer i=0; i<`issue; i=i+1) begin
+      if ( rx_pipe1.u.first.instruction[i] tagged Valid .inst)
+        decoded_inst[i] <- decoder_func(inst, trap, 
+                                    trapcause, wr_csrs,
+                                    rg_microtrap, rg_microtrap_cause
+                                    `ifdef compressed ,compressed `endif
+                                    `ifdef debug ,wr_debug_info, rg_step_done `endif );
+      else
+        decoded_inst[i] = unpack(0);
+      frf_rs3addr[i] = inst[31:27];
+      imm[i] = decoded_inst[i].meta.immediate;
+      func_cause[i] = decoded_inst[i].meta.funct_cause;
+      instrType[i] = decoded_inst[i].meta.inst_type;
+      word32[i] = decode_word32(inst,wr_csrs.csr_misa[2]);
+      `ifdef spfpu
+        rf1type[i] = `ifdef spfpu decoded_inst[i].op_type.rs1type == FloatingRF ? FRF : `endif IRF;
+        rf2type[i] = `ifdef spfpu decoded_inst[i].op_type.rs2type == FloatingRF ? FRF : `endif IRF;
+      `endif
+      `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc, inst))
+      // ---------------------------------------------------------------------------------------- //
+      // ---------------------- generate bad-address value in case of traps --------------------- //
+      if(func_cause == `Illegal_inst )
+        mtval[i] = zeroExtend(inst); // for mtval
+      else if(func_cause == `Breakpoint )
+        mtval[i] = zeroExtend(pc + 2*fromInteger(i)); // for mtval
+      `ifdef supervisor
+        `ifdef compressed
+          else if(func_cause == `Inst_pagefault && highbyte_err)
+            mtval[i] = zeroExtend(pc + 2*fromInteger(i)) + 2;
+        `endif
+        else if(func_cause == `Inst_pagefault)
+          mtval[i] = zeroExtend(pc + 2*fromInteger(i));
+      `endif
+    end
+
+    //Bit#(32) inst0 = fromMaybe(0, rx_pipe1.u.first.instruction[0]);
+    //let decoded_inst0 <- decoder_func(inst0, trap, 
+    //                            trapcause, wr_csrs,
+    //                            rg_microtrap, rg_microtrap_cause
+    //                            `ifdef compressed ,compressed `endif
+    //                            `ifdef debug ,wr_debug_info, rg_step_done `endif );
+    //if ( rx_pipe1.u.first.instruction[1] tagged Valid .inst1)
+    //  let decoded_inst1 <- decoder_func(inst1, trap, 
+    //                              trapcause, wr_csrs,
+    //                              rg_microtrap, rg_microtrap_cause
+    //                              `ifdef compressed ,compressed `endif
+    //                              `ifdef debug ,wr_debug_info, rg_step_done `endif );
+    //else
+    //  DecodedOut decoded_inst1 = unpack(0);
+    //let imm = decoded_inst0.meta.immediate;
+    //let func_cause = decoded_inst0.meta.funct_cause;
+    //let instrType = decoded_inst0.meta.inst_type;
+    //let word32 = decode_word32(inst,wr_csrs.csr_misa[2]);
+//  `ifdef spfpu
+//    RFType rf1type = `ifdef spfpu decoded_inst0.op_type.rs1type == FloatingRF ? FRF : `endif IRF;
+//    RFType rf2type = `ifdef spfpu decoded_inst0.op_type.rs2type == FloatingRF ? FRF : `endif IRF;
+//  `endif
+//    `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc, inst))
+//    // ---------------------------------------------------------------------------------------- //
+//    // ---------------------- generate bad-address value in case of traps --------------------- //
+//    Bit#(`xlen) mtval = 0;
+//    if(func_cause == `Illegal_inst )
+//      mtval = zeroExtend(inst); // for mtval
+//    else if(func_cause == `Breakpoint )
+//      mtval = zeroExtend(pc); // for mtval
+//`ifdef supervisor
+//  `ifdef compressed
+//    else if(func_cause == `Inst_pagefault && highbyte_err)
+//      mtval = zeroExtend(pc) + 2;
+//  `endif
+//    else if(func_cause == `Inst_pagefault)
+//      mtval = zeroExtend(pc);
+//`endif
     // ---------------------------------------------------------------------------------------- //
     // ---------------------------- read operands from the registerfile ----------------------//
-    let rs1_from_rf <- registerfile.read_rs1(decoded.op_addr.rs1addr
-                        `ifdef spfpu ,rf1type `endif );
-    let rs2_from_rf <- registerfile.read_rs2(decoded.op_addr.rs2addr
-                        `ifdef spfpu ,rf2type `endif );
-  `ifdef spfpu
-    let rs3 <- registerfile.read_rs3(inst[31:27]);
-  `endif
+    if (decoded_inst[0].op_type.rs3type == FRF) begin
+      Bit#(5) rs3addr =  ? frf_rs3addr[0] : decoded_inst[1].op_addr.rs1addr;
+      rf1type[1] = FRF;
+    end
+    let rs1_from_rf <- registerfile.read_rs1(decoded_inst[0].op_addr.rs1addr
+                        `ifdef spfpu ,rf1type[0] `endif );
+    let rs2_from_rf <- registerfile.read_rs2(decoded_inst[0].op_addr.rs2addr
+                        `ifdef spfpu ,rf2type[0] `endif );
+    let rs3_from_rf <- registerfile.read_rs3(rs3addr
+                        `ifdef spfpu ,rf1type[1] `endif );
+    let rs4_from_rf <- registerfile.read_rs4(decoded_inst[1].op_addr.rs2addr
+                        `ifdef spfpu ,rf2type[1] `endif );
+  //`ifdef spfpu
+  //  let rs3 <- registerfile.read_rs3(inst[31:27]);
+  //`endif
     // -------------------------------------------------------------------------------------- //
     
     // ------------------------ modify operand values before enquing to next stage -----------//
     Bit#(`elen) op1 =  rs1_from_rf;
-    Bit#(`elen) op2 =  (decoded.op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
-                      (decoded.op_type.rs2type == Constant4) ? 'd4:
-                      (decoded.op_type.rs2type == Immediate) ? signExtend(imm) : rs2_from_rf;
+    Bit#(`elen) op2 =  (decoded_inst0.op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
+                      (decoded_inst0.op_type.rs2type == Constant4) ? 'd4:
+                      (decoded_inst0.op_type.rs2type == Immediate) ? signExtend(imm) : rs2_from_rf;
   `ifdef spfpu
-    Bit#(`flen) op4 = (decoded.op_type.rs3type == FRF) ? rs3 : signExtend(imm);
+    Bit#(`flen) op4 = (decoded_inst0.op_type.rs3type == FRF) ? rs3 : signExtend(imm);
   `else
     Bit#(`flen) op4 = signExtend(imm);
   `endif
     // -------------------------------------------------------------------------------------- //
-    let stage3meta = Stage3Meta{funct : func_cause, memaccess : decoded.meta.memaccess,
-                                pc : pc, epochs : epochs, rd: decoded.op_addr.rd,
+    let stage3meta = Stage3Meta{funct : func_cause, memaccess : decoded_inst0.meta.memaccess,
+                                pc : pc, epochs : epochs, rd: decoded_inst0.op_addr.rd,
                                 is_microtrap: rg_microtrap
-                  `ifdef hypervisor ,hlvx : decoded.meta.hlvx
-                                    ,hvm_loadstore : decoded.meta.hvm_loadstore
+                  `ifdef hypervisor ,hlvx : decoded_inst0.meta.hlvx
+                                    ,hvm_loadstore : decoded_inst0.meta.hvm_loadstore
                   `endif
-                  `ifdef spfpu ,rdtype      : decoded.op_type.rdtype `endif
+                  `ifdef spfpu ,rdtype      : decoded_inst0.op_type.rdtype `endif
                   `ifdef RV64  , word32     :     word32
                   `elsif dpfpu , word32     :     word32 `endif
                             `ifdef bpu                , btbresponse:  btbresponse
@@ -376,10 +435,10 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                                                       && wr_debug_info.debugger_available;
       `endif
   
-        rg_microtrap <= decoded.meta.microtrap && !wr_flush_from_exe && !wr_flush_from_wb;
-        rg_microtrap_cause <= (decoded.meta.inst_type== SYSTEM_INSTR )? `CSR_rerun :
-`ifdef hypervisor (decoded.meta.memaccess == HFence_GVMA || decoded.meta.memaccess== HFence_VVMA)? `Hfence_rerun: `endif
-                             (decoded.meta.memaccess == FenceI)?`FenceI_rerun : `Sfence_rerun ;
+        rg_microtrap <= decoded_inst0.meta.microtrap && !wr_flush_from_exe && !wr_flush_from_wb;
+        rg_microtrap_cause <= (decoded_inst0.meta.inst_type== SYSTEM_INSTR )? `CSR_rerun :
+`ifdef hypervisor (decoded_inst0.meta.memaccess == HFence_GVMA || decoded_inst0.meta.memaccess== HFence_VVMA)? `Hfence_rerun: `endif
+                             (decoded_inst0.meta.memaccess == FenceI)?`FenceI_rerun : `Sfence_rerun ;
   
         // -------------------------- Enque relevant data to the next stage -------------------- //
         Bit#(3) _op1_id = ?;
@@ -388,13 +447,13 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         Bit#(3) _op2_wid = ?;
         if(instrType == TRAP)
           rg_stall <= True && !wr_flush_from_exe && !wr_flush_from_wb;
-        let opmeta = OpMeta { rs1addr: decoded.op_addr.rs1addr,
-                              rs2addr: decoded.op_addr.rs2addr,
-                              rs1type: decoded.op_type.rs1type,
-                              rs2type: decoded.op_type.rs2type
+        let opmeta = OpMeta { rs1addr: decoded_inst0.op_addr.rs1addr,
+                              rs2addr: decoded_inst0.op_addr.rs2addr,
+                              rs1type: decoded_inst0.op_type.rs1type,
+                              rs2type: decoded_inst0.op_type.rs2type
                             `ifdef spfpu
-                              ,rs3type: decoded.op_type.rs3type
-                              ,rs3addr: decoded.op_addr.rs3addr
+                              ,rs3type: decoded_inst0.op_type.rs3type
+                              ,rs3addr: decoded_inst0.op_addr.rs3addr
                             `endif
                             };
         tx_meta.u.enq(stage3meta);
@@ -418,28 +477,28 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         tx_commitlog.u.enq(clogpkt);
       `endif
    
-        let _op1 = FwdType{ valid: True, addr: decoded.op_addr.rs1addr, data: op1, epochs: wEpoch
+        let _op1 = FwdType{ valid: True, addr: decoded_inst0.op_addr.rs1addr, data: op1, epochs: wEpoch
                           `ifdef no_wawstalls ,id: ? `endif
-                          `ifdef spfpu ,rdtype: (decoded.op_type.rs1type==FloatingRF)?FRF:IRF `endif
+                          `ifdef spfpu ,rdtype: (decoded_inst0.op_type.rs1type==FloatingRF)?FRF:IRF `endif
                           };
-        let _op2 = FwdType{ valid: True, addr: decoded.op_addr.rs2addr, data: op2, epochs: wEpoch
+        let _op2 = FwdType{ valid: True, addr: decoded_inst0.op_addr.rs2addr, data: op2, epochs: wEpoch
                           `ifdef no_wawstalls ,id: ? `endif
-                          `ifdef spfpu ,rdtype: (decoded.op_type.rs2type==FloatingRF)?FRF:IRF `endif
+                          `ifdef spfpu ,rdtype: (decoded_inst0.op_type.rs2type==FloatingRF)?FRF:IRF `endif
                           };
         let _op3 = FwdType{ valid: True, 
-                            addr: `ifdef spfpu decoded.op_addr.rs3addr `else 0 `endif ,
+                            addr: `ifdef spfpu decoded_inst0.op_addr.rs3addr `else 0 `endif ,
                             data: signExtend(op4),
                             epochs: wEpoch
-                          `ifdef spfpu ,rdtype: decoded.op_type.rs3type `endif 
+                          `ifdef spfpu ,rdtype: decoded_inst0.op_type.rs3type `endif 
                           `ifdef no_wawstalls ,id : ? `endif };
                             
         rg_op1[0] <= _op1;
         rg_op2[0] <= _op2;
-        rg_op2type[0] <= decoded.op_type.rs2type;
+        rg_op2type[0] <= decoded_inst0.op_type.rs2type;
         rg_op3[0] <= _op3;
 
-        `logLevel( stage2, 0, fstage2( hartid, _op1, decoded.op_type.rs1type, 
-                  _op2, decoded.op_type.rs2type, _op3, instrType, stage3meta, mtval ))
+        `logLevel( stage2, 0, fstage2( hartid, _op1, decoded_inst0.op_type.rs1type, 
+                  _op2, decoded_inst0.op_type.rs2type, _op3, instrType, stage3meta, mtval ))
         // -------------------------------------------------------------------------------------- //
       rx_pipe1.u.deq;
     `ifdef rtldump

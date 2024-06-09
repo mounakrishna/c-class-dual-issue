@@ -61,7 +61,7 @@ fabrics:
   url: https://gitlab.com/shaktiproject/uncore/fabrics
   checkout: 1.2.0
 common_verilog:
-  url: https://gitlab.com/shaktiproject/common_verilog
+  url: git@github.com:mounakrishna/common_verilog.git
   checkout: master
 verification:
   url: git@github.com:Mindgrove-Technologies/verification.git
@@ -78,4 +78,7 @@ csrbox:
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
   checkout: No_hyp_reg
+application-benchmarks:
+  url: git@github.com:mounakrishna/application-benchmarks.git
+  checkout: master
 '''
