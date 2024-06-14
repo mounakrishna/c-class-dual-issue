@@ -23,10 +23,11 @@ package registerfile;
   `include "Logger.bsv"
 
 	interface Ifc_registerfile;
-    method ActionValue#(Bit#(`elen)) read_rs1(Bit#(5) addr `ifdef spfpu, RFType rs1type `endif );
-    method ActionValue#(Bit#(`elen)) read_rs2(Bit#(5) addr `ifdef spfpu, RFType rs2type `endif );
-    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr `ifdef spfpu, RFType rs2type `endif );
-    method ActionValue#(Bit#(`elen)) read_rs4(Bit#(5) addr `ifdef spfpu, RFType rs2type `endif );
+    method ActionValue#(Bit#(`elen)) read_rs1(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
+    method ActionValue#(Bit#(`elen)) read_rs2(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
+    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
+    method ActionValue#(Bit#(`elen)) read_rs4(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
+    method ActionValue#(Bit#(`elen)) read_rs5(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
 		method Action commit_rd_1 (CommitData c);
 		method Action commit_rd_2 (CommitData c);
 	endinterface
@@ -71,13 +72,13 @@ package registerfile;
     // corresponding register file.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-    method ActionValue#(Bit#(`elen)) read_rs1(Bit#(5) addr `ifdef spfpu, RFType rs1type `endif )
+    method ActionValue#(Bit#(`elen)) read_rs1(Bit#(5) addr `ifdef spfpu, RFType rstype `endif )
                                                                                     if(!initialize);
       `ifdef merged_rf
-        return zeroExtend(rf.sub({pack(rs1type==FRF),addr}));
+        return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
       `else
         `ifdef spfpu
-          if(rs1type == FRF) return zeroExtend(frf.sub(addr)); else
+          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
         `endif
         return zeroExtend(xrf.sub(addr)); // zero extend is required when `xlen<`elen*/
       `endif
@@ -87,13 +88,13 @@ package registerfile;
     // corresponding register file.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-    method ActionValue#(Bit#(`elen)) read_rs2(Bit#(5) addr `ifdef spfpu, RFType rs2type `endif )
+    method ActionValue#(Bit#(`elen)) read_rs2(Bit#(5) addr `ifdef spfpu, RFType rstype `endif )
                                                                                     if(!initialize);
       `ifdef merged_rf
-        return zeroExtend(rf.sub({pack(rs2type==FRF),addr}));
+        return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
       `else
         `ifdef spfpu
-          if(rs2type == FRF) return zeroExtend(frf.sub(addr)); else
+          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
         `endif
         return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
       `endif
@@ -104,12 +105,12 @@ package registerfile;
     // Floating register file. Integer RF is not looked - up for rs3 at all.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr `ifdef spfpu, RFType rs2type `endif ) if(!initialize);
+    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr `ifdef spfpu, RFType rstype `endif ) if(!initialize);
       `ifdef merged_rf
-        return zeroExtend(rf.sub({pack(rs2type==FRF),addr}));
+        return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
       `else
         `ifdef spfpu
-          if(rs2type == FRF) return zeroExtend(frf.sub(addr)); else
+          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
         `endif
         return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
       `endif
@@ -120,32 +121,33 @@ package registerfile;
     // Floating register file. Integer RF is not looked - up for rs3 at all.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-    method ActionValue#(Bit#(`elen)) read_rs4(Bit#(5) addr `ifdef spfpu, RFType rs2type `endif ) if(!initialize);
+    method ActionValue#(Bit#(`elen)) read_rs4(Bit#(5) addr `ifdef spfpu, RFType rstype `endif ) if(!initialize);
       `ifdef merged_rf
-        return zeroExtend(rf.sub({pack(rs2type==FRF),addr}));
+        return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
       `else
         `ifdef spfpu
-          if(rs2type == FRF) return zeroExtend(frf.sub(addr)); else
+          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
         `endif
         return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
       `endif
     endmethod
 
-  `ifdef spfpu
     // This method will read operand3 using rs3addr from the decode stage. If there a commit in the
     // same cycle to rs2addr, then that value if bypassed else the value is read from the
     // Floating register file. Integer RF is not looked - up for rs3 at all.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-    method ActionValue#(Bit#(`flen)) read_rs5(Bit#(5) addr) if(!initialize);
-      /*return frf.sub(addr);*/
-      `ifdef merged_rf 
-         return rf.sub({1'b1,addr});
-      `else 
-         return frf.sub(addr);
+    method ActionValue#(Bit#(`elen)) read_rs5(Bit#(5) addr `ifdef spfpu, RFType rstype `endif ) if(!initialize);
+      `ifdef merged_rf
+        return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
+      `else
+        `ifdef spfpu
+          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
+        `endif
+        return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
       `endif
     endmethod
-  `endif
+
     // This method is fired when the write - back stage performs a commit and needs to update the RF.
     // The value being commited is updated in the respective register file and also bypassed to the
     // above methods for operand forwarding.

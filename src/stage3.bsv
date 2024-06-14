@@ -415,7 +415,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     wr_op3_avail_probe <= _op3_avail;
   `endif
     if (lv_waw_stall)begin
-      `logLevel( stage3, stall, $format("[%2d]STAGE3: WAW Stall", hartid))
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: WAW Stall", hartid))
       `logLevel( stage3, 0, $format("[%2d]STAGE3: ",hartid, fshow(sboard.mv_board)))
     end
     else begin

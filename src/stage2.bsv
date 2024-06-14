@@ -359,33 +359,42 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 //`endif
     // ---------------------------------------------------------------------------------------- //
     // ---------------------------- read operands from the registerfile ----------------------//
-    if (decoded_inst[0].op_type.rs3type == FRF) begin
-      Bit#(5) rs3addr =  ? frf_rs3addr[0] : decoded_inst[1].op_addr.rs1addr;
-      rf1type[1] = FRF;
-    end
+    //if (decoded_inst[0].op_type.rs3type == FRF) begin
+    //  Bit#(5) rs3addr = frf_rs3addr[0];
+    //  rf1type[1] = FRF;
+    //end
+    //else begin
+    //  Bit#(5) rs3addr = decoded_inst[1].op_addr.rs1addr;
+    //  rf1type[1] = IRF;
+    //end
+
     let rs1_from_rf <- registerfile.read_rs1(decoded_inst[0].op_addr.rs1addr
                         `ifdef spfpu ,rf1type[0] `endif );
     let rs2_from_rf <- registerfile.read_rs2(decoded_inst[0].op_addr.rs2addr
                         `ifdef spfpu ,rf2type[0] `endif );
-    let rs3_from_rf <- registerfile.read_rs3(rs3addr
+  `ifdef spfpu
+    let rs3 <- registerfile.read_rs3(inst[31:27]);
+  `endif
+    let rs4_from_rf <- registerfile.read_rs4(decoded_inst[1].op_addr.rs1addr
                         `ifdef spfpu ,rf1type[1] `endif );
-    let rs4_from_rf <- registerfile.read_rs4(decoded_inst[1].op_addr.rs2addr
+    let rs5_from_rf <- registerfile.read_rs5(decoded_inst[1].op_addr.rs2addr
                         `ifdef spfpu ,rf2type[1] `endif );
-  //`ifdef spfpu
-  //  let rs3 <- registerfile.read_rs3(inst[31:27]);
-  //`endif
     // -------------------------------------------------------------------------------------- //
     
     // ------------------------ modify operand values before enquing to next stage -----------//
-    Bit#(`elen) op1 =  rs1_from_rf;
-    Bit#(`elen) op2 =  (decoded_inst0.op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
-                      (decoded_inst0.op_type.rs2type == Constant4) ? 'd4:
-                      (decoded_inst0.op_type.rs2type == Immediate) ? signExtend(imm) : rs2_from_rf;
+    Bit#(`elen) op1_inst0 =  rs1_from_rf;
+    Bit#(`elen) op2_inst0 =  (decoded_inst[0].op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
+                      (decoded_inst[0].op_type.rs2type == Constant4) ? 'd4:
+                      (decoded_inst[0].op_type.rs2type == Immediate) ? signExtend(imm[0]) : rs2_from_rf;
   `ifdef spfpu
-    Bit#(`flen) op4 = (decoded_inst0.op_type.rs3type == FRF) ? rs3 : signExtend(imm);
+    Bit#(`flen) op3 = (decoded_inst[0].op_type.rs3type == FRF) ? rs3_from_rf : signExtend(imm[0]);
   `else
-    Bit#(`flen) op4 = signExtend(imm);
+    Bit#(`flen) op3 = signExtend(imm[0]);
   `endif
+    Bit#(`elen) op1_inst1 = rs4_from_rf;
+    Bit#(`elen) op2_inst1 =  (decoded_inst[1].op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
+                      (decoded_inst[1].op_type.rs2type == Constant4) ? 'd4:
+                      (decoded_inst[1].op_type.rs2type == Immediate) ? signExtend(imm[1]) : rs5_from_rf;
     // -------------------------------------------------------------------------------------- //
     let stage3meta = Stage3Meta{funct : func_cause, memaccess : decoded_inst0.meta.memaccess,
                                 pc : pc, epochs : epochs, rd: decoded_inst0.op_addr.rd,
@@ -487,7 +496,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                           };
         let _op3 = FwdType{ valid: True, 
                             addr: `ifdef spfpu decoded_inst0.op_addr.rs3addr `else 0 `endif ,
-                            data: signExtend(op4),
+                            data: signExtend(op3),
                             epochs: wEpoch
                           `ifdef spfpu ,rdtype: decoded_inst0.op_type.rs3type `endif 
                           `ifdef no_wawstalls ,id : ? `endif };
