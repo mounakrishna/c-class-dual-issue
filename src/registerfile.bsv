@@ -25,7 +25,7 @@ package registerfile;
 	interface Ifc_registerfile;
     method ActionValue#(Bit#(`elen)) read_rs1(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
     method ActionValue#(Bit#(`elen)) read_rs2(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
-    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
+    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr);
     method ActionValue#(Bit#(`elen)) read_rs4(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
     method ActionValue#(Bit#(`elen)) read_rs5(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
 		method Action commit_rd_1 (CommitData c);
@@ -43,7 +43,7 @@ package registerfile;
     RegFile5r2w#(Bit#(5), Bit#(`xlen)) xrf <- mkRegFile5r2wWCF(0, 31);
 		Reg#(Bit#(5)) rg_index <- mkReg(0);
   `ifdef spfpu
-    RegFile#(Bit#(5), Bit#(`flen)) frf <- mkRegFileWCF(0, 31);
+    RegFile5r2w#(Bit#(5), Bit#(`flen)) frf <- mkRegFile5r2wWCF(0, 31);
   `endif
 `endif
 
@@ -57,7 +57,7 @@ package registerfile;
     `else
       xrf.upd_1(rg_index, 0);
       `ifdef spfpu
-        frf.upd(rg_index, 0);
+        frf.upd_1(rg_index, 0);
       `endif
     `endif
 			rg_index <= rg_index + 1;
@@ -105,14 +105,12 @@ package registerfile;
     // Floating register file. Integer RF is not looked - up for rs3 at all.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr `ifdef spfpu, RFType rstype `endif ) if(!initialize);
-      `ifdef merged_rf
-        return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
-      `else
-        `ifdef spfpu
-          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
-        `endif
-        return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
+    method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr) if(!initialize);
+      /*return frf.sub(addr);*/
+      `ifdef merged_rf 
+         return rf.sub({1'b1,addr});
+      `else 
+         return frf.sub(addr);
       `endif
     endmethod
 
@@ -158,10 +156,10 @@ package registerfile;
                                                   `ifdef spfpu, fshow(c.rdtype) `endif ))
     `ifdef merged_rf 
   	  if (c.rdtype != IRF || c.addr != 0)
-    	  rf.upd({pack(c.rdtype==FRF),c.addr},truncate(c.data));
+    	  rf.upd_1({pack(c.rdtype==FRF),c.addr},truncate(c.data));
     `else
       `ifdef spfpu
-        if(c.rdtype == FRF) frf.upd(c.addr, truncate(c.data)); else
+        if(c.rdtype == FRF) frf.upd_1(c.addr, truncate(c.data)); else
       `endif
         if(c.addr != 0) xrf.upd_1(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
     `endif
@@ -172,10 +170,10 @@ package registerfile;
                                                   `ifdef spfpu, fshow(c.rdtype) `endif ))
     `ifdef merged_rf 
   	  if (c.rdtype != IRF || c.addr != 0)
-    	  rf.upd({pack(c.rdtype==FRF),c.addr},truncate(c.data));
+    	  rf.upd_2({pack(c.rdtype==FRF),c.addr},truncate(c.data));
     `else
       `ifdef spfpu
-        if(c.rdtype == FRF) frf.upd(c.addr, truncate(c.data)); else
+        if(c.rdtype == FRF) frf.upd_2(c.addr, truncate(c.data)); else
       `endif
         if(c.addr != 0) xrf.upd_2(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
     `endif

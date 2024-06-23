@@ -362,7 +362,7 @@ typedef struct{
 `endif
   Privilege_mode mode;
   Bit#(`xlen) pc;
-  Vector#(`issue, Bit#(32)) instruction;
+  Vector#(`num_issue, Bit#(32)) instruction;
   CommitLogType inst_type;
 } CommitLogPacket deriving(Bits, FShow, Eq);
 // ------------------------------------------------------------------------------------------
@@ -383,14 +383,14 @@ typedef struct{
 typedef struct{
 `ifdef compressed
   Bool upper_err;
-  Bool compressed;
+  Vector#(`num_issue, Bool) compressed;
   Bool issue; //Is set True when 2 compressed instruction are enqued to the next stage.
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
 `endif
 	Bit#(`vaddr) program_counter;
-	Vector#(`issue, Maybe#(Bit#(32))) instruction;
+	Vector#(`num_issue, Maybe#(Bit#(32))) instruction;
 	Bit#(`iesize) epochs;
   Bool trap ;
   Bit#(`causesize) cause;
@@ -402,25 +402,25 @@ typedef struct{
   Bit#(1) hvm_loadstore;
 `endif
 `ifdef spfpu
-  RFType rdtype;
+  Vector#(`num_issue, RFType) rdtype;
 `endif
 `ifdef RV64
-  Bool word32;
+  Vector#(`num_issue, Bool) word32;
 `elsif dpfpu
-  Bool word32;
+  Vector#(`num_issue, Bool) word32;
 `endif
 `ifdef bpu
   `ifdef compressed
-    Bool compressed;
+    Vector#(`num_issue, Bool) compressed;
   `endif
   BTBResponse btbresponse;
 `endif
   Bool is_microtrap;
-  Bit#(TMax#(`causesize, 7)) funct;
-  Access_type memaccess;
+  Vector#(`num_issue, Bit#(TMax#(`causesize, 7))) funct;
+  Vector#(`num_issue, Access_type) memaccess;
   Bit#(`vaddr) pc;
   Bit#(2) epochs;
-  Bit#(5) rd;
+  Vector#(`num_issue, Bit#(5)) rd;
 } Stage3Meta deriving(Bits, Eq);
 
 instance FShow#(Stage3Meta);
@@ -445,6 +445,10 @@ typedef struct {
   Op2type rs2type;
   Bit#(5) rs1addr;
   Bit#(5) rs2addr;
+  Op1type rs4type;
+  Op2type rs5type;
+  Bit#(5) rs4addr;
+  Bit#(5) rs5addr;
 } OpMeta deriving(Bits, FShow, Eq);
 
 // ----------------- structures of operand fetch from decode stage ------------------------------

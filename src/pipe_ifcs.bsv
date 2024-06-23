@@ -109,9 +109,9 @@ interface Ifc_s3_rx;
   /*doc:subifc: interface to receive the meta information from the decode stage*/
   interface RXe#(Stage3Meta)          rx_meta_from_stage2;
   /*doc: subifc: interface to receive the mtval value from stage2 incase of a trap */
-  interface RXe#(Bit#(`xlen))          rx_mtval_from_stage2;
+  interface RXe#(Vector#(`num_issue, Bit#(`xlen)))          rx_mtval_from_stage2;
   /*doc: subifc: interface to receive the mtval value from stage2 incase of a trap */
-  interface RXe#(Instruction_type)    rx_instrtype_from_stage2;
+  interface RXe#(Vector#(`num_issue, Instruction_type))    rx_instrtype_from_stage2;
   /*doc: subifc: interface to receive the operand metadata value from stage2*/
   interface RXe#(OpMeta)              rx_opmeta_from_stage2;
 `ifdef rtldump 
@@ -147,6 +147,12 @@ interface Ifc_s3_rf;
   /*doc:method: receive op2 and its meta info from previous stage (stage2/decode)*/
   (*always_enabled, always_ready*)
   method Action ma_op3 (FwdType i);
+  /*doc:method: receive op2 and its meta info from previous stage (stage2/decode)*/
+  //(*always_enabled, always_ready*)
+  //method Action ma_op4 (FwdType i);
+  ///*doc:method: receive op2 and its meta info from previous stage (stage2/decode)*/
+  //(*always_enabled, always_ready*)
+  //method Action ma_op5 (FwdType i);
 endinterface: Ifc_s3_rf
 
 interface Ifc_s3_cache;
@@ -268,10 +274,10 @@ interface Ifc_s2_tx;
   interface TXe#(Stage3Meta)    tx_meta_to_stage3;
 
   /*doc:subifc: send bad-address information to stage3 in case of TRAPs*/
-  interface TXe#(Bit#(`xlen))    tx_mtval_to_stage3;
+  interface TXe#(Vector#(`num_issue, Bit#(`xlen)))    tx_mtval_to_stage3;
 
   /*doc:subifc: send instruction type to stage3*/
-  interface TXe#(Instruction_type) tx_instrtype_to_stage3;
+  interface TXe#(Vector#(`num_issue, Instruction_type)) tx_instrtype_to_stage3;
 
   interface TXe#(OpMeta) tx_opmeta_to_stage3;
 
@@ -293,6 +299,14 @@ interface Ifc_s2_rf;
   (*always_ready*)
   /*doc:method: Latest value of operand3 from rf*/
   method FwdType mv_op3;
+
+  //(*always_ready*)
+  ///*doc:method: Latest value of operand2 from rf*/
+  //method FwdType mv_op4;
+
+  //(*always_ready*)
+  ///*doc:method: Latest value of operand2 from rf*/
+  //method FwdType mv_op5;
 
 endinterface:Ifc_s2_rf
 
@@ -498,8 +512,8 @@ endinterface:Ifc_s5_perfmonitors
 
   module mkPipe_s2_s3#(Ifc_s2_tx s2, Ifc_s3_rx s3)(Bool);
     FIFOF#(Stage3Meta) ff_meta <- mkLFIFOF();
-    FIFOF#(Bit#(`xlen)) ff_mtval <- mkLFIFOF();
-    FIFOF#(Instruction_type) ff_insttype <- mkLFIFOF();
+    FIFOF#(Vector#(`num_issue, Bit#(`xlen))) ff_mtval <- mkLFIFOF();
+    FIFOF#(Vector#(`num_issue, Instruction_type)) ff_insttype <- mkLFIFOF();
     FIFOF#(OpMeta) ff_opmeta <- mkLFIFOF();
   `ifdef rtldump
     FIFOF#(CommitLogPacket) ff_commitlog <- mkLFIFOF();

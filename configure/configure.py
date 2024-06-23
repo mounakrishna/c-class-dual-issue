@@ -216,8 +216,8 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
     macros += ' CORE_'+str(foo['bus_protocol'])
     macros += ' iesize='+str(foo['iepoch_size'])
     macros += ' desize='+str(foo['depoch_size'])
-    macros += ' issue='+str(foo['issue'])
     macros += ' num_harts='+str(foo['num_harts'])
+    macros += ' num_issue='+str(foo['num_issue'])
     macros += ' microtrap_support'
 
     wawid = foo['isb_sizes']['isb_s3s4']+foo['isb_sizes']['isb_s4s5']

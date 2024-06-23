@@ -15,6 +15,20 @@
 num_harts: {type: integer, default: 1, min: 1, max: 1024}
 
 ###
+#num_issue
+#^^^^^^^^^
+#
+# **Description**: Describes the issue width of the pipeline
+#
+#  **Examples**:
+#
+#  .. code-block:: yaml
+#
+#     num_issue: 2
+
+num_issue: {type: integer, default: 1, min: 1, max: 1024}
+
+###
 #
 #isb_sizes
 #^^^^^^^^^
@@ -170,23 +184,6 @@ iepoch_size:
 depoch_size:
   type: integer
   allowed: [1]
-  default: 1
-
-###
-#
-#issue
-#^^^^^^^^^^^
-#
-# **Description**: Indicates the instruction issue size of the core.
-#
-# **Examples**:
-#
-# .. code-block:: yaml
-#
-#   issue: 2
-
-issue:
-  type: integer
   default: 1
 
 ###

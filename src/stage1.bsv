@@ -217,10 +217,10 @@ package stage1;
       Bool trap = False;
 
       // local variable to hold the instruction to be enqueued
-      Vector#(`issue, Maybe#(Bit#(32))) final_instruction= replicate(tagged Invalid);
+      Vector#(`num_issue, Maybe#(Bit#(32))) final_instruction= replicate(tagged Invalid);
 
       // local variable to indicate if the instruction being analysed is compressed or not
-      Bool compressed = False;
+      Vector#(`num_issue, Bool) compressed_instr = replicate(False);
 
       // local variable to indicate if two compressed instructions are paired and issued to decode stage.
       Bool issue = False;
@@ -268,10 +268,12 @@ package stage1;
           rg_receiving_upper <= True;
         end
         else begin 
-          compressed = True;
+          compressed_instr[0] = True;
           final_instruction[0] = tagged Valid zeroExtend(rg_prev.instruction);
-          if (imem_resp.word[1:0] != 2'b11) 
+          if (imem_resp.word[1:0] != 2'b11) begin
             final_instruction[1] = tagged Valid zeroExtend(imem_resp.word[15:0]);
+            compressed_instr[1] = True;
+          end
           else
             final_instruction[1] = tagged Invalid;
           rg_action <= None;
@@ -303,7 +305,7 @@ package stage1;
         end
         else begin
           rg_action <= None;
-          compressed = True;
+          compressed_instr[0] = True;
           final_instruction[0] = tagged Valid zeroExtend(imem_resp.word[31 : 16]);
           final_instruction[1] = tagged Invalid;
           trap = imem_resp.trap;
@@ -323,12 +325,14 @@ package stage1;
       `ifdef compressed
         // if instruction from cache is compressed
         else if(wr_csr_misa_c == 1) begin
-          compressed = True;
+          compressed_instr[0] = True;
           final_instruction[0] = tagged Valid zeroExtend(imem_resp.word[15 : 0]);
           if (imem_resp.word[17:16] == 2'b11)
             final_instruction[1] = tagged Invalid;
-          else
+          else begin
             final_instruction[1] = tagged Valid zeroExtend(imem_resp.word[31:16]);
+            compressed_instr[1] = False;
+          end
           lv_prev.instruction = truncateLSB(imem_resp.word);
           lv_prev.pc = stage0pc.address;
         `ifdef bpu
@@ -350,7 +354,8 @@ package stage1;
       end
       lv_prev.epochs = curr_epoch;
       rg_prev <= lv_prev;
-      Bit#(`vaddr) incr_value = (compressed  && wr_csr_misa_c == 1) ? 2:4;
+      //Bit#(`vaddr) incr_value = (compressed_instr[0] && !compressed_instr[1]  && wr_csr_misa_c == 1) ? 2:4;
+      Bit#(`vaddr) incr_value = (compressed_instr[0] && wr_csr_misa_c == 1) ? 2:4;
       Bit#(`causesize) cause = imem_resp.cause;
     `ifdef triggers
       let {trig_trap, trig_cause} <- check_trigger(stage0pc.address, final_instruction
@@ -360,11 +365,11 @@ package stage1;
         cause = trig_cause;
       end
     `endif
-      Vector#(`issue, Bit#(32)) inst;
+      Vector#(`num_issue, Bit#(32)) inst;
       inst[0] = fromMaybe(0, final_instruction[0]);
       inst[1] = fromMaybe(0, final_instruction[1]);
     `ifdef compressed
-      if(compressed)
+      if(compressed_instr[0])
         final_instruction[0] = tagged Valid fn_decompress(truncate(fromMaybe(0, final_instruction[0])));
         final_instruction[1] = isValid(final_instruction[1]) ? 
                                                     tagged Valid fn_decompress(truncate(fromMaybe(0, final_instruction[1]))):
@@ -379,7 +384,7 @@ package stage1;
                   `endif
                   `ifdef compressed
                     ,upper_err : rg_receiving_upper && imem_resp.trap
-                    ,compressed: compressed
+                    ,compressed: compressed_instr
                   `endif
                     ,cause : cause };
       `logLevel( stage1, 0,$format("[%2d]STAGE1 : PC:%h: ",hartid,stage0pc.address,
