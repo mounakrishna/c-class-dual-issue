@@ -148,11 +148,11 @@ interface Ifc_s3_rf;
   (*always_enabled, always_ready*)
   method Action ma_op3 (FwdType i);
   /*doc:method: receive op2 and its meta info from previous stage (stage2/decode)*/
-  //(*always_enabled, always_ready*)
-  //method Action ma_op4 (FwdType i);
-  ///*doc:method: receive op2 and its meta info from previous stage (stage2/decode)*/
-  //(*always_enabled, always_ready*)
-  //method Action ma_op5 (FwdType i);
+  (*always_enabled, always_ready*)
+  method Action ma_op4 (FwdType i);
+  /*doc:method: receive op2 and its meta info from previous stage (stage2/decode)*/
+  (*always_enabled, always_ready*)
+  method Action ma_op5 (FwdType i);
 endinterface: Ifc_s3_rf
 
 interface Ifc_s3_cache;
@@ -300,13 +300,13 @@ interface Ifc_s2_rf;
   /*doc:method: Latest value of operand3 from rf*/
   method FwdType mv_op3;
 
-  //(*always_ready*)
-  ///*doc:method: Latest value of operand2 from rf*/
-  //method FwdType mv_op4;
+  (*always_ready*)
+  /*doc:method: Latest value of operand2 from rf*/
+  method FwdType mv_op4;
 
-  //(*always_ready*)
-  ///*doc:method: Latest value of operand2 from rf*/
-  //method FwdType mv_op5;
+  (*always_ready*)
+  /*doc:method: Latest value of operand2 from rf*/
+  method FwdType mv_op5;
 
 endinterface:Ifc_s2_rf
 
@@ -540,6 +540,8 @@ endinterface:Ifc_s5_perfmonitors
       mkConnection (s2.mv_op1, s3.ma_op1);
       mkConnection (s2.mv_op2, s3.ma_op2);
       mkConnection (s2.mv_op3, s3.ma_op3);
+      mkConnection (s2.mv_op4, s3.ma_op4);
+      mkConnection (s2.mv_op5, s3.ma_op5);
     endmodule
   endinstance
 

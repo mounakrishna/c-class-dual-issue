@@ -240,11 +240,11 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
   /*doc:wire: holds value of operand1 after checking the bypass signals from downstream isbs and
   * regfile*/
-  //Wire#(Bit#(`xlen)) wr_fwd_op4 <- mkWire();
+  Wire#(Bit#(`xlen)) wr_fwd_op4 <- mkWire();
 
-  ///*doc:wire: holds value of operand2 after checking the bypass signals from downstream isbs and
-  //* regfile*/
-  //Wire#(Bit#(`xlen)) wr_fwd_op5 <- mkWire();
+  /*doc:wire: holds value of operand2 after checking the bypass signals from downstream isbs and
+  * regfile*/
+  Wire#(Bit#(`xlen)) wr_fwd_op5 <- mkWire();
 `ifdef spfpu
   /*doc:wire: holds value of operand3 after checking the bypass signals from downstream isbs and
   * regfile*/
@@ -267,15 +267,16 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:wire: after checking the bypass signals from downstream ISBs, this wire indicates if the
   * latest value of operand1 is available or not. If not then we need stall on instructions waiting
   * for this value.*/
-  //Wire#(Bool) wr_op4_avail <- mkWire();
-  //Probe#(Bool) wr_op4_avail_probe <- mkProbe();
+  Wire#(Bool) wr_op4_avail <- mkWire();
+  Probe#(Bool) wr_op4_avail_probe <- mkProbe();
 
 
-  ///*doc:wire: after checking the bypass signals from downstream ISBs, this wire indicates if the
-  //* latest value of operand2 is available or not. If not then we need stall on instructions waiting
-  //* for this value.*/
-  //Wire#(Bool) wr_op5_avail <- mkWire();
-  //Probe#(Bool) wr_op5_avail_probe <- mkProbe();
+  /*doc:wire: after checking the bypass signals from downstream ISBs, this wire indicates if the
+  * latest value of operand2 is available or not. If not then we need stall on instructions waiting
+  * for this value.*/
+  Wire#(Bool) wr_op5_avail <- mkWire();
+  Probe#(Bool) wr_op5_avail_probe <- mkProbe();
+
 `ifdef spfpu
   /*doc:wire: after checking the bypass signals from downstream ISBs, this wire indicates if the
   * latest value of operand3 is available or not. If not then we need stall on instructions waiting
@@ -420,34 +421,34 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     //                ,sb_lock: sb_mask[ { `ifdef spfpu pack(rf5type==FRF), `endif opmeta.rs5addr}] 
     //                `ifdef no_wawstalls ,id: sb_rs5id `endif
     //                `ifdef spfpu ,rdtype: rf2type `endif };
-    Vector#(TAdd#(`bypass_sources ,1), FwdType) byp1, byp2;// byp4, byp5;
+    Vector#(TAdd#(`bypass_sources ,1), FwdType) byp1, byp2, byp4, byp5;
     byp1[0] = wr_bypass[0];
     byp2[0] = wr_bypass[0];
     byp1[1] = wr_bypass[1];
     byp2[1] = wr_bypass[1];
     byp1[2] = wr_rf_op1;
     byp2[2] = wr_rf_op2;
-    //byp4[0] = wr_bypass[0];
-    //byp5[0] = wr_bypass[0];
-    //byp4[1] = wr_bypass[1];
-    //byp5[1] = wr_bypass[1];
-    //byp4[2] = wr_rf_op4;
-    //byp5[2] = wr_rf_op5;
+    byp4[0] = wr_bypass[0];
+    byp5[0] = wr_bypass[0];
+    byp4[1] = wr_bypass[1];
+    byp5[1] = wr_bypass[1];
+    byp4[2] = wr_rf_op4;
+    byp5[2] = wr_rf_op5;
     let {_op1_avail, _fwd_op1} = fn_bypass( req_addr1, byp1);
     let {_op2_avail, _fwd_op2} = fn_bypass( req_addr2, byp2);
-    //let {_op4_avail, _fwd_op4} = fn_bypass( req_addr1, byp4);
-    //let {_op5_avail, _fwd_op5} = fn_bypass( req_addr2, byp5);
+    let {_op4_avail, _fwd_op4} = fn_bypass( req_addr1, byp4);
+    let {_op5_avail, _fwd_op5} = fn_bypass( req_addr2, byp5);
     wr_op1_avail <= _op1_avail; wr_fwd_op1 <= _fwd_op1;
     wr_op1_avail_probe <= _op1_avail;
 
     wr_op2_avail <= _op2_avail; wr_fwd_op2 <= _fwd_op2;
     wr_op2_avail_probe <= _op2_avail;
 
-    //wr_op4_avail <= _op4_avail; wr_fwd_op4 <= _fwd_op4;
-    //wr_op4_avail_probe <= _op4_avail;
+    wr_op4_avail <= _op4_avail; wr_fwd_op4 <= _fwd_op4;
+    wr_op4_avail_probe <= _op4_avail;
 
-    //wr_op5_avail <= _op5_avail; wr_fwd_op5 <= _fwd_op5;
-    //wr_op5_avail_probe <= _op5_avail;
+    wr_op5_avail <= _op5_avail; wr_fwd_op5 <= _fwd_op5;
+    wr_op5_avail_probe <= _op5_avail;
 
   `ifdef spfpu
     `ifdef no_wawstalls
@@ -1019,12 +1020,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     method Action ma_op3 (FwdType i);
       wr_op3 <= i;
     endmethod
-    //method Action ma_op4 (FwdType i);
-    //  wr_rf_op4 <= i;
-    //endmethod
-    //method Action ma_op5 (FwdType i);
-    //  wr_rf_op5 <= i;
-    //endmethod
+    method Action ma_op4 (FwdType i);
+      wr_rf_op4 <= i;
+    endmethod
+    method Action ma_op5 (FwdType i);
+      wr_rf_op5 <= i;
+    endmethod
   endinterface;
   // -------------------------------------------------------------------------------------------//
 

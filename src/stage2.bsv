@@ -243,7 +243,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     every time a retirement to the same register occurs.*/
   Reg#(FwdType) rg_op2[2] <- mkCReg(2, unpack(0));
 
-  Reg#(Op2type) rg_op2type <- mkConfigReg(IntegerRF);
+  //Reg#(Op2type) rg_op2type[2] <- mkCReg(2, IntegerRF);
+  Wire#(Op2type) wr_op2type <- mkDWire(IntegerRF);
   /*doc:reg:
     This register holds the latest value of operand1 from the RF. This will get updated
     every time a retirement to the same register occurs.*/
@@ -254,7 +255,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     every time a retirement to the same register occurs.*/
   Reg#(FwdType) rg_op5[2] <- mkCReg(2, unpack(0));
 
-  Reg#(Op2type) rg_op5type <- mkConfigReg(IntegerRF);
+  Reg#(Op2type) rg_op5type[2] <- mkCReg(2, IntegerRF);
   /*doc:reg:
     This register holds the latest value of operand3 from the RF. This will get updated
     every time a retirement to the same register occurs.*/
@@ -541,11 +542,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                             
         rg_op1[0] <= _op1;
         rg_op2[0] <= _op2;
-        rg_op2type <= decoded_inst[0].op_type.rs2type;
+        //rg_op2type[0] <= decoded_inst[0].op_type.rs2type;
+        wr_op2type <= decoded_inst[0].op_type.rs2type;
         rg_op3[0] <= _op3;
         rg_op4[0] <= _op4;
         rg_op5[0] <= _op5;
-        rg_op5type <= decoded_inst[1].op_type.rs2type;
+        rg_op5type[0] <= decoded_inst[1].op_type.rs2type;
 
         `logLevel( stage2, 0, fstage2( hartid, _op1, decoded_inst[0].op_type.rs1type, 
                   _op2, decoded_inst[0].op_type.rs2type, _op3, instrType[0], stage3meta, mtval[0] ))
@@ -611,8 +613,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     
         if(commit.addr == rg_op2[1].addr && commit.rdtype == rg_op2[1].rdtype)begin
           let _x = rg_op2[1];
-          if(commit.rdtype == FRF || (rg_op2[1].addr != 0 && rg_op2type == IntegerRF))
+          if(commit.rdtype == FRF || (rg_op2[1].addr != 0 && wr_op2type == IntegerRF))
             _x.data=commit.data;
+          $display("Writing op2: %h, addr: %d", _x.data, rg_op2[1].addr);
           rg_op2[1] <= _x;
         end
     
@@ -628,7 +631,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
         if(commit.addr == rg_op5[1].addr && commit.rdtype == rg_op5[1].rdtype)begin
           let _x = rg_op5[1];
-          if(commit.rdtype == FRF || (rg_op5[1].addr != 0 && rg_op5type == IntegerRF))
+          if(commit.rdtype == FRF || (rg_op5[1].addr != 0 && rg_op5type[1] == IntegerRF))
             _x.data=commit.data;
           rg_op5[1] <= _x;
         end
@@ -641,7 +644,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           rg_op1[1] <= _x;
         end
     
-        if(rg_op2[1].addr == commit.addr && rg_op2[1].addr!=0 && rg_op2type == IntegerRF)
+        if(rg_op2[1].addr == commit.addr && rg_op2[1].addr!=0 && rg_op2type[1] == IntegerRF)
           _y.data = commit.data;
           rg_op2[1] <= _y;
       `endif
@@ -677,8 +680,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     method mv_op1 = rg_op1[0];
     method mv_op2 = rg_op2[0];
     method mv_op3 = rg_op3[0];
-    //method mv_op4 = rg_op4[0];
-    //method mv_op5 = rg_op5[0];
+    method mv_op4 = rg_op4[0];
+    method mv_op5 = rg_op5[0];
   endinterface;
   method mv_wfi_detected = rg_wfi;
 	
