@@ -615,7 +615,6 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           let _x = rg_op2[1];
           if(commit.rdtype == FRF || (rg_op2[1].addr != 0 && wr_op2type == IntegerRF))
             _x.data=commit.data;
-          $display("Writing op2: %h, addr: %d", _x.data, rg_op2[1].addr);
           rg_op2[1] <= _x;
         end
     

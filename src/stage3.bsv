@@ -383,44 +383,55 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     `logLevel( stage3, pc, $format("[%2d]STAGE3: PC:%h",hartid, meta.pc))
     
     // ----------------------- check for WAW hazard ------------------------------------------- //
-    let sb_index_inst0 = {`ifdef spfpu pack(meta.rdtype[0]==FRF), `endif meta.rd[0] };
-    //let sb_index_inst1 = {`ifdef spfpu pack(meta.rdtype[0]==FRF), `endif meta.rd[1] };
-    let sb_rdlock_inst0 = sboard.mv_board.rf_lock[sb_index_inst0];
-    //let sb_rdlock_inst1 = sboard.mv_board.rf_lock[sb_index_inst1];
-    Bool lv_waw_stall = unpack(sb_rdlock_inst0) // && unpack(sb_rdlock_inst1)
-        `ifdef no_wawstalls && False `endif ;
+    `ifdef no_wawstalls
+      Bool lv_waw_stall <= False;
+    `else
+      let sb_index_inst0 = {`ifdef spfpu pack(meta.rdtype[0]==FRF), `endif meta.rd[0] };
+      let sb_index_inst1 = {`ifdef spfpu pack(meta.rdtype[0]==FRF), `endif meta.rd[1] };
+      let sb_inst0 = sboard.mv_board(sb_index_inst0);
+      let sb_inst1 = sboard.mv_board(sb_index_inst1);
+      Bool lv_waw_stall = unpack(sb_inst0.lock) && unpack(sb_inst1.lock);
+    `endif
     wr_waw_stall <= lv_waw_stall ;
     // ---------------------------------------------------------------------------------------- //
   `ifdef spfpu
     RFType rf1type = `ifdef spfpu opmeta.rs1type == FloatingRF ? FRF : `endif IRF;
     RFType rf2type = `ifdef spfpu opmeta.rs2type == FloatingRF ? FRF : `endif IRF;
     RFType rf3type = opmeta.rs3type;
-    //RFType rf4type = `ifdef spfpu opmeta.rs4type == FloatingRF ? FRF : `endif IRF;
-    //RFType rf5type = `ifdef spfpu opmeta.rs5type == FloatingRF ? FRF : `endif IRF;
+    RFType rf4type = `ifdef spfpu opmeta.rs4type == FloatingRF ? FRF : `endif IRF;
+    RFType rf5type = `ifdef spfpu opmeta.rs5type == FloatingRF ? FRF : `endif IRF;
   `endif
+
+    let sb_rs1 = sboard.mv_board({ `ifdef spfpu pack(rf1type==FRF), `endif opmeta.rs1addr});
+    let sb_rs2 = sboard.mv_board({ `ifdef spfpu pack(rf2type==FRF), `endif opmeta.rs2addr});
+    let sb_rs4 = sboard.mv_board({ `ifdef spfpu pack(rf4type==FRF), `endif opmeta.rs4addr});
+    let sb_rs5 = sboard.mv_board({ `ifdef spfpu pack(rf5type==FRF), `endif opmeta.rs5addr});
   `ifdef no_wawstalls
-    let sb_rs1id = sboard.mv_board.v_id[{ `ifdef spfpu pack(rf1type==FRF), `endif opmeta.rs1addr}];
-    let sb_rs2id = sboard.mv_board.v_id[{ `ifdef spfpu pack(rf2type==FRF), `endif opmeta.rs2addr}];
-    //let sb_rs4id = sboard.mv_board.v_id[{ `ifdef spfpu pack(rf4type==FRF), `endif opmeta.rs4addr}];
-    //let sb_rs5id = sboard.mv_board.v_id[{ `ifdef spfpu pack(rf5type==FRF), `endif opmeta.rs5addr}];
+    let sb_rs1id = sb_rs1.id;
+    let sb_rs2id = sb_rs2.id;
+    let sb_rs4id = sb_rs4.id;
+    let sb_rs5id = sb_rs5.id;
   `endif
-    Bit#( `ifdef spfpu 64 `else 32 `endif ) sb_mask =  sboard.mv_board.rf_lock;
+    let sb_rs1lock = sb_rs1.lock;
+    let sb_rs2lock = sb_rs2.lock;
+    let sb_rs4lock = sb_rs4.lock;
+    let sb_rs5lock = sb_rs5.lock;
     BypassReq req_addr1 = BypassReq{rd:opmeta.rs1addr, epochs: curr_epochs[0]
-                    ,sb_lock: sb_mask[ { `ifdef spfpu pack(rf1type==FRF), `endif opmeta.rs1addr}] 
+                    ,sb_lock: sb_rs1lock
                     `ifdef no_wawstalls ,id: sb_rs1id `endif
                     `ifdef spfpu ,rdtype: rf1type `endif };
     BypassReq req_addr2 = BypassReq{rd: opmeta.rs2addr, epochs: curr_epochs[0]
-                    ,sb_lock: sb_mask[ { `ifdef spfpu pack(rf2type==FRF), `endif opmeta.rs2addr}] 
+                    ,sb_lock: sb_rs2lock
                     `ifdef no_wawstalls ,id: sb_rs2id `endif
                     `ifdef spfpu ,rdtype: rf2type `endif };
-    //BypassReq req_addr4 = BypassReq{rd:opmeta.rs4addr, epochs: curr_epochs[0]
-    //                ,sb_lock: sb_mask[ { `ifdef spfpu pack(rf4type==FRF), `endif opmeta.rs4addr}] 
-    //                `ifdef no_wawstalls ,id: sb_rs4id `endif
-    //                `ifdef spfpu ,rdtype: rf1type `endif };
-    //BypassReq req_addr5 = BypassReq{rd: opmeta.rs5addr, epochs: curr_epochs[0]
-    //                ,sb_lock: sb_mask[ { `ifdef spfpu pack(rf5type==FRF), `endif opmeta.rs5addr}] 
-    //                `ifdef no_wawstalls ,id: sb_rs5id `endif
-    //                `ifdef spfpu ,rdtype: rf2type `endif };
+    BypassReq req_addr4 = BypassReq{rd:opmeta.rs4addr, epochs: curr_epochs[0]
+                    ,sb_lock: sb_rs4lock
+                    `ifdef no_wawstalls ,id: sb_rs4id `endif
+                    `ifdef spfpu ,rdtype: rf4type `endif };
+    BypassReq req_addr5 = BypassReq{rd: opmeta.rs5addr, epochs: curr_epochs[0]
+                    ,sb_lock: sb_rs5lock
+                    `ifdef no_wawstalls ,id: sb_rs5id `endif
+                    `ifdef spfpu ,rdtype: rf5type `endif };
     Vector#(TAdd#(`bypass_sources ,1), FwdType) byp1, byp2, byp4, byp5;
     byp1[0] = wr_bypass[0];
     byp2[0] = wr_bypass[0];
@@ -436,8 +447,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     byp5[2] = wr_rf_op5;
     let {_op1_avail, _fwd_op1} = fn_bypass( req_addr1, byp1);
     let {_op2_avail, _fwd_op2} = fn_bypass( req_addr2, byp2);
-    let {_op4_avail, _fwd_op4} = fn_bypass( req_addr1, byp4);
-    let {_op5_avail, _fwd_op5} = fn_bypass( req_addr2, byp5);
+    let {_op4_avail, _fwd_op4} = fn_bypass( req_addr4, byp4);
+    let {_op5_avail, _fwd_op5} = fn_bypass( req_addr5, byp5);
     wr_op1_avail <= _op1_avail; wr_fwd_op1 <= _fwd_op1;
     wr_op1_avail_probe <= _op1_avail;
 
@@ -563,9 +574,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * required to perform these operations. In case of 32-bit ops in RV64, the result is
   * sign-Extended version of the lower 32-bits results from the alu */
   rule rl_exe_base_arith(instr_type[0] == ALU && epochs_match && !wr_waw_stall);
-    let alu_result = fn_base_alu(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta.funct[0]),
-                              meta.pc, opmeta.rs1type==PC `ifdef RV64 ,meta.word32[0] `endif ); 
+    let alu_result_two = fn_base_alu(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta.funct[0]),
+                              meta.pc, opmeta.rs1type==PC `ifdef RV64 ,meta.word32[0] `endif 
+                              , wr_fwd_op4, wr_fwd_op5, truncateLSB(meta.funct[1]),
+                              meta.pc + 2, opmeta.rs4type==PC `ifdef RV64 ,meta.word32[1] `endif ); 
 
+  let alu_result = alu_result_two[0];
   `ifdef RV64
     if (meta.word32[0])
       alu_result = signExtend(alu_result[31:0]);
@@ -576,9 +590,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op received",hartid))
 
     // proceed further only if both the operands are available.
-    if (wr_op1_avail && wr_op2_avail) begin
+    if (wr_op1_avail && wr_op2_avail && wr_op4_avail && wr_op5_avail) begin
       let common_pkt = s4common; 
-      let _id <- sboard.ma_lock_rd(SBDUpd{rd: meta.rd[0] `ifdef spfpu ,rdtype: meta.rdtype[0] `endif });
+      let _id_inst0 <- sboard.ma_lock_rd(SBDUpd{rd: meta.rd[0] `ifdef spfpu ,rdtype: meta.rdtype[0] `endif });
+      let _id_inst1 <- sboard.ma_lock_rd(SBDUpd{rd: meta.rd[1] `ifdef spfpu ,rdtype: meta.rdtype[1] `endif });
     `ifdef no_wawstalls
       // allocate scoreboard-id to the destination register.
       `logLevel( stage3, 0, $format("[%2d]STAGE3: issuing ID:%2d",hartid,_id))

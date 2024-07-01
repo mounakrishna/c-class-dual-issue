@@ -130,20 +130,33 @@ package base_alu ;
 `endif
   /*doc:func: This is the top level base-alu function which calls the above individual functions
   * depending on the opcode provided as inputs*/
-  function Bit#(`xlen) fn_base_alu (Bit#(`xlen) op1, Bit#(`xlen) op2, Bit#(4) fn
-                          , Bit#(`xlen) pc , Bool op1pc `ifdef RV64 , Bool wordop `endif );
+  function Vector#(`num_issue, Bit#(`xlen)) fn_base_alu (Bit#(`xlen) op1, Bit#(`xlen) op2, Bit#(4) fn_inst0
+                          , Bit#(`xlen) pc_inst0 , Bool op1pc_inst0 `ifdef RV64 , Bool wordop_inst0 `endif 
+                          , Bit#(`xlen) op4, Bit#(`xlen) op5, Bit#(4) fn_inst1
+                          , Bit#(`xlen) pc_inst1, Bool op1pc_inst1 `ifdef RV64 , Bool wordop_inst1 `endif );
     let op1_xor_op2 = op1 ^ op2;
-    let lv_add = fn_add(op1pc?pc:op1, op2, fn[1]);
-    let less = fn_compare(op1, op2, fn, op1_xor_op2);
-    Bit#(`xlen) lv_shiftout = fn_shift(op1, truncate(op2), fn `ifdef RV64 , wordop `endif );
-    let lv_logic = fn_logic(op1, op2, fn, op1_xor_op2);
-    Bit#(`xlen) aluout = case (fn) 
-      `FNADD, `FNSUB: lv_add;
-      `FNSLT, `FNSLTU: zeroExtend(pack(less));
-      `FNSR, `FNSRA, `FNSL: lv_shiftout;
-      default: lv_logic;
+    let op4_xor_op5 = op4 ^ op5;
+    let lv_add_inst0 = fn_add(op1pc_inst0?pc_inst0:op1, op2, fn_inst0[1]);
+    let lv_add_inst1 = fn_add(op1pc_inst1?pc_inst1:op4, op5, fn_inst1[1]);
+    let less_inst0 = fn_compare(op1, op2, fn_inst0, op1_xor_op2);
+    let less_inst1 = fn_compare(op4, op5, fn_inst1, op4_xor_op5);
+    Bit#(`xlen) lv_shiftout_inst0 = fn_shift(op1, truncate(op2), fn_inst0 `ifdef RV64 , wordop_inst0 `endif );
+    Bit#(`xlen) lv_shiftout_inst1 = fn_shift(op4, truncate(op5), fn_inst1 `ifdef RV64 , wordop_inst1 `endif );
+    let lv_logic_inst0 = fn_logic(op1, op2, fn_inst0, op1_xor_op2);
+    let lv_logic_inst1 = fn_logic(op4, op5, fn_inst1, op4_xor_op5);
+    Bit#(`xlen) aluout_inst0 = case (fn_inst0) 
+      `FNADD, `FNSUB: lv_add_inst0;
+      `FNSLT, `FNSLTU: zeroExtend(pack(less_inst0));
+      `FNSR, `FNSRA, `FNSL: lv_shiftout_inst0;
+      default: lv_logic_inst0;
     endcase;
-    return aluout;
+    Bit#(`xlen) aluout_inst1 = case (fn_inst1) 
+      `FNADD, `FNSUB: lv_add_inst1;
+      `FNSLT, `FNSLTU: zeroExtend(pack(less_inst1));
+      `FNSR, `FNSRA, `FNSL: lv_shiftout_inst1;
+      default: lv_logic_inst1;
+    endcase;
+    return unpack({aluout_inst1, aluout_inst0});
   endfunction: fn_base_alu
 endpackage: base_alu
 

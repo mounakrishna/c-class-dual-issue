@@ -616,7 +616,7 @@ endinstance
 
 typedef struct{
 `ifdef no_wawstalls
-  Bit#(`wawid) id;
+  Vector#(`issue, Bit#(`wawid)) id;
 `endif
 `ifdef spfpu
   RFType        rdtype;
