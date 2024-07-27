@@ -616,7 +616,7 @@ endinstance
 
 typedef struct{
 `ifdef no_wawstalls
-  Vector#(`issue, Bit#(`wawid)) id;
+  Bit#(`wawid) id;
 `endif
 `ifdef spfpu
   RFType        rdtype;
@@ -668,18 +668,21 @@ instance FShow#(CUid);
   endfunction
 endinstance
 
-function CUid fn_fu2cu(FUid f);
-  let c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, insttype : ?
-          `ifdef no_wawstalls ,id: f.id `endif 
-          `ifdef spfpu ,rdtype: f.rdtype `endif };
-  c.insttype = case (f.insttype) matches
-    BASE: BASE;
-    SYSTEM: SYSTEM;
-    TRAP: TRAP;
-    MEMORY: MEMORY;
-  `ifdef muldiv MULDIV: BASE; `endif 
-  `ifdef spfpu FLOAT: BASE; `endif
+function Vector#(`num_issue, CUid) fn_fu2cu(Vector#(`num_issue, FUid) f);
+  Vector#(`num_issue, CUid) c;
+  for (Integer i=0; i<`num_issue; i=i+1) begin
+    c[i] =  CUid{pc: f[i].pc, rd: f[i].rd, epochs: f[i].epochs, insttype : ?
+            `ifdef no_wawstalls ,id: f[i].id `endif 
+            `ifdef spfpu ,rdtype: f[i].rdtype `endif };
+    c[i].insttype = case (f[i].insttype) matches
+      BASE: BASE;
+      SYSTEM: SYSTEM;
+      TRAP: TRAP;
+      MEMORY: MEMORY;
+    `ifdef muldiv MULDIV: BASE; `endif 
+    `ifdef spfpu FLOAT: BASE; `endif
   endcase;
+  end
   return c;
 endfunction:fn_fu2cu
 

@@ -219,7 +219,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     lv_isb_empty[3] = !pipe_s3s4_notEmpty;
     lv_isb_empty[4] = !pipe_s4s5_notEmpty;
 
-    Vector#(`bypass_sources, FwdType) lv_bypass;
+    Vector#(`bypass_sources, Vector#(`num_issue, FwdType)) lv_bypass;
     lv_bypass[0] = lv_bypass_0;
     lv_bypass[1] = lv_bypass_1;
 

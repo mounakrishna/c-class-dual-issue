@@ -264,6 +264,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   // ---------------------- End Instatiations --------------------------//
 
   // ---------------------- Start Rules -------------------------------//
+`ifdef simulate
+  rule rl_polling_check(!rx_pipe1.u.notEmpty || !tx_instrtype.u.notFull || rg_stall || rg_wfi);
+    `logLevel( stage2, 0, $format("[%2d]STAGE2: Waiting for response from stage1", hartid))
+    `logLevel( stage2, 0, $format("[%2d]STAGE2: rg_stall: %d, rg_wfi: %d, pipeNotEmpty: %d, instrNotFull: %d", hartid, rg_stall, rg_wfi, rx_pipe1.u.notEmpty, tx_instrtype.u.notFull))
+  endrule
+`endif
 
   // RuleName : decode_and_opfetch
   // Explicit Conditions : rg_stall == False
@@ -449,7 +455,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
     end
     else begin
-      if (instrType[0] == WFI || instrType[1] == WFI) begin
+      if (instrType[0] == WFI) begin //TODO: || instrType[1] == WFI) begin
         if(!wr_flush_from_exe && !wr_flush_from_wb) begin
           `logLevel( stage2, 0, $format("[%2d]STAGE2 : Encountered WFI",hartid))
           rg_wfi <= True;
@@ -481,7 +487,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                              (decoded_inst[0].meta.memaccess == FenceI)?`FenceI_rerun : `Sfence_rerun ;
   
         // -------------------------- Enque relevant data to the next stage -------------------- //
-        if(instrType[0] == TRAP || instrType[1] == TRAP)
+        if(instrType[0] == TRAP)// TODO: || instrType[1] == TRAP)
           rg_stall <= True && !wr_flush_from_exe && !wr_flush_from_wb;
         let opmeta = OpMeta { rs1addr: decoded_inst[0].op_addr.rs1addr,
                               rs2addr: decoded_inst[0].op_addr.rs2addr,
@@ -598,53 +604,55 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     * those scenarios its necessary that the operands from this stage are updated. This allows us to
     * maintain a single register state for each operand source.
     */
-  	method Action ma_commit_rd (CommitData commit);
+  	method Action ma_commit_rd (Vector#(`num_issue, CommitData) commit);
       `logLevel( stage2, 0, $format("[%2d]STAGE2: ",hartid,fshow(commit)))
-      if (!commit.unlock_only) begin
-        registerfile.commit_rd_1(commit);
+      if (!commit[0].unlock_only) begin
+        registerfile.commit_rd_1(commit[0]);
+      //if (!commit[1].unlock_only) begin
+      //  registerfile.commit_rd_2(commit);
     
       `ifdef spfpu
-        if(commit.addr == rg_op1[1].addr && commit.rdtype == rg_op1[1].rdtype)begin
+        if(commit[0].addr == rg_op1[1].addr && commit[0].rdtype == rg_op1[1].rdtype)begin
           let _x = rg_op1[1];
-          if(commit.rdtype == FRF || rg_op1[1].addr!=0)
-            _x.data=commit.data;
+          if(commit[0].rdtype == FRF || rg_op1[1].addr!=0)
+            _x.data=commit[0].data;
           rg_op1[1] <= _x;
         end
     
-        if(commit.addr == rg_op2[1].addr && commit.rdtype == rg_op2[1].rdtype)begin
+        if(commit[0].addr == rg_op2[1].addr && commit[0].rdtype == rg_op2[1].rdtype)begin
           let _x = rg_op2[1];
-          if(commit.rdtype == FRF || (rg_op2[1].addr != 0 && wr_op2type == IntegerRF))
-            _x.data=commit.data;
+          if(commit[0].rdtype == FRF || (rg_op2[1].addr != 0 && wr_op2type == IntegerRF))
+            _x.data=commit[0].data;
           rg_op2[1] <= _x;
         end
     
-        if(rg_op3[1].addr == commit.addr && rg_op3[1].rdtype == FRF &&  commit.rdtype == FRF)
-          rg_op3[1].data <= commit.data;
+        if(rg_op3[1].addr == commit[0].addr && rg_op3[1].rdtype == FRF &&  commit[0].rdtype == FRF)
+          rg_op3[1].data <= commit[0].data;
     
-        if(commit.addr == rg_op4[1].addr && commit.rdtype == rg_op4[1].rdtype)begin
+        if(commit[1].addr == rg_op4[1].addr && commit[1].rdtype == rg_op4[1].rdtype)begin
           let _x = rg_op4[1];
-          if(commit.rdtype == FRF || rg_op4[1].addr!=0)
-            _x.data=commit.data;
+          if(commit[1].rdtype == FRF || rg_op4[1].addr!=0)
+            _x.data=commit[1].data;
           rg_op4[1] <= _x;
         end
 
-        if(commit.addr == rg_op5[1].addr && commit.rdtype == rg_op5[1].rdtype)begin
+        if(commit[1].addr == rg_op5[1].addr && commit[1].rdtype == rg_op5[1].rdtype)begin
           let _x = rg_op5[1];
-          if(commit.rdtype == FRF || (rg_op5[1].addr != 0 && rg_op5type[1] == IntegerRF))
-            _x.data=commit.data;
+          if(commit[1].rdtype == FRF || (rg_op5[1].addr != 0 && rg_op5type[1] == IntegerRF))
+            _x.data=commit[1].data;
           rg_op5[1] <= _x;
         end
 
       `else
         let _x = rg_op1[1];
         let _y = rg_op2[1];
-        if(rg_op1[1].addr == commit.addr && rg_op1[1].addr!=0) begin
-          _x.data = commit.data;
+        if(rg_op1[1].addr == commit[0].addr && rg_op1[1].addr!=0) begin
+          _x.data = commit[0].data;
           rg_op1[1] <= _x;
         end
     
-        if(rg_op2[1].addr == commit.addr && rg_op2[1].addr!=0 && rg_op2type[1] == IntegerRF)
-          _y.data = commit.data;
+        if(rg_op2[1].addr == commit[0].addr && rg_op2[1].addr!=0 && rg_op2type[1] == IntegerRF)
+          _y.data = commit[0].data;
           rg_op2[1] <= _y;
       `endif
     end

@@ -248,6 +248,7 @@ package stage1;
         end
       `endif
         if(rg_prev.instruction[1 : 0] == 2'b11) begin
+          `logLevel( stage1, 1, $format("Forming a 32 bit instruction from two ICACHE responses"))
           let instructions = {imem_resp.word[15:0], rg_prev.instruction};
           final_instruction[0] = tagged Valid instructions;
           trap = imem_resp.trap;
@@ -271,19 +272,24 @@ package stage1;
           compressed_instr[0] = True;
           final_instruction[0] = tagged Valid zeroExtend(rg_prev.instruction);
           if (imem_resp.word[1:0] != 2'b11) begin
+            `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction also has compressed, leading to dual issue"))
             final_instruction[1] = tagged Valid zeroExtend(imem_resp.word[15:0]);
             compressed_instr[1] = True;
           end
-          else
+          else begin
+            `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction is not compressed. Stored as previous"))
             final_instruction[1] = tagged Invalid;
+          end
           rg_action <= None;
           rg_receiving_upper <= False;
           stage0pc.address = rg_prev.pc;
           stage0pc.address[1] = 1;
+          `logLevel( stage1, 1, $format("STAGE1: Instructions: ", fshow(final_instruction)))
         end
       end
       // discard the lower - 16bits of the imem - response.
       else if(stage0pc.discard && wr_csr_misa_c == 1)begin
+        `logLevel( stage1, 1, $format("STAGE1: Discard the lower 16 bits as it has been issued into the pipeline"))
         deq_response;
       `ifdef bpu
         if(!btbresponse.hi)begin
@@ -292,6 +298,7 @@ package stage1;
         end
       `endif
         if(imem_resp.word[17 : 16] == 2'b11)begin
+          `logLevel( stage1, 1, $format("STAGE1: After discarding lower 16 bits, the upper 16 bits is part of a 32 bit instruction. So CheckPrev action set."))
           trap = imem_resp.trap;
           rg_action <= CheckPrev;
           enque_instruction = False;
@@ -304,6 +311,7 @@ package stage1;
         `endif
         end
         else begin
+          `logLevel( stage1, 1, $format("STAGE1: After discarding lower 16 bits, the upper 16 bits is a compressed instruction. So issuing it."))
           rg_action <= None;
           compressed_instr[0] = True;
           final_instruction[0] = tagged Valid zeroExtend(imem_resp.word[31 : 16]);
@@ -318,6 +326,7 @@ package stage1;
         deq_response;
         // if instruction is 32-bit simply pass it on
         if(imem_resp.word[1 : 0] == 'b11)begin
+          `logLevel( stage1, 1, $format("STAGE1: The fetched word is a 32 bit instr, just passing it"))
           final_instruction[0] = tagged Valid imem_resp.word;
           final_instruction[1] = tagged Invalid;
           rg_action <= None;
@@ -327,11 +336,14 @@ package stage1;
         else if(wr_csr_misa_c == 1) begin
           compressed_instr[0] = True;
           final_instruction[0] = tagged Valid zeroExtend(imem_resp.word[15 : 0]);
-          if (imem_resp.word[17:16] == 2'b11)
+          if (imem_resp.word[17:16] == 2'b11) begin
+            `logLevel( stage1, 1, $format("STAGE1: The fetched word has one 16 bit instr"))
             final_instruction[1] = tagged Invalid;
+          end
           else begin
+            `logLevel( stage1, 1, $format("STAGE1: The fetched word has two 16 bit instrs"))
             final_instruction[1] = tagged Valid zeroExtend(imem_resp.word[31:16]);
-            compressed_instr[1] = False;
+            compressed_instr[1] = True;
           end
           lv_prev.instruction = truncateLSB(imem_resp.word);
           lv_prev.pc = stage0pc.address;

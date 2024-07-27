@@ -81,11 +81,11 @@ endinterface:Ifc_stage5
 module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 
   /*doc:submodules: The following instantiates all the RX virtual fifos*/
-  RX#(SystemOut) rx_systemout <- mkRX;
-  RX#(TrapOut)   rx_trapout <- mkRX;
-  RX#(BaseOut)   rx_baseout <- mkRX;
-  RX#(WBMemop)   rx_memio <- mkRX;
-  RX#(CUid)      rx_fuid <- mkRX;
+  RX#(Vector#(`num_issue, SystemOut)) rx_systemout <- mkRX;
+  RX#(Vector#(`num_issue, TrapOut))   rx_trapout <- mkRX;
+  RX#(Vector#(`num_issue, BaseOut))   rx_baseout <- mkRX;
+  RX#(Vector#(`num_issue, WBMemop))   rx_memio <- mkRX;
+  RX#(Vector#(`num_issue, CUid))      rx_fuid <- mkRX;
 `ifdef rtldump
   RX#(CommitLogPacket) rx_commitlog <- mkRX;
 `endif
@@ -102,7 +102,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   /*doc:wire wire that carries the commit data that needs to be written to the integer register
    * file. IN cases of traps and instructions that need to be dropped, writing to this wire can be
    * used to release the lock on a register in the score-board*/
-  Wire#(CommitData) wr_commit <- mkWire();
+  Wire#(Vector#(`num_issue, CommitData)) wr_commit <- mkWire();
 
   /*doc:wire: This wire is used to indicate the rest of the pipeline that this stage has generated a
   * flush. In case of post-fenceI/sfence this signal also holds fields which are used to indicate
@@ -150,7 +150,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 `endif
 
   let csr_response = csr.mv_core_resp;
-  let epochs_match = rg_epoch == rx_fuid.u.first.epochs;
+  let epochs_match = rg_epoch == rx_fuid.u.first[0].epochs;
 
 `ifdef simulate
   rule rl_no_op;
@@ -164,28 +164,28 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   * have locked a register in the score-board and would thus require to be released inspite of
   * taking of the fault. To ensure this release, we update the wr_commit signal to make this release
   * on the destination register*/
-  rule rl_writeback_trap(rx_fuid.u.first.insttype == TRAP );
+  rule rl_writeback_trap(rx_fuid.u.first[0].insttype == TRAP );
     let trapout = rx_trapout.u.first;
     let fuid = rx_fuid.u.first;
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid.pc))
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : Trap: ",hartid, fshow(trapout)))
-    wr_commit <= CommitData{addr: fuid.rd, data: ?, unlock_only:True
-                          `ifdef no_wawstalls , id: fuid.id `endif
-                           `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid[0].pc))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : Trap: ",hartid, fshow(trapout[0])))
+    wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
+                          `ifdef no_wawstalls , id: fuid[0].id `endif
+                           `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
 
     if (epochs_match) begin
     `ifdef microtrap_support
-      if (trapout.is_microtrap) begin
-        if (trapout.cause == `Sfence_rerun || trapout.cause == `FenceI_rerun || 
-            trapout.cause == `CSR_rerun 
-					`ifdef hypervisor || trapout.cause == `Hfence_rerun `endif ) begin
-          let _fencei = (trapout.cause == `FenceI_rerun);
-          let _sfence = (trapout.cause == `Sfence_rerun);
-  			  let _hfence = (trapout.cause == `Hfence_rerun);
-          wr_flush <= WBFlush{flush: True, newpc : fuid.pc , fencei: _fencei 
+      if (trapout[0].is_microtrap) begin
+        if (trapout[0].cause == `Sfence_rerun || trapout[0].cause == `FenceI_rerun || 
+            trapout[0].cause == `CSR_rerun 
+					`ifdef hypervisor || trapout[0].cause == `Hfence_rerun `endif ) begin
+          let _fencei = (trapout[0].cause == `FenceI_rerun);
+          let _sfence = (trapout[0].cause == `Sfence_rerun);
+  			  let _hfence = (trapout[0].cause == `Hfence_rerun);
+          wr_flush <= WBFlush{flush: True, newpc : fuid[0].pc , fencei: _fencei 
               `ifdef supervisor , sfence: _sfence `endif 
               `ifdef hypervisor , hfence: _hfence `endif };
-          `logLevel( stage5, 0, $format("[%2d]STAGE5 : Redirect PC:%h",hartid, fuid.pc))
+          `logLevel( stage5, 0, $format("[%2d]STAGE5 : Redirect PC:%h",hartid, fuid[0].pc))
         `ifdef perfmonitors
           wr_count_microtrap <= 1;
         `endif
@@ -195,13 +195,13 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         end
       end
       else `endif begin
-        let tvec <- csr.mav_upd_on_trap(trapout.cause, fuid.pc, trapout.mtval 
-          `ifdef hypervisor , trapout.mtval2 `endif );
+        let tvec <- csr.mav_upd_on_trap(trapout[0].cause, fuid[0].pc, trapout[0].mtval 
+          `ifdef hypervisor , trapout[0].mtval2 `endif );
         wr_flush <= WBFlush{flush: True, newpc : tvec, fencei: False 
             `ifdef supervisor , sfence: False `endif 
             `ifdef hypervisor , hfence: False `endif };
       `ifdef perfmonitors
-        Bit#(1) cause_type = truncateLSB(trapout.cause);
+        Bit#(1) cause_type = truncateLSB(trapout[0].cause);
         if (cause_type == 1)
           wr_count_interrupts <= 1;
         else
@@ -230,15 +230,15 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   * Committing a xRET ops causes a flush to be raised with a new pc coming from the csrbox. In case
   * of CSR ops, one might have to wait for multiple cycles for the execution to complete and then
   * commit the value.*/
-  rule rl_writeback_system(rx_fuid.u.first.insttype == SYSTEM ) ;
+  rule rl_writeback_system(rx_fuid.u.first[0].insttype == SYSTEM ) ;
     let systemout = rx_systemout.u.first;
     let fuid = rx_fuid.u.first;
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid.pc))
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : ",hartid, fshow(systemout)))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid[0].pc))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : ",hartid, fshow(systemout[0])))
     Bool exit = False;
     if (epochs_match) begin
-      if (systemout.funct3 == 0 ) begin // URET, SRET, MRET
-        let epc <- csr.mav_upd_on_ret(truncateLSB(systemout.csr_address));
+      if (systemout[0].funct3 == 0 ) begin // URET, SRET, MRET
+        let epc <- csr.mav_upd_on_ret(truncateLSB(systemout[0].csr_address));
         exit = True;
         wr_flush <= WBFlush{flush: True, newpc : epc, fencei: False
           `ifdef supervisor , sfence: False `endif 
@@ -247,11 +247,11 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
           `logLevel( stage5, 0, $format("[%2d]STAGE5 : Redirect PC:%h",hartid,epc))
       end
       else if (!rg_csr_wait) begin
-        csr.ma_core_req(CSRReq{csr_address: systemout.csr_address, writedata: systemout.rs1_imm,
-            funct3: truncate(systemout.funct3) `ifdef compressed , pc_1: fuid.pc[1] `endif });
+        csr.ma_core_req(CSRReq{csr_address: systemout[0].csr_address, writedata: systemout[0].rs1_imm,
+            funct3: truncate(systemout[0].funct3) `ifdef compressed , pc_1: fuid[0].pc[1] `endif });
       end
   
-      if ((systemout.funct3 !=0 && csr_response.hit) || (systemout.funct3==0)) begin
+      if ((systemout[0].funct3 !=0 && csr_response.hit) || (systemout[0].funct3==0)) begin
         rg_csr_wait <= False;
         exit = True;
       end
@@ -262,13 +262,13 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   
       if (exit) begin
         wr_increment_minstret <= True;
-        wr_commit <= CommitData{addr: fuid.rd, data: zeroExtend(csr_response.data), unlock_only:False
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+        wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: zeroExtend(csr_response.data), unlock_only:False
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
         rx_systemout.u.deq;
         rx_fuid.u.deq;
       `ifdef perfmonitors
-        if (systemout.funct3 != 0)
+        if (systemout[0].funct3 != 0)
           wr_count_csrops <= 1;
       `endif
       `ifdef rtldump
@@ -276,7 +276,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         CommitLogCSR _pkt = ?;
         if (clogpkt.inst_type matches tagged CSR .pcsr)
           _pkt = pcsr;
-        if (systemout.funct3 == 0) begin
+        if (systemout[0].funct3 == 0) begin
           _pkt.csr_address = 'h300;
           _pkt.wdata = csr.sbread.mv_csr_mstatus;
         end
@@ -293,9 +293,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     end
     else begin
       `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid))
-      wr_commit <= CommitData{addr: fuid.rd, data: ?, unlock_only:True
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+      wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
       rx_systemout.u.deq;
       rx_fuid.u.deq;
     `ifdef rtldump
@@ -307,17 +307,22 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   /*doc:rule: This rule basically commits regular ops which update the register file. Note that even
   * Loads will land up here. So the commit log packet is not touched since it would be tagged
   * CommitLogMem for Loads which has to be passed on as is to the test-bench*/
-  rule rl_writeback_baseout(rx_fuid.u.first.insttype == BASE);
+  rule rl_writeback_baseout(rx_fuid.u.first[0].insttype == BASE);
     let fuid = rx_fuid.u.first;
     let baseout = rx_baseout.u.first;
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,rx_fuid.u.first.pc))
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : Base Op ",hartid, fshow(baseout)))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC0:%h",hartid,fuid[0].pc))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC1:%h",hartid,fuid[1].pc))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : Base Op0 ",hartid, fshow(baseout[0])))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : Base Op1 ",hartid, fshow(baseout[1])))
     if (epochs_match) begin
       wr_increment_minstret <= True;
-      `ifdef spfpu csr.ma_set_fflags(baseout.fflags); `endif
-      wr_commit <= CommitData{addr: fuid.rd, data: zeroExtend(baseout.rdvalue), unlock_only:False
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+      `ifdef spfpu csr.ma_set_fflags(baseout[0].fflags); `endif
+      wr_commit <= unpack({   pack(CommitData{addr: fuid[1].rd, data: zeroExtend(baseout[1].rdvalue), unlock_only:False
+                                      `ifdef no_wawstalls , id: fuid[1].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[1].rdtype `endif }),
+                              pack(CommitData{addr: fuid[0].rd, data: zeroExtend(baseout[0].rdvalue), unlock_only:False
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
       rx_fuid.u.deq;
       rx_baseout.u.deq;
     `ifdef rtldump
@@ -332,9 +337,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     end
     else begin
       `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid))
-      wr_commit <= CommitData{addr: fuid.rd, data: ?, unlock_only:True
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+      wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
       rx_baseout.u.deq;
       rx_fuid.u.deq;
     `ifdef rtldump
@@ -351,10 +356,10 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   * In case a cached store/atomic op has to be dropped since the epochs don't match. The epoch value
   * sent will cause the respective entry in the caches to be dropped without any updates to cache/
   * memory*/
-  rule rl_writeback_memop(rx_fuid.u.first.insttype == MEMORY );
+  rule rl_writeback_memop(rx_fuid.u.first[0].insttype == MEMORY );
     let memop = rx_memio.u.first;
     let fuid = rx_fuid.u.first;
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid.pc))
+    `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid[0].pc))
   `ifdef rtldump
     let clogpkt = rx_commitlog.u.first;
     CommitLogMem _pkt = ?;
@@ -364,18 +369,18 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 
     if (epochs_match) begin
     `ifdef dcache
-      if (!memop.io) begin // cacheable store/atomic op
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Cached Store Op ",hartid, fshow(memop)))
-        wr_commit_cacheop <= tuple2(rg_epoch, memop.sb_id);
+      if (!memop[0].io) begin // cacheable store/atomic op
+        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Cached Store Op ",hartid, fshow(memop[0])))
+        wr_commit_cacheop <= tuple2(rg_epoch, memop[0].sb_id);
         wr_increment_minstret <= True;
         rx_fuid.u.deq;
         rx_memio.u.deq;
       `ifdef atomic
-        let cache_resp = memop.atomic_rd_data;
-        if (memop.memaccess == Atomic) 
-          wr_commit <= CommitData{addr: fuid.rd, data: zeroExtend(cache_resp), unlock_only:False
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+        let cache_resp = memop[0].atomic_rd_data;
+        if (memop[0].memaccess == Atomic) 
+          wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: zeroExtend(cache_resp), unlock_only:False
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
       `else
         Bit#(`elen) cache_resp = 0;
       `endif
@@ -393,7 +398,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       else 
     `endif
       begin 
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Non-Cached Memory Op ",hartid, fshow(memop)))
+        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Non-Cached Memory Op ",hartid, fshow(memop[0])))
         if (!rg_ioop_init) begin
           rg_ioop_init <= True;
           wr_commit_ioop <= rg_epoch;
@@ -401,7 +406,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         else if (wr_ioop_response matches tagged Valid .ioresp) begin
           rg_ioop_init <= False;
           if (ioresp.trap) begin
-            let tvec <- csr.mav_upd_on_trap(ioresp.cause, fuid.pc, ioresp.word 
+            let tvec <- csr.mav_upd_on_trap(ioresp.cause, fuid[0].pc, ioresp.word 
             `ifdef hypervisor , ? `endif 
             );
             wr_flush <= WBFlush{flush: True, newpc : tvec, fencei: False 
@@ -411,9 +416,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
             rg_epoch <= ~rg_epoch;
             rx_fuid.u.deq;
             rx_memio.u.deq;
-            wr_commit <= CommitData{addr: fuid.rd, data: ?, unlock_only: True
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+            wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: ?, unlock_only: True
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
           `ifdef rtldump
             rx_commitlog.u.deq;
           `endif
@@ -421,15 +426,15 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
           else begin
             wr_increment_minstret <= True;
             let commit_data = ioresp.word;
-            `ifdef spfpu if (memop.nanboxing) commit_data[63:32] = '1; `endif
-            wr_commit <= CommitData{addr: fuid.rd, data: zeroExtend(commit_data), unlock_only:False
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+            `ifdef spfpu if (memop[0].nanboxing) commit_data[63:32] = '1; `endif
+            wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: zeroExtend(commit_data), unlock_only:False
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
             rx_fuid.u.deq;
             rx_memio.u.deq;
           `ifdef rtldump
             rx_commitlog.u.deq;
-            _pkt.commit_data = (fuid.rd ==0 `ifdef spfpu && fuid.rdtype == IRF `endif )?0:commit_data;
+            _pkt.commit_data = (fuid[0].rd ==0 `ifdef spfpu && fuid[0].rdtype == IRF `endif )?0:commit_data;
             clogpkt.inst_type = tagged MEM _pkt;
             clogpkt.mode = csr.mv_prv;
 					`ifdef hypervisor
@@ -446,16 +451,16 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     end
     else begin
       `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid))
-      wr_commit <= CommitData{addr: fuid.rd, data: ?, unlock_only:True
-                                      `ifdef no_wawstalls , id: fuid.id `endif
-                                      `ifdef spfpu ,rdtype: fuid.rdtype `endif };
+      wr_commit <= unpack({0, pack(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
+                                      `ifdef no_wawstalls , id: fuid[0].id `endif
+                                      `ifdef spfpu ,rdtype: fuid[0].rdtype `endif })});
       rx_memio.u.deq;
       rx_fuid.u.deq;
     `ifdef rtldump
       rx_commitlog.u.deq;
     `endif
     `ifdef dcache
-      if(!memop.io)
+      if(!memop[0].io)
         wr_commit_cacheop <= tuple2(rg_epoch, ?);
       else
     `endif
