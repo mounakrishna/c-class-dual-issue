@@ -383,18 +383,35 @@ typedef struct{
 typedef struct{
 `ifdef compressed
   Bool upper_err;
-  Vector#(`num_issue, Bool) compressed;
-  Bool issue; //Is set True when 2 compressed instruction are enqued to the next stage.
+  //Vector#(`num_issue, Bool) compressed;
+  Bool compressed;
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
 `endif
 	Bit#(`vaddr) program_counter;
-	Vector#(`num_issue, Maybe#(Bit#(32))) instruction;
+	//Vector#(`num_issue, Maybe#(Bit#(32))) instruction;
+  Bit#(32) instruction;
 	Bit#(`iesize) epochs;
   Bool trap ;
   Bit#(`causesize) cause;
 }PIPE1 deriving (Bits, Eq, FShow);
+
+typedef struct {
+  //DecodeOut decoded_inst;
+  Bit#(`vaddr) pc;
+  Bit#(32) instruction;
+  Bit#(`iesize) epochs;
+  Bool trap;
+  Bit#(`causesize) cause;
+`ifdef compressed
+  Bool upper_err;
+  Bool compressed;
+`endif
+`ifdef bpu
+  BTBResponse btbresponse;
+`endif
+} InstructionQueue deriving(Bits, Eq, FShow);
 
 typedef struct{
 `ifdef hypervisor

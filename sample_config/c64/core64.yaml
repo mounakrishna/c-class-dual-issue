@@ -6,6 +6,7 @@ isb_sizes:
     isb_s4s5: 8
 num_harts: 1
 num_issue: 2
+instr_queue: 8
 merged_rf: False
 s_extension:
   itlb_size: 4
@@ -68,7 +69,7 @@ bsc_compile_options:
   cocotb_sim: False
 verilator_configuration:
   coverage: none
-  trace: false
+  trace: true
   threads: 1
   verbosity: true
   opt_fast: "-O3"

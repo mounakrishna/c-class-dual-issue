@@ -11,11 +11,13 @@ import SpecialFIFOs :: * ;
 import FIFOF        :: * ;
 import GetPut       :: * ;
 import Connectable  :: * ;
+import MIMO         :: * ;
 
 import ccore_types  :: * ;
 import dcache_types :: * ;
 import icache_types :: * ;
 import TxRx         :: * ;
+import TxRx_MIMO    :: * ;
 `ifdef muldiv
 import mbox         :: * ;
 `endif
@@ -74,7 +76,7 @@ endinterface:Ifc_s1_rx
 
 interface Ifc_s1_tx;
   // instruction along with other results to be sent to the next stage
-  interface TXe#(PIPE1) tx_to_stage2;
+  interface TX_MIMOe#(Vector#(2, PIPE1), 2) tx_to_stage2;
 `ifdef rtldump
   interface TXe#(CommitLogPacket) tx_commitlog;
 `endif
@@ -111,7 +113,7 @@ interface Ifc_s3_rx;
   /*doc: subifc: interface to receive the mtval value from stage2 incase of a trap */
   interface RXe#(Vector#(`num_issue, Bit#(`xlen)))          rx_mtval_from_stage2;
   /*doc: subifc: interface to receive the mtval value from stage2 incase of a trap */
-  interface RXe#(Vector#(`num_issue, Instruction_type))    rx_instrtype_from_stage2;
+  interface RXe#(Vector#(`num_issue, Maybe#(Instruction_type)))    rx_instrtype_from_stage2;
   /*doc: subifc: interface to receive the operand metadata value from stage2*/
   interface RXe#(OpMeta)              rx_opmeta_from_stage2;
 `ifdef rtldump 
@@ -262,7 +264,7 @@ endinterface: Ifc_s3_common
 // --------------------- stage2 interfaces -------------------------------------------------------
 interface Ifc_s2_rx;
   /*doc:subifc: recieve instruction and pc packet from stage1*/
-	interface RXe#(PIPE1) rx_from_stage1;
+	interface RX_MIMOe#(Vector#(2, PIPE1), 2) rx_from_stage1;
 `ifdef rtldump
   /*doc:subifc: receive instruction of trace from previous stage */
   interface RXe#(CommitLogPacket) rx_commitlog;
@@ -277,7 +279,7 @@ interface Ifc_s2_tx;
   interface TXe#(Vector#(`num_issue, Bit#(`xlen)))    tx_mtval_to_stage3;
 
   /*doc:subifc: send instruction type to stage3*/
-  interface TXe#(Vector#(`num_issue, Instruction_type)) tx_instrtype_to_stage3;
+  interface TXe#(Vector#(`num_issue, Maybe#(Instruction_type))) tx_instrtype_to_stage3;
 
   interface TXe#(OpMeta) tx_opmeta_to_stage3;
 
@@ -496,24 +498,44 @@ endinterface:Ifc_s5_perfmonitors
     return ff_pipe0.notEmpty;
   endmodule:mkPipe_s0_s1
 
-  module mkPipe_s1_s2#(Ifc_s1_tx s1, Ifc_s2_rx s2)(Tuple2#(Bool,FIFOF#(PIPE1)));
-    FIFOF#(PIPE1) ff_pipe1 <- mkSizedFIFOF( `isb_s1s2 );
+  module mkPipe_s1_s2#(Ifc_s1_tx s1, Ifc_s2_rx s2)(Tuple2#(Bool,MIMO#(2, 2, `instr_queue, PIPE1)));
+    MIMOConfiguration cfg = defaultValue;
+    cfg.unguarded=True;
+
+    MIMO#(2, 2, `instr_queue, PIPE1) ff_pipe1 <- mkMIMO(cfg);
+
+    //FIFOF#(PIPE1) ff_pipe1 <- mkSizedFIFOF( `isb_s1s2 );
   `ifdef rtldump 
     FIFOF#(CommitLogPacket) ff_commitlog <- mkSizedFIFOF( `isb_s1s2 );
   `endif
     Empty s1_pipe1 <- mkConnection(s1.tx_to_stage2, ff_pipe1);
+    //rule connect_ena_data_tx (s1.tx_to_stage2.enq_ena);
+    //  ff_pipe1.enq(s1.tx_to_stage2.enq_count, s1.tx_to_stage2.enq_data);
+    //endrule
+    //rule compute_enqReady_tx;
+    //  s1.tx_to_stage2.enqReady(ff_pipe1.enqReadyN(s1.tx_to_stage2.enqReady_count));
+    //endrule
     Empty s2_pipe1 <- mkConnection(ff_pipe1, s2.rx_from_stage1);
+    //rule connect_first_rx;
+    //  s2.rx_from_stage1(ff_pipe1.first);
+    //endrule
+    //rule connect_deqReady_rx;
+    //  s2.rx_from_stage1(ff_pipe1.deqReadyN(s2.rx_from_stage1.deqReady_count));
+    //endrule
+    //rule connect_ena_rx;
+    //  ff_pipe1.deq(s2.rx_from_stage1.deq_count);
+    //endrule
   `ifdef rtldump
     mkConnection(s1.tx_commitlog, ff_commitlog);
     mkConnection(ff_commitlog, s2.rx_commitlog);
   `endif
-  return tuple2(ff_pipe1.notEmpty, ff_pipe1);
+  return tuple2(ff_pipe1.deqReady, ff_pipe1);
   endmodule:mkPipe_s1_s2
 
   module mkPipe_s2_s3#(Ifc_s2_tx s2, Ifc_s3_rx s3)(Bool);
     FIFOF#(Stage3Meta) ff_meta <- mkLFIFOF();
     FIFOF#(Vector#(`num_issue, Bit#(`xlen))) ff_mtval <- mkLFIFOF();
-    FIFOF#(Vector#(`num_issue, Instruction_type)) ff_insttype <- mkLFIFOF();
+    FIFOF#(Vector#(`num_issue, Maybe#(Instruction_type))) ff_insttype <- mkLFIFOF();
     FIFOF#(OpMeta) ff_opmeta <- mkLFIFOF();
   `ifdef rtldump
     FIFOF#(CommitLogPacket) ff_commitlog <- mkLFIFOF();

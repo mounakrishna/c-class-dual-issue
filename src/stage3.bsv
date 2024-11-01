@@ -171,7 +171,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   // rx fifos to receive the decoded information and the operands from the RF.
   RX#(Stage3Meta)         rx_meta   <- mkRX;
   RX#(Vector#(`num_issue, Bit#(`xlen)))         rx_mtval   <- mkRX;
-  RX#(Vector#(`num_issue, Instruction_type))   rx_instrtype   <- mkRX;
+  RX#(Vector#(`num_issue, Maybe#(Instruction_type)))   rx_instrtype   <- mkRX;
   RX#(OpMeta)             rx_opmeta   <- mkRX;
 
   /*doc:wire: reads operand-1 from the registerfile which was indexed in the previous cycle*/
@@ -513,7 +513,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match the instruction has been decoded as a
   * system instruction from the previous stage. Only operand1 is required for these instructions
   * and thus a stall is created only if operand-1 is not available*/
-  rule rl_system_instr(epochs_match && instr_type[0] == SYSTEM_INSTR && !wr_waw_stall);
+  rule rl_system_instr(instr_type[0] matches tagged Valid .inst &&& inst == SYSTEM_INSTR && !wr_waw_stall && epochs_match);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: System Op received.",hartid))
     let systemout = SystemOut {funct3     : truncate(meta.funct[0]),
                                lpc        : truncate(meta.pc),
@@ -559,7 +559,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
   /*doc:rule: This rule is fired if an instruction was tagged as trap by any of the previous
   * stages. No operand availability is required here*/
-  rule rl_trap_from_prev(epochs_match && instr_type[0] == TRAP);
+  rule rl_trap_from_prev(instr_type[0] matches tagged Valid .inst &&& inst == TRAP && epochs_match);
     TrapOut trapout = TrapOut {cause   : truncate(meta.funct[0]),
                                mtval : mtval[0]
                              `ifdef hypervisor
@@ -598,7 +598,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule is used to perform execution of base arithmetic ops. Both operands are
   * required to perform these operations. In case of 32-bit ops in RV64, the result is
   * sign-Extended version of the lower 32-bits results from the alu */
-  rule rl_exe_base_arith(instr_type[0] == ALU && epochs_match && !wr_waw_stall);
+  rule rl_exe_base_arith(instr_type[0] matches tagged Valid .inst &&& inst == ALU && epochs_match && !wr_waw_stall);
     let alu_result = fn_base_alu(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta.funct[0]),
                               meta.pc, opmeta.rs1type==PC `ifdef RV64 ,meta.word32[0] `endif 
                               , wr_fwd_op4, wr_fwd_op5, truncateLSB(meta.funct[1]),
@@ -617,7 +617,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                         `ifdef no_wawstalls ,id: ? `endif
                         `ifdef spfpu ,fflags    : 0 , rdtype: meta.rdtype[i] `endif };
     end
-    baseoutput[1].rd = 0; //TODO: To remove. Just kept for checking pipeline without full dual issue enabled
+    if (!isValid(instr_type[1]))
+      baseoutput[1].rd = 0; //Making the second output invalid
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op received",hartid))
 
     // proceed further only if all the operands are available.
@@ -675,7 +676,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * SFence instruction henceforth will be treated as a regular nop instruction and avoiding
   * polling on the data subsystem in the subsequent pipeline stages.
   */
-  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match && !wr_waw_stall);
+  rule rl_exe_base_memory(instr_type[0] matches tagged Valid .inst &&& inst == MEMORY && wr_cache_avail && epochs_match && !wr_waw_stall);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Memory Op received",hartid))
     Bit#(`vaddr) memory_address = wr_fwd_op1 + truncate(wr_op3.data);
     Bit#(3) funct3  = truncate(meta.funct[0]);
@@ -812,13 +813,14 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
    * When the branch predictor is enabled, this rule will further send training informatino back
    * to the bpu for the control instruction.
   */
-  rule rl_exe_base_control(epochs_match && !wr_waw_stall && 
-                          (instr_type[0] == JALR || 
-                          instr_type[0] == JAL ||
-                          instr_type[0] == BRANCH )
+  rule rl_exe_base_control(instr_type[0] matches tagged Valid .inst &&&
+                         (inst == JALR || 
+                          inst == JAL ||
+                          inst == BRANCH )
+                          && epochs_match && !wr_waw_stall
                `ifdef bpu && (isValid(wr_next_pc)) `endif );
 
-    let inst_type = instr_type[0];
+    let inst_type = inst;
     Bit#(`vaddr)  base = (inst_type == JALR) ? truncate(wr_fwd_op1) : meta.pc;
     Bit#(TMax#(`vaddr,`flen))  offset = wr_op3.data;
     
@@ -969,7 +971,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match and when the multiplier/divider are
   * avaialble based on the current instruction. Both the operands are required for execution to be
   * offloaded the mbox.*/
-  rule rl_mbox(instr_type[0] == MULDIV && epochs_match && !wr_waw_stall &&
+  rule rl_mbox(instr_type[0] matches tagged Valid .inst &&& inst == MULDIV && epochs_match && !wr_waw_stall &&
               ( (meta.funct[0][2]==0 && wr_mul_ready) || 
                 (meta.funct[0][2]==1 && wr_div_ready) ) );
     Vector#(`num_issue, FUid) common_pkt = replicate(s4common);
@@ -1041,7 +1043,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match and when the multiplier/divider are
   * avaialble based on the current instruction. Both the operands are required for execution to be
   * offloaded the mbox.*/
-  rule rl_fbox(instr_type[0] == FLOAT && epochs_match && !wr_waw_stall && wr_fbox_ready);
+  rule rl_fbox(instr_type[0] matches tagged Valid .inst &&& inst == FLOAT && epochs_match && !wr_waw_stall && wr_fbox_ready);
     Vector#(`num_issue, FUid) common_pkt = replicate(s4common);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: FLOAT Op received",hartid))
     if (wr_op1_avail && wr_op2_avail && wr_op3_avail) begin

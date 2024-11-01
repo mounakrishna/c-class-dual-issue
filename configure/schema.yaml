@@ -29,6 +29,20 @@ num_harts: {type: integer, default: 1, min: 1, max: 1024}
 num_issue: {type: integer, default: 1, min: 1, max: 1024}
 
 ###
+#instr_queue
+#^^^^^^^^^
+#
+# **Description**: Depth of the instruction queue
+#
+#  **Examples**:
+#
+#  .. code-block:: yaml
+#
+#     instr_queue: 4
+
+instr_queue: {type: integer, default: 2, min: 1, max: 1024}
+
+###
 #
 #isb_sizes
 #^^^^^^^^^

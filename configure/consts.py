@@ -52,8 +52,8 @@ include depends.mk
 
 dependency_yaml='''
 common_bsv:
-  url: https://gitlab.com/shaktiproject/common_bsv
-  checkout: master
+  url: git@github.com:mounakrishna/common_bsv.git
+  checkout: Pipeline_stage_MIMO
 devices:
   url: https://gitlab.com/shaktiproject/uncore/devices
   checkout: 8.0.1

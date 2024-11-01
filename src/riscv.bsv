@@ -12,6 +12,7 @@ package riscv;
   import Connectable  :: * ;
   import GetPut       :: * ;
   import DReg         :: * ;
+  import MIMO         :: * ;
   `include "Logger.bsv"
 
 `ifdef muldiv
@@ -241,7 +242,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     mkConnection(stage3.common.ma_hstatus, stage5.csrs.mv_csr_hstatus);
   `endif
   `ifdef bpu
-    mkConnection(stage3.bpu.ma_next_pc, pipe1.first.program_counter);
+    mkConnection(stage3.bpu.ma_next_pc, pipe1.first[0].program_counter);
     mkConnection(stage0.s0_bpu.ma_train_bpu, stage3.bpu.mv_train_bpu);
   `ifdef gshare
     mkConnection(stage0.s0_bpu.ma_mispredict, stage3.bpu.mv_mispredict);
