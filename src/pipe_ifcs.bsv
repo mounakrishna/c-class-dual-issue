@@ -11,7 +11,7 @@ import SpecialFIFOs :: * ;
 import FIFOF        :: * ;
 import GetPut       :: * ;
 import Connectable  :: * ;
-import MIMO         :: * ;
+import MIMO_MODIFY  :: * ;
 
 import ccore_types  :: * ;
 import dcache_types :: * ;
@@ -498,11 +498,11 @@ endinterface:Ifc_s5_perfmonitors
     return ff_pipe0.notEmpty;
   endmodule:mkPipe_s0_s1
 
-  module mkPipe_s1_s2#(Ifc_s1_tx s1, Ifc_s2_rx s2)(Tuple2#(Bool,MIMO#(2, 2, `instr_queue, PIPE1)));
+  module mkPipe_s1_s2#(Ifc_s1_tx s1, Ifc_s2_rx s2)(Tuple2#(Bool,MIMO_MODIFY#(2, 2, `instr_queue, PIPE1)));
     MIMOConfiguration cfg = defaultValue;
     cfg.unguarded=True;
 
-    MIMO#(2, 2, `instr_queue, PIPE1) ff_pipe1 <- mkMIMO(cfg);
+    MIMO_MODIFY#(2, 2, `instr_queue, PIPE1) ff_pipe1 <- mkMIMO_MODIFY(cfg);
 
     //FIFOF#(PIPE1) ff_pipe1 <- mkSizedFIFOF( `isb_s1s2 );
   `ifdef rtldump 

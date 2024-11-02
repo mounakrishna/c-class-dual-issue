@@ -63,6 +63,9 @@ fabrics:
 common_verilog:
   url: git@github.com:mounakrishna/common_verilog.git
   checkout: master
+caches_mmu:
+    url: git@github.com:mounakrishna/caches_mmu_dual_issue.git
+    checkout: master
 verification:
   url: git@github.com:Mindgrove-Technologies/verification.git
   checkout: master

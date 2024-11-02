@@ -12,7 +12,7 @@ package riscv;
   import Connectable  :: * ;
   import GetPut       :: * ;
   import DReg         :: * ;
-  import MIMO         :: * ;
+  import MIMO_MODIFY  :: * ;
   `include "Logger.bsv"
 
 `ifdef muldiv

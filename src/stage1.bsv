@@ -431,7 +431,15 @@ package stage1;
         rg_receiving_upper))
     `endif
       //tx_tostage2.u.enqReady_count(valid_instructions);
-      let enq_ready <- tx_tostage2.u.enqReady(valid_instructions);
+      //let enq_ready <- tx_tostage2.u.enqReady(valid_instructions);
+      Bool enq_ready;
+      if (valid_instructions == 1)
+        enq_ready = tx_tostage2.u.enqReady_1();
+      else if (valid_instructions == 2)
+        enq_ready = tx_tostage2.u.enqReady_2();
+      else
+        enq_ready = False;
+
       if (deq_resp && enq_ready)
         deq_response;
       if(enque_instruction && enq_ready) begin
