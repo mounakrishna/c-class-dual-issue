@@ -491,7 +491,6 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           mtval[i] = zeroExtend(pc + 2*fromInteger(i));
       `endif
     end
-    tx_mtval.u.enq(mtval);
 
     let rs1_from_rf <- registerfile.read_rs1(decoded_inst[0].op_addr.rs1addr
                         `ifdef spfpu ,rf1type[0] `endif );
@@ -605,6 +604,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         tx_meta.u.enq(stage3meta);
         tx_instrtype.u.enq(instrType);
         tx_opmeta.u.enq(opmeta);
+        tx_mtval.u.enq(mtval);
       `ifdef rtldump
         let clogpkt = rx_commitlog.u.first;
         clogpkt.inst_type = tagged REG (CommitLogReg{wdata:?, rd: stage3meta.rd[0], 
