@@ -362,7 +362,7 @@ typedef struct{
 `endif
   Privilege_mode mode;
   Bit#(`xlen) pc;
-  Vector#(`num_issue, Bit#(32)) instruction;
+  Bit#(32) instruction;
   CommitLogType inst_type;
 } CommitLogPacket deriving(Bits, FShow, Eq);
 // ------------------------------------------------------------------------------------------
@@ -383,7 +383,6 @@ typedef struct{
 typedef struct{
 `ifdef compressed
   Bool upper_err;
-  //Vector#(`num_issue, Bool) compressed;
   Bool compressed;
 `endif
 `ifdef bpu

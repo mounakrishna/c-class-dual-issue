@@ -230,7 +230,7 @@ package stage0;
           tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(3'b100)
                     `ifdef compressed   ,discard     : rg_pc[0][1]==1        `endif
                     `ifdef bpu          ,btbresponse : bpu_resp.btbresponse `endif  });
-          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0]))
+          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0] & signExtend(3'b100)))
         end
     endrule
 

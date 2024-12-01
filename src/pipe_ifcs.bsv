@@ -78,7 +78,7 @@ interface Ifc_s1_tx;
   // instruction along with other results to be sent to the next stage
   interface TX_MIMOe#(Vector#(2, PIPE1), 2) tx_to_stage2;
 `ifdef rtldump
-  interface TXe#(CommitLogPacket) tx_commitlog;
+  interface TX_MIMOe#(Vector#(2, CommitLogPacket), 2) tx_commitlog;
 `endif
 endinterface: Ifc_s1_tx
 
@@ -267,7 +267,7 @@ interface Ifc_s2_rx;
 	interface RX_MIMOe#(Vector#(2, PIPE1), 2) rx_from_stage1;
 `ifdef rtldump
   /*doc:subifc: receive instruction of trace from previous stage */
-  interface RXe#(CommitLogPacket) rx_commitlog;
+  interface RX_MIMOe#(Vector#(2, CommitLogPacket), 2) rx_commitlog;
 `endif
 endinterface
 
@@ -506,7 +506,7 @@ endinterface:Ifc_s5_perfmonitors
 
     //FIFOF#(PIPE1) ff_pipe1 <- mkSizedFIFOF( `isb_s1s2 );
   `ifdef rtldump 
-    FIFOF#(CommitLogPacket) ff_commitlog <- mkSizedFIFOF( `isb_s1s2 );
+    MIMO_MODIFY#(2, 2, `instr_queue, CommitLogPacket) ff_commitlog <- mkMIMO_MODIFY(cfg);
   `endif
     Empty s1_pipe1 <- mkConnection(s1.tx_to_stage2, ff_pipe1);
     //rule connect_ena_data_tx (s1.tx_to_stage2.enq_ena);

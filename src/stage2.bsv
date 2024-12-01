@@ -170,7 +170,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   Ifc_registerfile registerfile <- mkregisterfile(hartid);
 
   /*doc:mod FIFO to interface with stage0 and receive fetched instruction */
-	RX_MIMO#(2, 2, 8, PIPE1) rx_pipe1 <- mkRX_MIMO;
+	RX_MIMO#(2, 2, `instr_queue, PIPE1) rx_pipe1 <- mkRX_MIMO;
 
   /*doc:mod FIFO interface to send the decoded information to the next stage.*/
   TX#(Stage3Meta)   tx_meta   <- mkTX;
@@ -186,7 +186,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 `ifdef rtldump
   // fifo interface used to transmit the trace of the instruction for rtl.dump generation
   TX#(CommitLogPacket) tx_commitlog <- mkTX;
-  RX#(CommitLogPacket) rx_commitlog <- mkRX;
+  RX_MIMO#(2, 2, `instr_queue, CommitLogPacket) rx_commitlog <- mkRX_MIMO;
 `endif
 
   /*doc:wire: wire to capture the latest csr values from csr-file*/
@@ -329,7 +329,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   // Implicit Conditions :  and all tx fifos are not full
   // Description : This rule decodes the current fetched instruction, fetches the operands from the
   // registerfile and sends the required struct to the next stage.
-  rule decode_and_opfetch(!rg_stall && tx_instrtype.u.notFull && !rg_wfi );
+  rule decode_and_opfetch(!rg_stall && tx_instrtype.u.notFull && !rg_wfi && rx_pipe1.u.deqReady_1 && rx_commitlog.u.deqReady_1 );
 
     // --- extract the fields from the packet received from the stage1 ---- //
   //  let pc = rx_pipe1.u.first[0].program_counter;
@@ -549,7 +549,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping Instruction due to epoch mis - match",hartid))
       rx_pipe1.u.deq(1);
     `ifdef rtldump
-      rx_commitlog.u.deq;
+      rx_commitlog.u.deq(1);
     `endif
 
     end
@@ -606,7 +606,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         tx_opmeta.u.enq(opmeta);
         tx_mtval.u.enq(mtval);
       `ifdef rtldump
-        let clogpkt = rx_commitlog.u.first;
+        let clogpkt = rx_commitlog.u.first[0];
         clogpkt.inst_type = tagged REG (CommitLogReg{wdata:?, rd: stage3meta.rd[0], 
                             irf: `ifdef spfpu stage3meta.rdtype[0]==IRF `else True `endif });
         if (fromMaybe(ALU, instrType[0]) == SYSTEM_INSTR) begin
@@ -661,7 +661,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         // -------------------------------------------------------------------------------------- //
       rx_pipe1.u.deq(1);
     `ifdef rtldump
-      rx_commitlog.u.deq;
+      rx_commitlog.u.deq(1);
     `endif
     end
   endrule
