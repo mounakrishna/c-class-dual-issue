@@ -63,10 +63,10 @@ package stage4;
   /*doc:module:*/
 module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     /*doc:submodule: The following are the virtual FIFOs connected to the ISBs from the EXE stage*/
-    RX#(Vector#(`num_issue, BaseOut)) rx_baseout <- mkRX; 
-    RX#(Vector#(`num_issue, TrapOut)) rx_trapout <- mkRX;
-    RX#(Vector#(`num_issue, SystemOut)) rx_systemout <- mkRX;
-    RX#(Vector#(`num_issue, MemoryOut)) rx_memoryout <- mkRX;
+    //RX#(Vector#(`num_issue, BaseOut)) rx_baseout <- mkRX; 
+    //RX#(Vector#(`num_issue, TrapOut)) rx_trapout <- mkRX;
+    //RX#(Vector#(`num_issue, SystemOut)) rx_systemout <- mkRX;
+    //RX#(Vector#(`num_issue, MemoryOut)) rx_memoryout <- mkRX;
     RX#(Vector#(`num_issue, FUid)) rx_fuid <- mkRX;
   `ifdef rtldump
     RX#(CommitLogPacket) rx_commitlog <- mkRX;
@@ -83,10 +83,10 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
   
     /*doc:submodule: Following are the virtual FIFOs connected to the ISBs feeding into the
      * write-back stage*/
-    TX#(Vector#(`num_issue, SystemOut)) tx_systemout <- mkTX;
-    TX#(Vector#(`num_issue, TrapOut))   tx_trapout <- mkTX;
-    TX#(Vector#(`num_issue, BaseOut))   tx_baseout <- mkTX;
-    TX#(Vector#(`num_issue, WBMemop))   tx_memio <- mkTX;
+    //TX#(Vector#(`num_issue, SystemOut)) tx_systemout <- mkTX;
+    //TX#(Vector#(`num_issue, TrapOut))   tx_trapout <- mkTX;
+    //TX#(Vector#(`num_issue, BaseOut))   tx_baseout <- mkTX;
+    //TX#(Vector#(`num_issue, WBMemop))   tx_memio <- mkTX;
     TX#(Vector#(`num_issue, CUid))      tx_fuid <- mkTX;
   `ifdef rtldump
     TX#(CommitLogPacket) tx_commitlog <- mkTX;
@@ -107,9 +107,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     /*doc:rule: This rule will simply bypass the results of instructinos which were executed in the
     * previous stage without any alteration*/
     rule rl_fwd_baseout(rx_fuid.u.first[0].insttype == BASE);
-      tx_baseout.u.enq(rx_baseout.u.first);
-      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first));
-      rx_baseout.u.deq;
+      //tx_baseout.u.enq(rx_baseout.u.first);
+      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      //rx_baseout.u.deq;
       rx_fuid.u.deq;
       `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Base ALU Output",hartid))
@@ -118,7 +118,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       CommitLogReg _pkt =?;
       if (clogpkt.inst_type matches tagged REG .r)
         _pkt = r;
-      _pkt.wdata = rx_baseout.u.first[0].rdvalue;
+      //_pkt.wdata = rx_baseout.u.first[0].rdvalue;
+      if (rx_fuid.u.first[0].instpkt matches tagged BASE .baseout)
+        _pkt.wdata = baseout.rdvalue;
       clogpkt.inst_type = tagged REG _pkt;
       tx_commitlog.u.enq(clogpkt);
       rx_commitlog.u.deq;
@@ -128,9 +130,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     /*doc:rule: This rule will bypass the system operation as is to the write-back stage where it
     * will be executed. No alteration required in this stage for system operations*/
     rule rl_fwd_systemout(rx_fuid.u.first[0].insttype == SYSTEM);
-      tx_systemout.u.enq(rx_systemout.u.first);
-      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first));
-      rx_systemout.u.deq;
+      //tx_systemout.u.enq(rx_systemout.u.first);
+      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      //rx_systemout.u.deq;
       rx_fuid.u.deq;
       `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering System Output",hartid))
@@ -144,9 +146,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     /*doc:rule: This rule will bypass an instructino that was tagged as a trap in the previous
     * stages to the write-back stage which will handle the traps accordingly*/
     rule rl_fwd_trapout(rx_fuid.u.first[0].insttype == TRAP);
-      tx_trapout.u.enq(rx_trapout.u.first);
-      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first));
-      rx_trapout.u.deq;
+      //tx_trapout.u.enq(rx_trapout.u.first);
+      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      //rx_trapout.u.deq;
       rx_fuid.u.deq;
       `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Trap Output",hartid))
@@ -178,8 +180,13 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       let mem_response = ff_memory_response.first;
       ff_memory_response.deq;
       let epochs = rx_fuid.u.first[0].epochs;
-      let fuid = fn_fu2cu(rx_fuid.u.first);
-      let memop = rx_memoryout.u.first;
+      let fuid = rx_fuid.u.first;
+      //let memop = rx_memoryout.u.first;
+      MemoryOut memop;
+      if (rx_fuid.u.first[0].instpkt matches tagged MEMORY .mem)
+        memop = mem;
+      else
+        memop = ?;
       
       Bool trap = mem_response.trap;
       Bit#(`causesize) cause = mem_response.cause;
@@ -189,7 +196,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       end
       else begin
         rx_fuid.u.deq;
-        rx_memoryout.u.deq;
+        //rx_memoryout.u.deq;
       `ifdef rtldump
         rx_commitlog.u.deq;
         let clogpkt = rx_commitlog.u.first;
@@ -203,40 +210,42 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 																	 	 , mtval2: zeroExtend(mem_response.mtval2)
                                       `endif
                                       };
-          tx_trapout.u.enq(unpack({0, pack(trapout)}));
-          tx_fuid.u.enq(fuid);
+          //tx_trapout.u.enq(unpack({0, pack(trapout)}));
+          fuid[0].instpkt = tagged TRAP trapout;
+          tx_fuid.u.enq(fn_fu2cu(fuid, ?));
           `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with trap: ",hartid, fshow(trapout)))
         `ifdef rtldump
           tx_commitlog.u.enq(clogpkt);
         `endif
         end
         else if (mem_response.entry_alloc) begin
-          let lv_memop = WBMemop{ memaccess: memop[0].memaccess , io: mem_response.is_io,
+          let lv_memop = WBMemop{ memaccess: memop.memaccess , io: mem_response.is_io,
               sb_id : mem_response.sb_id
-              `ifdef dpfpu ,nanboxing: unpack(memop[0].nanboxing) `endif
+              `ifdef dpfpu ,nanboxing: unpack(memop.nanboxing) `endif
               `ifdef atomic ,atomic_rd_data: mem_response.word `endif };
-          tx_memio.u.enq(unpack({0, pack(lv_memop)}));
+          //tx_memio.u.enq(unpack({0, pack(lv_memop)}));
           fuid[0].insttype = MEMORY;
-          tx_fuid.u.enq(fuid);
+          //fuid[0].instpkt = tagged MEMORY lv_memop;
+          tx_fuid.u.enq(fn_fu2cu(fuid, unpack({?, pack(lv_memop)})));
           `logLevel( stage4, 0, $format("[%2d]STAGE4: Mem response received:",hartid, fshow(lv_memop)))
         `ifdef rtldump
           tx_commitlog.u.enq(clogpkt);
         `endif
         end
         else begin
-          `ifdef dpfpu if (memop[0].nanboxing == 1 ) mem_response.word[63:32] = '1; `endif
+          `ifdef dpfpu if (memop.nanboxing == 1 ) mem_response.word[63:32] = '1; `endif
           fuid[0].insttype = BASE;
           let baseout = BaseOut {rd: rx_fuid.u.first[0].rd, rdvalue: mem_response.word, epochs: fuid[0].epochs
-                            `ifdef no_wawstalls ,id: ? `endif
                             `ifdef spfpu        ,fflags: 0, rdtype: fuid[0].rdtype `endif };
-        `ifdef no_wawstalls
-          baseout.id = fuid[0].id;
-        `endif
-          tx_baseout.u.enq(unpack({0, pack(baseout)}));
-          tx_fuid.u.enq(fuid);
+        //`ifdef no_wawstalls
+        //  baseout.id = fuid[0].id;
+        //`endif
+          //tx_baseout.u.enq(unpack({0, pack(baseout)}));
+          fuid[0].instpkt = tagged BASE baseout;
+          tx_fuid.u.enq(fn_fu2cu(fuid, ?));
           `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with data:",hartid, fshow(baseout)))
         `ifdef rtldump
-          if (memop[0].memaccess == Atomic && !mem_response.entry_alloc && memop[0].atomicop=='b0111) begin
+          if (memop.memaccess == Atomic && !mem_response.entry_alloc && memop.atomicop=='b0111) begin
             clogpkt.inst_type = tagged REG (CommitLogReg{wdata: mem_response.word, rd:
                 fuid[0].rd, irf: `ifdef spfpu (fuid[0].rdtype==IRF) `else True `endif });
           end
@@ -262,7 +271,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     */
    rule rl_capture_muldiv(rx_fuid.u.first[0].insttype == MULDIV && rx_mbox.u.notEmpty() `ifdef arith_trap && rx_mbox_arith_trap_output.u.notEmpty() `endif );
       let mbox_result = rx_mbox.u.first;
-      let fuid = fn_fu2cu(rx_fuid.u.first);
+      let fuid = rx_fuid.u.first;
       rx_mbox.u.deq;
       `ifdef arith_trap
         let mbox_arith_trap_output = rx_mbox_arith_trap_output.u.first;
@@ -273,8 +282,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                      is_microtrap: False,
                                      mtval : ?
                                     };
-          tx_trapout.u.enq(trapout);
-          tx_fuid.u.enq(fuid);
+          //tx_trapout.u.enq(trapout);
+          fuid[0].instpkt = tagged TRAP trapout;
+          tx_fuid.u.enq(fn_fu2cu(fuid, ?));
           rx_fuid.u.deq;
           `ifdef rtldump
             let clogpkt = rx_commitlog.u.first;
@@ -283,11 +293,11 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
         end
         else begin 
       `endif
-        tx_baseout.u.enq(unpack({0, pack(BaseOut {rd: rx_fuid.u.first[0].rd, rdvalue: mbox_result, epochs: fuid[0].epochs
-              `ifdef no_wawstalls ,id: fuid[0].id `endif
-              `ifdef spfpu ,fflags: 0, rdtype: IRF `endif })}));
+        BaseOut baseout = BaseOut {rd: rx_fuid.u.first[0].rd, rdvalue: mbox_result, epochs: fuid[0].epochs
+              `ifdef spfpu ,fflags: 0, rdtype: IRF `endif };
+        fuid[0].instpkt = tagged BASE baseout;
         fuid[0].insttype = BASE;
-        tx_fuid.u.enq(fuid);
+        tx_fuid.u.enq(fn_fu2cu(fuid, ?));
         rx_fuid.u.deq;
         `ifdef rtldump
           let clogpkt = rx_commitlog.u.first;
@@ -319,7 +329,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
   */
   rule rl_capture_float(rx_fuid.u.first[0].insttype == FLOAT && rx_fbox.u.notEmpty());
     let _r = rx_fbox.u.first;
-    let fuid = fn_fu2cu(rx_fuid.u.first);
+    let fuid = rx_fuid.u.first;
     rx_fbox.u.deq;
     `ifdef arith_trap
       Bool arith_trap = False;
@@ -345,8 +355,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                    is_microtrap: False,
                                    mtval : ?
                                   };
-        tx_trapout.u.enq(trapout);
-        tx_fuid.u.enq(fuid);
+        //tx_trapout.u.enq(trapout);
+        fuid[0].instpkt = tagged TRAP trapout;
+        tx_fuid.u.enq(fn_fu2cu(fuid, ?));
         rx_fuid.u.deq;
         `ifdef rtldump
           let clogpkt = rx_commitlog.u.first;
@@ -356,11 +367,11 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       else 
     `endif
       begin 
-        tx_baseout.u.enq(unpack({0, pack(BaseOut {rd: rx_fuid.u.first[0].rd, rdvalue: _r.data, epochs: fuid[0].epochs
-              `ifdef no_wawstalls ,id: fuid[0].id `endif
-              `ifdef spfpu ,fflags: _r.fflags, rdtype: fuid[0].rdtype `endif })}));
+        BaseOut baseout = BaseOut {rd: rx_fuid.u.first[0].rd, rdvalue: _r.data, epochs: fuid[0].epochs
+              `ifdef spfpu ,fflags: _r.fflags, rdtype: fuid[0].rdtype `endif };
         fuid[0].insttype = BASE;
-        tx_fuid.u.enq(fuid);
+        fuid[0].instpkt = tagged BASE baseout;
+        tx_fuid.u.enq(fn_fu2cu(fuid, ?));
         rx_fuid.u.deq;
       `ifdef rtldump
         let clogpkt = rx_commitlog.u.first;
@@ -380,10 +391,10 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 `endif
 
     interface rx = interface Ifc_s4_rx
-      interface rx_baseout_from_stage3 = rx_baseout.e;
-      interface rx_trapout_from_stage3 = rx_trapout.e;
-      interface rx_systemout_from_stage3  = rx_systemout.e;
-      interface rx_memoryout_from_stage3 = rx_memoryout.e;
+      //interface rx_baseout_from_stage3 = rx_baseout.e;
+      //interface rx_trapout_from_stage3 = rx_trapout.e;
+      //interface rx_systemout_from_stage3  = rx_systemout.e;
+      //interface rx_memoryout_from_stage3 = rx_memoryout.e;
       interface rx_fuid_from_stage3 = rx_fuid.e;
     `ifdef rtldump
       interface rx_commitlog = rx_commitlog.e;
@@ -391,10 +402,10 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     endinterface;
 
     interface tx = interface Ifc_s4_tx
-      interface tx_systemout_to_stage5  = tx_systemout.e;
-      interface tx_trapout_to_stage5  = tx_trapout.e;
-      interface tx_baseout_to_stage5 = tx_baseout.e;
-      interface tx_memio_to_stage5 = tx_memio.e;
+      //interface tx_systemout_to_stage5  = tx_systemout.e;
+      //interface tx_trapout_to_stage5  = tx_trapout.e;
+      //interface tx_baseout_to_stage5 = tx_baseout.e;
+      //interface tx_memio_to_stage5 = tx_memio.e;
       interface tx_fuid_to_stage5 = tx_fuid.e;
     `ifdef rtldump
       interface tx_commitlog = tx_commitlog.e;

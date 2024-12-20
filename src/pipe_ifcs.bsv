@@ -109,11 +109,11 @@ endinterface:Ifc_s1_icache
 // --------------------- stage3 interfaces -------------------------------------------------------
 interface Ifc_s3_rx;
   /*doc:subifc: interface to receive the meta information from the decode stage*/
-  interface RXe#(Stage3Meta)          rx_meta_from_stage2;
+  interface RXe#(Vector#(`num_issue, Stage3Meta))          rx_meta_from_stage2;
   /*doc: subifc: interface to receive the mtval value from stage2 incase of a trap */
   interface RXe#(Vector#(`num_issue, Bit#(`xlen)))          rx_mtval_from_stage2;
   /*doc: subifc: interface to receive the mtval value from stage2 incase of a trap */
-  interface RXe#(Vector#(`num_issue, Maybe#(Instruction_type)))    rx_instrtype_from_stage2;
+  interface RXe#(Vector#(`num_issue, Instruction_type))    rx_instrtype_from_stage2;
   /*doc: subifc: interface to receive the operand metadata value from stage2*/
   interface RXe#(OpMeta)              rx_opmeta_from_stage2;
 `ifdef rtldump 
@@ -123,14 +123,14 @@ interface Ifc_s3_rx;
 endinterface:Ifc_s3_rx
 
 interface Ifc_s3_tx;
-  /*doc:subifc: Interface to send out the results for base and control ops*/
-  interface TXe#(Vector#(`num_issue, BaseOut))             tx_baseout_to_stage4;
-  /*doc:subifc: interface to send out the results caused due to a trap*/
-  interface TXe#(Vector#(`num_issue, TrapOut))             tx_trapout_to_stage4;
-  /*doc:subifc: interface to bypass the system operations */
-  interface TXe#(Vector#(`num_issue, SystemOut))           tx_systemout_to_stage4;
-  /*doc:subifc: interface to send out the results of valid memory operations*/
-  interface TXe#(Vector#(`num_issue, MemoryOut))           tx_memoryout_to_stage4;
+  ///*doc:subifc: Interface to send out the results for base and control ops*/
+  //interface TXe#(Vector#(`num_issue, BaseOut))             tx_baseout_to_stage4;
+  ///*doc:subifc: interface to send out the results caused due to a trap*/
+  //interface TXe#(Vector#(`num_issue, TrapOut))             tx_trapout_to_stage4;
+  ///*doc:subifc: interface to bypass the system operations */
+  //interface TXe#(Vector#(`num_issue, SystemOut))           tx_systemout_to_stage4;
+  ///*doc:subifc: interface to send out the results of valid memory operations*/
+  //interface TXe#(Vector#(`num_issue, MemoryOut))           tx_memoryout_to_stage4;
   /*doc:subifc: interface to send common meta information to the memory stage.*/
 	interface TXe#(Vector#(`num_issue, FUid))        tx_fuid_to_stage4;
 `ifdef rtldump
@@ -273,13 +273,13 @@ endinterface
 
 interface Ifc_s2_tx;
   /*doc:subifc: send instruction meta data to stage3 */
-  interface TXe#(Stage3Meta)    tx_meta_to_stage3;
+  interface TXe#(Vector#(`num_issue, Stage3Meta))    tx_meta_to_stage3;
 
   /*doc:subifc: send bad-address information to stage3 in case of TRAPs*/
   interface TXe#(Vector#(`num_issue, Bit#(`xlen)))    tx_mtval_to_stage3;
 
   /*doc:subifc: send instruction type to stage3*/
-  interface TXe#(Vector#(`num_issue, Maybe#(Instruction_type))) tx_instrtype_to_stage3;
+  interface TXe#(Vector#(`num_issue, Instruction_type)) tx_instrtype_to_stage3;
 
   interface TXe#(OpMeta) tx_opmeta_to_stage3;
 
@@ -349,14 +349,14 @@ endinterface:Ifc_s2_debug
 // -------------------------------- stage4 interfaces --------------------------------------------
 
   interface Ifc_s4_rx;
-    /*doc:subifc: Interface to send out the results for base and control ops*/
-    interface RXe#(Vector#(`num_issue, BaseOut))             rx_baseout_from_stage3;
-    /*doc:subifc: interface from send out the results caused due from a trap*/
-    interface RXe#(Vector#(`num_issue, TrapOut))             rx_trapout_from_stage3;
-    /*doc:subifc: interface from bypass the system operations */
-    interface RXe#(Vector#(`num_issue, SystemOut))           rx_systemout_from_stage3;
-    /*doc:subifc: interface from send out the results of valid memory operations*/
-    interface RXe#(Vector#(`num_issue, MemoryOut))           rx_memoryout_from_stage3;
+    ///*doc:subifc: Interface to send out the results for base and control ops*/
+    //interface RXe#(Vector#(`num_issue, BaseOut))             rx_baseout_from_stage3;
+    ///*doc:subifc: interface from send out the results caused due from a trap*/
+    //interface RXe#(Vector#(`num_issue, TrapOut))             rx_trapout_from_stage3;
+    ///*doc:subifc: interface from bypass the system operations */
+    //interface RXe#(Vector#(`num_issue, SystemOut))           rx_systemout_from_stage3;
+    ///*doc:subifc: interface from send out the results of valid memory operations*/
+    //interface RXe#(Vector#(`num_issue, MemoryOut))           rx_memoryout_from_stage3;
     /*doc:subifc: interface from send common meta information from the memory stage.*/
   	interface RXe#(Vector#(`num_issue, FUid))        rx_fuid_from_stage3;
   `ifdef rtldump
@@ -366,10 +366,10 @@ endinterface:Ifc_s2_debug
   endinterface:Ifc_s4_rx
 
   interface Ifc_s4_tx;
-    interface TXe#(Vector#(`num_issue, SystemOut))       tx_systemout_to_stage5;
-    interface TXe#(Vector#(`num_issue, TrapOut))         tx_trapout_to_stage5;
-    interface TXe#(Vector#(`num_issue, BaseOut))         tx_baseout_to_stage5;
-    interface TXe#(Vector#(`num_issue, WBMemop))         tx_memio_to_stage5;
+    //interface TXe#(Vector#(`num_issue, SystemOut))       tx_systemout_to_stage5;
+    //interface TXe#(Vector#(`num_issue, TrapOut))         tx_trapout_to_stage5;
+    //interface TXe#(Vector#(`num_issue, BaseOut))         tx_baseout_to_stage5;
+    //interface TXe#(Vector#(`num_issue, WBMemop))         tx_memio_to_stage5;
     interface TXe#(Vector#(`num_issue, CUid))            tx_fuid_to_stage5;
   `ifdef rtldump
     interface TXe#(CommitLogPacket) tx_commitlog;
@@ -398,10 +398,10 @@ endinterface:Ifc_s2_debug
 // -----------------------------------------------------------------------------------------------
 // ------------------------------------stage5 interfaces -----------------------------------------
 interface Ifc_s5_rx;
-  interface RXe#(Vector#(`num_issue, SystemOut))       rx_systemout_from_stage4;
-  interface RXe#(Vector#(`num_issue, TrapOut))         rx_trapout_from_stage4;
-  interface RXe#(Vector#(`num_issue, BaseOut))         rx_baseout_from_stage4;
-  interface RXe#(Vector#(`num_issue, WBMemop))         rx_memio_from_stage4;
+  //interface RXe#(Vector#(`num_issue, SystemOut))       rx_systemout_from_stage4;
+  //interface RXe#(Vector#(`num_issue, TrapOut))         rx_trapout_from_stage4;
+  //interface RXe#(Vector#(`num_issue, BaseOut))         rx_baseout_from_stage4;
+  //interface RXe#(Vector#(`num_issue, WBMemop))         rx_memio_from_stage4;
   interface RXe#(Vector#(`num_issue, CUid))            rx_fuid_from_stage4;
 `ifdef rtldump
   interface RXe#(CommitLogPacket) rx_commitlog;
@@ -533,9 +533,9 @@ endinterface:Ifc_s5_perfmonitors
   endmodule:mkPipe_s1_s2
 
   module mkPipe_s2_s3#(Ifc_s2_tx s2, Ifc_s3_rx s3)(Bool);
-    FIFOF#(Stage3Meta) ff_meta <- mkLFIFOF();
+    FIFOF#(Vector#(`num_issue, Stage3Meta)) ff_meta <- mkLFIFOF();
     FIFOF#(Vector#(`num_issue, Bit#(`xlen))) ff_mtval <- mkLFIFOF();
-    FIFOF#(Vector#(`num_issue, Maybe#(Instruction_type))) ff_insttype <- mkLFIFOF();
+    FIFOF#(Vector#(`num_issue, Instruction_type)) ff_insttype <- mkLFIFOF();
     FIFOF#(OpMeta) ff_opmeta <- mkLFIFOF();
   `ifdef rtldump
     FIFOF#(CommitLogPacket) ff_commitlog <- mkLFIFOF();
@@ -568,10 +568,10 @@ endinterface:Ifc_s5_perfmonitors
   endinstance
 
   module mkPipe_s3_s4#(Ifc_s3_tx s3, Ifc_s4_rx s4)(Tuple2#(Bool, Vector#(`num_issue, FwdType)));
-    FIFOF#(Vector#(`num_issue, BaseOut))             ff_baseout <- mkSizedFIFOF( `isb_s3s4 );
-    FIFOF#(Vector#(`num_issue, TrapOut))             ff_trapout <- mkSizedFIFOF( `isb_s3s4 );
-    FIFOF#(Vector#(`num_issue, SystemOut))           ff_systemout <- mkSizedFIFOF( `isb_s3s4 );
-    FIFOF#(Vector#(`num_issue, MemoryOut))           ff_memoryout <- mkSizedFIFOF( `isb_s3s4 );
+    //FIFOF#(Vector#(`num_issue, BaseOut))             ff_baseout <- mkSizedFIFOF( `isb_s3s4 );
+    //FIFOF#(Vector#(`num_issue, TrapOut))             ff_trapout <- mkSizedFIFOF( `isb_s3s4 );
+    //FIFOF#(Vector#(`num_issue, SystemOut))           ff_systemout <- mkSizedFIFOF( `isb_s3s4 );
+    //FIFOF#(Vector#(`num_issue, MemoryOut))           ff_memoryout <- mkSizedFIFOF( `isb_s3s4 );
   	FIFOF#(Vector#(`num_issue, FUid))                ff_fuid <- mkSizedFIFOF( `isb_s3s4 );
   `ifdef rtldump
     FIFOF#(CommitLogPacket)     ff_commitlog <- mkSizedFIFOF( `isb_s3s4 );
@@ -583,29 +583,38 @@ endinterface:Ifc_s5_perfmonitors
       Vector#(`num_issue, FwdType) lv_bypass;
 
       for (Integer i=0; i<`num_issue; i=i+1) begin
-        Bool valid = ff_baseout.notEmpty && 
-          !(ff_baseout.first[i].rd==0  `ifdef spfpu && ff_baseout.first[i].rdtype == IRF `endif );
-        lv_bypass[i] = FwdType{valid: valid , addr: ff_baseout.first[i].rd , 
-                                    data: ff_baseout.first[i].rdvalue, 
-                                    epochs: ff_baseout.first[i].epochs
-                      `ifdef no_wawstalls ,id: ff_baseout.first[i].id `endif
-                      `ifdef spfpu , rdtype: ff_baseout.first[i].rdtype `endif };
+        BaseOut baseoutput = ?;
+        Bool valid;
+        if (ff_fuid.first[i].instpkt matches tagged BASE .baseout &&& ff_fuid.notEmpty) begin
+          baseoutput = baseout;
+          valid = !(baseoutput.rd == 0  `ifdef spfpu && baseout.rdtype == IRF `endif );
+        end
+        else begin
+          baseoutput = ?;
+          valid = False;
+        end
+
+        lv_bypass[i] = FwdType{valid: valid , addr: baseoutput.rd , 
+                                    data: baseoutput.rdvalue, 
+                                    epochs: baseoutput.epochs
+                      `ifdef no_wawstalls ,id: ff_fuid.first[i].id `endif
+                      `ifdef spfpu , rdtype: baseoutput.rdtype `endif };
       end
 
       wr_bypass <= lv_bypass;
     endrule:rl_gen_bypass
   
-    mkConnection(s3.tx_baseout_to_stage4, ff_baseout);
-    mkConnection(ff_baseout, s4.rx_baseout_from_stage3);
+    //mkConnection(s3.tx_baseout_to_stage4, ff_baseout);
+    //mkConnection(ff_baseout, s4.rx_baseout_from_stage3);
   
-    mkConnection(s3.tx_trapout_to_stage4, ff_trapout);
-    mkConnection(ff_trapout, s4.rx_trapout_from_stage3);
+    //mkConnection(s3.tx_trapout_to_stage4, ff_trapout);
+    //mkConnection(ff_trapout, s4.rx_trapout_from_stage3);
 
-    mkConnection(s3.tx_systemout_to_stage4, ff_systemout);
-    mkConnection(ff_systemout, s4.rx_systemout_from_stage3);
+    //mkConnection(s3.tx_systemout_to_stage4, ff_systemout);
+    //mkConnection(ff_systemout, s4.rx_systemout_from_stage3);
 
-    mkConnection(s3.tx_memoryout_to_stage4, ff_memoryout);
-    mkConnection(ff_memoryout, s4.rx_memoryout_from_stage3);
+    //mkConnection(s3.tx_memoryout_to_stage4, ff_memoryout);
+    //mkConnection(ff_memoryout, s4.rx_memoryout_from_stage3);
 
     mkConnection(s3.tx_fuid_to_stage4, ff_fuid);
     mkConnection(ff_fuid, s4.rx_fuid_from_stage3);
@@ -619,10 +628,10 @@ endinterface:Ifc_s5_perfmonitors
   endmodule:mkPipe_s3_s4
 
   module mkPipe_s4_s5# (Ifc_s4_tx s4, Ifc_s5_rx s5)(Tuple2#(Bool, Vector#(`num_issue, FwdType)));
-    FIFOF#(Vector#(`num_issue, SystemOut)) ff_systemout <- mkSizedFIFOF( `isb_s4s5 );
-    FIFOF#(Vector#(`num_issue, TrapOut)) ff_trapout <- mkSizedFIFOF( `isb_s4s5 );
-    FIFOF#(Vector#(`num_issue, BaseOut)) ff_baseout <- mkSizedFIFOF( `isb_s4s5 );
-    FIFOF#(Vector#(`num_issue, WBMemop)) ff_wbmemop <- mkSizedFIFOF( `isb_s4s5 );
+    //FIFOF#(Vector#(`num_issue, SystemOut)) ff_systemout <- mkSizedFIFOF( `isb_s4s5 );
+    //FIFOF#(Vector#(`num_issue, TrapOut)) ff_trapout <- mkSizedFIFOF( `isb_s4s5 );
+    //FIFOF#(Vector#(`num_issue, BaseOut)) ff_baseout <- mkSizedFIFOF( `isb_s4s5 );
+    //FIFOF#(Vector#(`num_issue, WBMemop)) ff_wbmemop <- mkSizedFIFOF( `isb_s4s5 );
     FIFOF#(Vector#(`num_issue, CUid)) ff_fuid <- mkSizedFIFOF( `isb_s4s5 );
   `ifdef rtldump
     FIFOF#(CommitLogPacket) ff_commitlog <- mkSizedFIFOF( `isb_s4s5 );
@@ -634,28 +643,37 @@ endinterface:Ifc_s5_perfmonitors
       Vector#(`num_issue, FwdType) lv_bypass;
 
       for (Integer i=0; i<`num_issue; i=i+1) begin
-        Bool valid = ff_baseout.notEmpty && 
-          !(ff_baseout.first[i].rd==0  `ifdef spfpu && ff_baseout.first[i].rdtype == IRF `endif );
-        lv_bypass[i] = FwdType{valid: valid , addr: ff_baseout.first[i].rd , 
-                                    data: ff_baseout.first[i].rdvalue, 
-                                    epochs: ff_baseout.first[i].epochs
-                      `ifdef no_wawstalls ,id: ff_baseout.first[i].id `endif
-                      `ifdef spfpu , rdtype: ff_baseout.first[i].rdtype `endif };
+        BaseOut baseoutput = ?;
+        Bool valid;
+        if (ff_fuid.first[i].instpkt matches tagged BASE .baseout &&& ff_fuid.notEmpty) begin
+          baseoutput = baseout;
+          valid = !(baseoutput.rd == 0  `ifdef spfpu && baseout.rdtype == IRF `endif );
+        end
+        else begin
+          baseoutput = ?;
+          valid = False;
+        end
+
+        lv_bypass[i] = FwdType{valid: valid , addr: baseoutput.rd , 
+                                    data: baseoutput.rdvalue, 
+                                    epochs: baseoutput.epochs
+                      `ifdef no_wawstalls ,id: ff_fuid.first[i].id `endif
+                      `ifdef spfpu , rdtype: baseoutput.rdtype `endif };
       end
       wr_bypass <= lv_bypass;
     endrule:rl_gen_bypass
 
-    mkConnection(s4.tx_systemout_to_stage5, ff_systemout);
-    mkConnection(ff_systemout, s5.rx_systemout_from_stage4);
+    //mkConnection(s4.tx_systemout_to_stage5, ff_systemout);
+    //mkConnection(ff_systemout, s5.rx_systemout_from_stage4);
 
-    mkConnection(s4.tx_trapout_to_stage5, ff_trapout);
-    mkConnection(ff_trapout, s5.rx_trapout_from_stage4);
+    //mkConnection(s4.tx_trapout_to_stage5, ff_trapout);
+    //mkConnection(ff_trapout, s5.rx_trapout_from_stage4);
 
-    mkConnection(s4.tx_baseout_to_stage5, ff_baseout);
-    mkConnection(ff_baseout, s5.rx_baseout_from_stage4);
+    //mkConnection(s4.tx_baseout_to_stage5, ff_baseout);
+    //mkConnection(ff_baseout, s5.rx_baseout_from_stage4);
 
-    mkConnection(s4.tx_memio_to_stage5, ff_wbmemop);
-    mkConnection(ff_wbmemop, s5.rx_memio_from_stage4);
+    //mkConnection(s4.tx_memio_to_stage5, ff_wbmemop);
+    //mkConnection(ff_wbmemop, s5.rx_memio_from_stage4);
 
     mkConnection(s4.tx_fuid_to_stage5, ff_fuid);
     mkConnection(ff_fuid, s5.rx_fuid_from_stage4);

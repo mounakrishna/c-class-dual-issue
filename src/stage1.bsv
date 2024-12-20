@@ -513,7 +513,7 @@ package stage1;
       //if(enque_instruction) begin
 
       if (valid_instructions == 2 && !tx_tostage2.u.enqReady_2()) begin
-        `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full to enque two instructions ", hartid))
+        `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full. Cannot enque two instructions ", hartid))
         valid_instructions = 0;
       end
       else begin
