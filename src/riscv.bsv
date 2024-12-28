@@ -105,7 +105,7 @@ package riscv;
     method Bit#(1) mv_stop_count;
   `endif
   `ifdef rtldump
-    method Maybe#(CommitLogPacket) commitlog;
+    method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
     interface Sbread sbread;
   `endif
   endinterface: Ifc_riscv

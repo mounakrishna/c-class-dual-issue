@@ -204,9 +204,9 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
 `ifdef rtldump
   // rx fifo to receive the instruction sequence for rtl.dump feature.
-  RX#(CommitLogPacket) rx_commitlog <- mkRX;
+  RX#(Vector#(`num_issue, CommitLogPacket)) rx_commitlog <- mkRX;
   // tx fifo to send the instructino sequence for rtl.dump feature.
-  TX#(CommitLogPacket) tx_commitlog <- mkTX;
+  TX#(Vector#(`num_issue, CommitLogPacket)) tx_commitlog <- mkTX;
 `endif
 
 `ifdef bpu
@@ -565,10 +565,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       //tx_fuid.u.enq(common_pkt);
       wr_fuid[0] <= common_pkt;
       //wr_fuid[1] <= default_common;
-      deq_rx;
+      //deq_rx;
       `logLevel( stage3, 0, $format("[%2d]STAGE3: System Op completed : ",hartid,fshow(systemout)))
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
+      let clogpkt = rx_commitlog.u.first[0];
       //tx_commitlog.u.enq(clogpkt);
       wr_commitlog[0] <= clogpkt;
       //wr_commitlog[1] <= default_commitlog;
@@ -614,10 +614,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     //tx_fuid.u.enq(unpack({0, pack(common_pkt)}));
     wr_fuid[0] <= common_pkt;
     //wr_fuid[1] <= default_common;
-    deq_rx;
+    //deq_rx;
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Trap received and completed: ",hartid,fshow(trapout)))
   `ifdef rtldump
-    let clogpkt = rx_commitlog.u.first;
+    let clogpkt = rx_commitlog.u.first[0];
     //tx_commitlog.u.enq(clogpkt);
     wr_commitlog[0] <= clogpkt;
     //wr_commitlog[1] <= default_commitlog;
@@ -666,10 +666,15 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
         //tx_fuid.u.enq(common_pkt);
         wr_fuid[i] <= common_pkt;
         //wr_fuid[1] <= default_common;
-        deq_rx;
+        //deq_rx;
         `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op completed: ",hartid,fshow(baseoutput)))
       `ifdef rtldump
-        let clogpkt = rx_commitlog.u.first;
+        let clogpkt = rx_commitlog.u.first[i];
+        CommitLogReg _pkt =?;
+        if (clogpkt.inst_type matches tagged REG .r)
+          _pkt = r;
+        _pkt.wdata = alu_result;
+        clogpkt.inst_type = tagged REG _pkt;
         //tx_commitlog.u.enq(clogpkt);
         wr_commitlog[i] <= clogpkt;
         //wr_commitlog[1] <= default_commitlog;
@@ -804,9 +809,9 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       //tx_fuid.u.enq(unpack({0, pack(common_pkt)}));
       wr_fuid[0] <= common_pkt;
       //wr_fuid[1] <= default_common;
-      deq_rx;
+      //deq_rx;
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
+      let clogpkt = rx_commitlog.u.first[0];
       CommitLogMem _pkt = ?;
       if (clogpkt.inst_type matches tagged MEM .p)
         _pkt = p;
@@ -956,12 +961,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       //tx_fuid.u.enq(unpack({0, pack(common_pkt)}));
       wr_fuid[0] <= common_pkt;
       //wr_fuid_1 <= default_common;
-      deq_rx;
+      //deq_rx;
       rg_eEpoch         <= pack(redirection)^rg_eEpoch;
       wr_redirect_pc    <= redirect_pc;
       wr_flush_from_exe <= redirection;
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
+      let clogpkt = rx_commitlog.u.first[0];
       //tx_commitlog.u.enq(clogpkt);
       wr_commitlog[0] <= clogpkt;
       //wr_commitlog_1 <= default_commitlog;
@@ -1006,22 +1011,14 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       wr_muldiv_inputs <= MBoxIn{in1: wr_fwd_op1, in2: wr_fwd_op2, funct3: truncate(meta[0].funct)
                                 `ifdef RV64 , wordop: meta[0].word32 `endif };
       `logLevel( stage3, 0, $format("[%2d]STAGE3: MULDIV op offloaded",hartid))
-      deq_rx;
+      //deq_rx;
       let _id <- sboard.ma_lock_rd(unpack({0, pack(SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif })}));
                                     
-      BaseOut baseoutput = BaseOut { rdvalue: ?,
-                                     rd: meta[0].rd,
-                                     epochs: meta[0].epochs[0]
-                                    `ifdef spfpu
-                                      ,fflags: ?
-                                      ,rdtype: IRF
-                                    `endif
-                                   };
       let common_pkt = FUid{pc    : meta[0].pc,
                         rd    : meta[0].rd,
                         epochs : meta[0].epochs[0],
                         insttype : MULDIV,
-                        instpkt: tagged BASE baseoutput
+                        instpkt: tagged None
                       `ifdef no_wawstalls 
                         ,id: _id[0]
                       `endif
@@ -1038,7 +1035,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       wr_count_muldiv <= 1;
     `endif
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
+      let clogpkt = rx_commitlog.u.first[0];
       //tx_commitlog.u.enq(clogpkt);
       wr_commitlog[0] <= clogpkt;
       //wr_commitlog_1 <= default_commitlog;
@@ -1093,21 +1090,13 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       //                             `ifdef RV64 ,meta.word32 `endif );
       `logLevel( stage3, 0, $format("FPU: op1:%h op2:%h op3:%h",wr_fwd_op1,wr_fwd_op2,wr_fwd_op3))
       `logLevel( stage3, 0, $format("[%2d]STAGE3: FLOAT op offloaded",hartid))
-      deq_rx;
+      //deq_rx;
       let _id <- sboard.ma_lock_rd(unpack({0, pack(SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif })}));
-      BaseOut baseoutput = BaseOut { rdvalue: ?,
-                                     rd: meta[0].rd,
-                                     epochs: meta[0].epochs[0]
-                                    `ifdef spfpu
-                                      ,fflags: ?
-                                      ,rdtype: FRF
-                                    `endif
-                                   };
       let common_pkt = FUid{pc    : meta[0].pc,
                         rd    : meta[0].rd,
                         epochs : meta[0].epochs[0],
                         insttype : FLOAT,
-                        instpkt : tagged BASE baseoutput
+                        instpkt : tagged None
                       `ifdef no_wawstalls 
                         ,id: _id[0]
                       `endif
@@ -1124,7 +1113,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       wr_count_floats<= 1;
     `endif
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
+      let clogpkt = rx_commitlog.u.first[0];
       //tx_commitlog.u.enq(clogpkt);
       wr_commitlog[0] <= clogpkt;
       //wr_commitlog_1 <= default_commitlog;
@@ -1140,14 +1129,17 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   endrule:rl_fbox
 `endif
 
+  /*doc:rule: Updating default values to 2nd instruction flowing in the pipeline if not driven*/
   rule rl_2nd_instruction_invalid(instr_type[1] == NONE);
     wr_fuid[1] <= default_common;
     wr_commitlog[1] <= default_commitlog;
   endrule
 
-  rule rl_update_TX;
+  /*doc:rule: Updating the ISBs with the required values*/
+  rule rl_update_pipeline;
+    deq_rx;
     tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
-    tx_commitlog.u.enq(wr_commitlog[0]);
+    tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
   endrule
   //--------------- interfaces to receive the decoded info from the previous stage. ------------//
   interface rx = interface Ifc_s3_rx

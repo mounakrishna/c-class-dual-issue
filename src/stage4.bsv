@@ -59,6 +59,7 @@ package stage4;
   (*preempts="rl_fwd_trapout, rl_polling_check"*)
   (*preempts="rl_handle_memory, rl_polling_check"*)
 `endif
+  (*conflict_free="rl_fwd_baseout_1, rl_2nd_instruction_invalid"*)
 
   /*doc:module:*/
 module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
@@ -69,7 +70,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     //RX#(Vector#(`num_issue, MemoryOut)) rx_memoryout <- mkRX;
     RX#(Vector#(`num_issue, FUid)) rx_fuid <- mkRX;
   `ifdef rtldump
-    RX#(CommitLogPacket) rx_commitlog <- mkRX;
+    RX#(Vector#(`num_issue, CommitLogPacket)) rx_commitlog <- mkRX;
   `endif
   `ifdef muldiv
     RX#(Bit#(`xlen)) rx_mbox <- mkRX;
@@ -89,10 +90,15 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     //TX#(Vector#(`num_issue, WBMemop))   tx_memio <- mkTX;
     TX#(Vector#(`num_issue, CUid))      tx_fuid <- mkTX;
   `ifdef rtldump
-    TX#(CommitLogPacket) tx_commitlog <- mkTX;
+    TX#(Vector#(`num_issue, CommitLogPacket)) tx_commitlog <- mkTX;
   `endif
+
+    Vector#(`num_issue, Wire#(CUid)) wr_fuid <- replicateM(mkWire());
+    Vector#(`num_issue, Wire#(CommitLogPacket)) wr_commitlog <- replicateM(mkWire());
+
     // fifo to capture the response from the dmem subsystem
   FIFOF#(DMem_core_response#(`elen,1)) ff_memory_response <- mkBypassFIFOF();
+
 
   `ifdef simulate
     /*doc:rule: This rule is only available in simulation mode. If the FUid is available but the
@@ -106,40 +112,46 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 
     /*doc:rule: This rule will simply bypass the results of instructinos which were executed in the
     * previous stage without any alteration*/
-    rule rl_fwd_baseout(rx_fuid.u.first[0].insttype == BASE);
+   for (Integer i=0; i<`num_issue; i=i+1) begin
+    rule rl_fwd_baseout(rx_fuid.u.first[i].insttype == BASE);
       //tx_baseout.u.enq(rx_baseout.u.first);
-      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      //tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      wr_fuid[i] <= fn_fu2cu(rx_fuid.u.first[i], ?);
       //rx_baseout.u.deq;
-      rx_fuid.u.deq;
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
+      //rx_fuid.u.deq;
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Output: ",hartid,fshow(fn_fu2cu(rx_fuid.u.first[i], ?))))
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Base ALU Output",hartid))
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
-      CommitLogReg _pkt =?;
-      if (clogpkt.inst_type matches tagged REG .r)
-        _pkt = r;
-      //_pkt.wdata = rx_baseout.u.first[0].rdvalue;
-      if (rx_fuid.u.first[0].instpkt matches tagged BASE .baseout)
-        _pkt.wdata = baseout.rdvalue;
-      clogpkt.inst_type = tagged REG _pkt;
-      tx_commitlog.u.enq(clogpkt);
-      rx_commitlog.u.deq;
+      let clogpkt = rx_commitlog.u.first[i];
+      wr_commitlog[i] <= clogpkt;
+      //CommitLogReg _pkt =?;
+      //if (clogpkt.inst_type matches tagged REG .r)
+      //  _pkt = r;
+      ////_pkt.wdata = rx_baseout.u.first[0].rdvalue;
+      //if (rx_fuid.u.first[0].instpkt matches tagged BASE .baseout)
+      //  _pkt.wdata = baseout.rdvalue;
+      //clogpkt.inst_type = tagged REG _pkt;
+      //tx_commitlog.u.enq(clogpkt);
+      //rx_commitlog.u.deq;
     `endif
     endrule:rl_fwd_baseout
+  end
 
     /*doc:rule: This rule will bypass the system operation as is to the write-back stage where it
     * will be executed. No alteration required in this stage for system operations*/
     rule rl_fwd_systemout(rx_fuid.u.first[0].insttype == SYSTEM);
       //tx_systemout.u.enq(rx_systemout.u.first);
-      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      //tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      wr_fuid[0] <= fn_fu2cu(rx_fuid.u.first[0], ?);
       //rx_systemout.u.deq;
-      rx_fuid.u.deq;
+      //rx_fuid.u.deq;
       `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering System Output",hartid))
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
-      tx_commitlog.u.enq(clogpkt);
-      rx_commitlog.u.deq;
+      let clogpkt = rx_commitlog.u.first[0];
+      wr_commitlog[0] <= clogpkt;
+      //tx_commitlog.u.enq(clogpkt);
+      //rx_commitlog.u.deq;
     `endif
     endrule:rl_fwd_systemout
 
@@ -147,15 +159,17 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     * stages to the write-back stage which will handle the traps accordingly*/
     rule rl_fwd_trapout(rx_fuid.u.first[0].insttype == TRAP);
       //tx_trapout.u.enq(rx_trapout.u.first);
-      tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      //tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
+      wr_fuid[0] <= fn_fu2cu(rx_fuid.u.first[0], ?);
       //rx_trapout.u.deq;
-      rx_fuid.u.deq;
+      //rx_fuid.u.deq;
       `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Trap Output",hartid))
     `ifdef rtldump
-      let clogpkt = rx_commitlog.u.first;
-      tx_commitlog.u.enq(clogpkt);
-      rx_commitlog.u.deq;
+      let clogpkt = rx_commitlog.u.first[0];
+      wr_commitlog[0] <= clogpkt;
+      //tx_commitlog.u.enq(clogpkt);
+      //rx_commitlog.u.deq;
     `endif
     endrule:rl_fwd_trapout
 
@@ -195,11 +209,11 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
         `logLevel( stage4, 0, $format("[%2d]STAGE4: Dropping Mem response",hartid))
       end
       else begin
-        rx_fuid.u.deq;
+        //rx_fuid.u.deq;
         //rx_memoryout.u.deq;
       `ifdef rtldump
-        rx_commitlog.u.deq;
-        let clogpkt = rx_commitlog.u.first;
+        //rx_commitlog.u.deq;
+        let clogpkt = rx_commitlog.u.first[0];
       `endif
         if (trap) begin
           fuid[0].insttype = TRAP;
@@ -212,10 +226,12 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                       };
           //tx_trapout.u.enq(unpack({0, pack(trapout)}));
           fuid[0].instpkt = tagged TRAP trapout;
-          tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+          wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
+          //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
           `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with trap: ",hartid, fshow(trapout)))
         `ifdef rtldump
-          tx_commitlog.u.enq(clogpkt);
+          wr_commitlog[0] <= clogpkt;
+          //tx_commitlog.u.enq(clogpkt);
         `endif
         end
         else if (mem_response.entry_alloc) begin
@@ -226,10 +242,12 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
           //tx_memio.u.enq(unpack({0, pack(lv_memop)}));
           fuid[0].insttype = MEMORY;
           //fuid[0].instpkt = tagged MEMORY lv_memop;
-          tx_fuid.u.enq(fn_fu2cu(fuid, unpack({?, pack(lv_memop)})));
+          //tx_fuid.u.enq(fn_fu2cu(fuid, unpack({?, pack(lv_memop)})));
+          wr_fuid[0] <= fn_fu2cu(fuid[0], lv_memop);
           `logLevel( stage4, 0, $format("[%2d]STAGE4: Mem response received:",hartid, fshow(lv_memop)))
         `ifdef rtldump
-          tx_commitlog.u.enq(clogpkt);
+          //tx_commitlog.u.enq(clogpkt);
+          wr_commitlog[0] <= clogpkt;
         `endif
         end
         else begin
@@ -242,7 +260,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
         //`endif
           //tx_baseout.u.enq(unpack({0, pack(baseout)}));
           fuid[0].instpkt = tagged BASE baseout;
-          tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+          //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+          wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
           `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with data:",hartid, fshow(baseout)))
         `ifdef rtldump
           if (memop.memaccess == Atomic && !mem_response.entry_alloc && memop.atomicop=='b0111) begin
@@ -256,7 +275,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
             _pkt.commit_data = baseout.rdvalue;
             clogpkt.inst_type = tagged MEM _pkt;
           end
-          tx_commitlog.u.enq(clogpkt);
+          //tx_commitlog.u.enq(clogpkt);
+          wr_commitlog[0] <= clogpkt;
         `endif
         end
       end
@@ -284,11 +304,13 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                     };
           //tx_trapout.u.enq(trapout);
           fuid[0].instpkt = tagged TRAP trapout;
-          tx_fuid.u.enq(fn_fu2cu(fuid, ?));
-          rx_fuid.u.deq;
+          wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
+          //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+          //rx_fuid.u.deq;
           `ifdef rtldump
-            let clogpkt = rx_commitlog.u.first;
-            tx_commitlog.u.enq(clogpkt);
+            let clogpkt = rx_commitlog.u.first[0];
+            wr_commitlog[0] <= clogpkt;
+            //tx_commitlog.u.enq(clogpkt);
           `endif
         end
         else begin 
@@ -297,17 +319,19 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
               `ifdef spfpu ,fflags: 0, rdtype: IRF `endif };
         fuid[0].instpkt = tagged BASE baseout;
         fuid[0].insttype = BASE;
-        tx_fuid.u.enq(fn_fu2cu(fuid, ?));
-        rx_fuid.u.deq;
+        wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
+        //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+        //rx_fuid.u.deq;
         `ifdef rtldump
-          let clogpkt = rx_commitlog.u.first;
+          let clogpkt = rx_commitlog.u.first[0];
           CommitLogReg _pkt =?;
           if (clogpkt.inst_type matches tagged REG .r)
             _pkt = r;
           _pkt.wdata = mbox_result;
           clogpkt.inst_type = tagged REG _pkt;
-          tx_commitlog.u.enq(clogpkt);
-          rx_commitlog.u.deq;
+          wr_commitlog[0] <= clogpkt;
+          //tx_commitlog.u.enq(clogpkt);
+          //rx_commitlog.u.deq;
         `endif
       `ifdef arith_trap
         end
@@ -357,11 +381,13 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                   };
         //tx_trapout.u.enq(trapout);
         fuid[0].instpkt = tagged TRAP trapout;
-        tx_fuid.u.enq(fn_fu2cu(fuid, ?));
-        rx_fuid.u.deq;
+        wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
+        //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+        //rx_fuid.u.deq;
         `ifdef rtldump
           let clogpkt = rx_commitlog.u.first;
-          tx_commitlog.u.enq(clogpkt);
+          wr_commitlog[0] <= clogpkt;
+          //tx_commitlog.u.enq(clogpkt);
         `endif
       end
       else 
@@ -371,24 +397,58 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
               `ifdef spfpu ,fflags: _r.fflags, rdtype: fuid[0].rdtype `endif };
         fuid[0].insttype = BASE;
         fuid[0].instpkt = tagged BASE baseout;
-        tx_fuid.u.enq(fn_fu2cu(fuid, ?));
-        rx_fuid.u.deq;
+        wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
+        //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
+        //rx_fuid.u.deq;
       `ifdef rtldump
-        let clogpkt = rx_commitlog.u.first;
+        let clogpkt = rx_commitlog.u.first[0];
         CommitLogReg _pkt =?;
         if (clogpkt.inst_type matches tagged REG .r)
           _pkt = r;
         _pkt.wdata = _r.data;
         _pkt.fflags = _r.fflags;
         clogpkt.inst_type = tagged REG _pkt;
-        tx_commitlog.u.enq(clogpkt);
-        rx_commitlog.u.deq;
+        wr_commitlog[0] <= clogpkt;
+        //tx_commitlog.u.enq(clogpkt);
+        //rx_commitlog.u.deq;
       `endif
     end
     `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
     `logLevel( stage4, 0, $format("[%2d]STAGE4: Enquing FLOAT Output: ",hartid, fshow(_r)))
   endrule:rl_capture_float
 `endif
+
+  let default_common = CUid { pc : ?,
+                              rd : ?,
+                              epochs: ?,
+                              instpkt : tagged None
+                            `ifdef no_wawstalls 
+                              ,id: ? 
+                            `endif
+                            `ifdef spfpu
+                              ,rdtype : ?
+                            `endif } ;
+
+  let default_commitlog = CommitLogPacket { mode : unpack(?),
+                                            pc : ?,
+                                            instruction : ?,
+                                            inst_type : tagged None
+                                          `ifdef hypervisor
+                                            ,v : ?
+                                          `endif
+                                          };
+
+    rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE);
+      wr_commitlog[1] <= default_commitlog;
+      wr_fuid[1] <= default_common;
+    endrule
+
+    rule rl_update_pipeline;
+      tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
+      tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
+      rx_fuid.u.deq;
+      rx_commitlog.u.deq;
+    endrule
 
     interface rx = interface Ifc_s4_rx
       //interface rx_baseout_from_stage3 = rx_baseout.e;

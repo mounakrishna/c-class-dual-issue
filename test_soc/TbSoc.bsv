@@ -198,18 +198,24 @@ package TbSoc;
 
       let generate_dump <- $test$plusargs("rtldump");
       let stime <- $stime;
-      if (soc.commitlog matches tagged Valid .idump) begin
+
+      Bit#(32) inst_count = rg_inst_count;
+      Bit#(`xlen) prev_mstatus = rg_prev_mstatus;
+      Bool prev_mstatus_valid = rg_prev_mstatus_valid;
+      Bit#(`xlen) prev_misa = rg_prev_misa;
+
+      if (soc.commitlog[0] matches tagged Valid .idump) begin
     `ifndef openocd `ifndef cocotb_sim
       if(idump.instruction=='h00006f||idump.instruction =='h00a001)
         $finish(0);
       else
     `endif `endif
       if(generate_dump) begin
-        if (rg_inst_count % `limit == 0 && rg_inst_count != 0) begin
-          File lfh1 <- $fopen( "rtl"+string_field[rg_inst_count/`limit ]+".dump","w");
+        if (inst_count % `limit == 0 && inst_count != 0) begin
+          File lfh1 <- $fopen( "rtl"+string_field[inst_count/`limit ]+".dump","w");
           dump <= lfh1;
         end
-        rg_inst_count <= rg_inst_count + 1;
+        inst_count = inst_count + 1;
 
         if (idump.instruction[1:0] == 'b11)
         	$fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%8h", idump.instruction, ")");
@@ -217,7 +223,6 @@ package TbSoc;
           $fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%4h", idump.instruction[15:0], ")");
 
         if (idump.inst_type matches tagged REG .d) begin
-
         `ifdef spfpu
         if (!(idump.instruction[31:25] =='b0001001 && idump.instruction[14:0] == 'b000000001110011)) begin
           Bit#(`xlen) wdata_fflags = fn_probe_csr(`FFLAGS);
@@ -293,8 +298,8 @@ package TbSoc;
               $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%8h", wdata);
 
             if (csr_address == `MSTATUS) begin
-              rg_prev_mstatus <= wdata;
-              rg_prev_mstatus_valid <= True;
+              prev_mstatus = wdata;
+              prev_mstatus_valid = True;
             end
 
            
@@ -306,7 +311,7 @@ package TbSoc;
                 $fwrite(dump, " ", fn_csr_to_str(csr_address), " 0x%16h", wdata);
               if (valueOf(`xlen) == 32)
                 $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%8h", wdata);
-              rg_prev_misa <= wdata;
+              prev_misa = wdata;
             end
           end
           end
@@ -339,8 +344,8 @@ package TbSoc;
               if (valueOf(`xlen) == 32)
                 $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%8h", wdata);
 
-              rg_prev_mstatus <= wdata;
-              rg_prev_mstatus_valid <= True;
+              prev_mstatus = wdata;
+              prev_mstatus_valid = True;
 
             end
             end
@@ -399,6 +404,215 @@ package TbSoc;
       end
 
       end
+
+      Bit#(`xlen) prev_mstatus_1 = prev_mstatus;
+      Bool prev_mstatus_valid_1 = prev_mstatus_valid;
+      Bit#(`xlen) prev_misa_1 = prev_misa;
+
+      if (soc.commitlog[1] matches tagged Valid .idump) begin
+    `ifndef openocd `ifndef cocotb_sim
+      if(idump.instruction=='h00006f||idump.instruction =='h00a001)
+        $finish(0);
+      else
+    `endif `endif
+      if(generate_dump) begin
+        if (inst_count % `limit == 0 && inst_count != 0) begin
+          File lfh1 <- $fopen( "rtl"+string_field[inst_count/`limit ]+".dump","w");
+          dump <= lfh1;
+        end
+        inst_count = inst_count + 1;
+
+        if (idump.instruction[1:0] == 'b11)
+        	$fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%8h", idump.instruction, ")");
+        else
+          $fwrite(dump, "core   0: ", idump.mode, `ifdef hypervisor " %1d", idump.v, `endif " 0x%16h", idump.pc, " (0x%4h", idump.instruction[15:0], ")");
+
+        if (idump.inst_type matches tagged REG .d) begin
+        `ifdef spfpu
+        if (!(idump.instruction[31:25] =='b0001001 && idump.instruction[14:0] == 'b000000001110011)) begin
+          Bit#(`xlen) wdata_fflags = fn_probe_csr(`FFLAGS);
+          Bit#(`xlen) flags = zeroExtend(d.fflags);
+        // !flags &&
+        if( flags!=0 && fn_fflags_print(idump.instruction[31:25],idump.instruction[6:0], d.irf)) begin 
+          //Flags not zero. Destination reg is FRF.
+          if (valueOf(`flen) == 64) begin
+            $fwrite(dump, " ", fn_csr_to_str(`FFLAGS), " 0x%16h", wdata_fflags);
+          end
+          if (valueOf(`flen) == 32) begin
+            $fwrite(dump, " ", fn_csr_to_str(`FFLAGS), " 0x%8h", wdata_fflags);
+          end
+        end
+        end
+      `endif
+          // let csr_address = `FFLAGS; // mstatus
+          // Bit#(`xlen) wdata = fn_probe_csr(`ifdef hypervisor fn_address_virtual(csr_address,idump.v) `else csr_address `endif );
+          if (!((idump.instruction[31:25] =='b0001001 || idump.instruction[31:25]== 'b0010001 || 
+               idump.instruction[31:25] =='b0110001)&& idump.instruction[14:0] == 'b000000001110011)) begin
+            if (d.irf && valueOf(`xlen) == 64 && d.rd != 0)
+              $fwrite(dump, " x%0d", d.rd, " 0x%16h", d.wdata);
+            if (d.irf && valueOf(`xlen) == 32 && d.rd != 0)
+              $fwrite(dump, " x%0d", d.rd, " 0x%8h", d.wdata);
+            if (!d.irf && valueOf(`flen) == 64) begin
+              // $fwrite(dump, " ", fn_csr_to_str(`ifdef hypervisor fn_address_virtual(csr_address,idump.v) `else csr_address `endif ), " 0x%16h", wdata);
+              $fwrite(dump, " f%0d", d.rd, " 0x%16h", d.wdata);
+            end
+            if (!d.irf && valueOf(`flen) == 32) begin
+              // $fwrite(dump, " " , fn_csr_to_str(`ifdef hypervisor fn_address_virtual(csr_address,idump.v) `else csr_address `endif ), " 0x%16h", wdata);
+              $fwrite(dump, " f%0d", d.rd, " 0x%8h", d.wdata);
+            end
+          end
+        end
+
+        if (idump.inst_type matches tagged CSR .d) begin
+          let csr_address = d.csr_address;
+          csr_address = `ifdef hypervisor fn_address_virtual(csr_address, idump.v) `else csr_address `endif ;
+        `ifdef supervisor
+          `ifdef hypervisor if (idump.v == 0) `endif
+            if (csr_address == `SSTATUS || csr_address == `SIE || csr_address == `SIP) begin
+              csr_address = csr_address + 'h200;
+            end
+        `endif
+        `ifdef hypervisor
+          if (csr_address == `HIE || csr_address == `HIP)
+            csr_address = csr_address - 'h300; // convert to MIE/MIP
+          else if (csr_address == `VSIE || csr_address == `VSIP)
+            csr_address = csr_address + 'h100; // convert to MIE/MIP
+          else if (csr_address == `HVIP)
+            csr_address = `MIP; // convert to MIP
+        `endif
+          if (valueOf(`xlen) == 64 && d.rd != 0)
+            $fwrite(dump, " x%0d", d.rd, " 0x%16h", d.rdata);
+          if (valueOf(`xlen) == 32 && d.rd != 0)
+            $fwrite(dump, " x%0d", d.rd, " 0x%8h", d.rdata);
+          Bit#(`xlen) wdata = fn_probe_csr(csr_address);
+          if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
+            //$display("Tb: Dumping instruction: %h", idump.instruction);
+           `logLevel( tb, 0, $format("\n %h", idump.instruction))
+           `ifdef hypervisor
+            if(idump.instruction=='h10200073 && csr_address== 'h300) begin //sret
+              Bit#(`xlen) hstatus = fn_probe_csr('h600);
+              //$display("Tb: %h", hstatus);
+              `logLevel( tb, 0, $format("\n hstatus: %h", hstatus))
+              $fwrite(dump, " c1536_hstatus 0x%16h", hstatus);
+            end
+            `endif
+            if (csr_address != `FCSR && csr_address != `MISA ) begin
+            if (valueOf(`xlen) == 64) 
+              $fwrite(dump, " ", fn_csr_to_str(csr_address), " 0x%16h", wdata);
+            if (valueOf(`xlen) == 32)
+              $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%8h", wdata);
+
+            if (csr_address == `MSTATUS) begin
+              prev_mstatus_1 = wdata;
+              prev_mstatus_valid_1 = True;
+            end
+
+           
+
+            end
+            if( csr_address == `MISA) begin
+            if (wdata != prev_misa) begin
+              if (valueOf(`xlen) == 64) 
+                $fwrite(dump, " ", fn_csr_to_str(csr_address), " 0x%16h", wdata);
+              if (valueOf(`xlen) == 32)
+                $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%8h", wdata);
+              prev_misa_1 = wdata;
+            end
+          end
+          end
+        `ifdef spfpu
+        if (csr_address == `FCSR) begin
+          Bit#(`xlen) wdata_fflags = fn_probe_csr(`FFLAGS);
+          Bit#(`xlen) wdata_frm = fn_probe_csr(`FRM);
+          if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
+          if (valueOf(`xlen) == 64) begin
+                  $fwrite(dump, " ", fn_csr_to_str(`FFLAGS), " 0x%16h", wdata_fflags);
+                  // if(lv_fssr_print)                     
+                  //   $fwrite(dump, " x%0d", d.rd, " 0x%16h", d.rdata);
+                  $fwrite(dump, " ", fn_csr_to_str(`FRM), " 0x%16h", wdata_frm);
+                end
+          if (valueOf(`xlen) == 32) begin
+            $fwrite(dump, " ", fn_csr_to_str(`FFLAGS), " 0x%8h", wdata_fflags);
+            // if(lv_fssr_print)
+            //   $fwrite(dump, " x%0d", d.rd, " 0x%8h", d.rdata);
+            $fwrite(dump, " ", fn_csr_to_str(`FRM), " 0x%8h", wdata_frm);
+          end
+          end
+        end
+          if (csr_address == `FCSR || csr_address == `FRM || csr_address == `FFLAGS)begin
+            csr_address = `MSTATUS;
+            Bit#(`xlen) wdata = fn_probe_csr(csr_address);
+            if ( !prev_mstatus_valid || (wdata!=prev_mstatus)   ) begin 
+            if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
+              if (valueOf(`xlen) == 64) 
+                $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%16h", wdata);
+              if (valueOf(`xlen) == 32)
+                $fwrite(dump, " " , fn_csr_to_str(csr_address), " 0x%8h", wdata);
+
+              prev_mstatus_1 = wdata;
+              prev_mstatus_valid_1 = True;
+
+            end
+            end
+          end
+        `endif
+        end
+
+        if (idump.inst_type matches tagged MEM .d) begin
+          let store_data = d.data;
+        `ifdef atomic
+          if (d.access == Atomic && d.atomic_op[3:0] != 5 && d.atomic_op[3:0] != 7) begin
+            store_data = fn_atomic_op(d.atomic_op,d.data, d.commit_data);
+          end
+        `endif
+          if (d.access == Load `ifdef atomic || d.access == Atomic `endif ) begin
+            if (d.irf && valueOf(`xlen) == 64 && d.rd != 0)
+              $fwrite(dump, " x%0d", d.rd, " 0x%16h", d.commit_data);
+            if (d.irf && valueOf(`xlen) == 32 && d.rd != 0)
+              $fwrite(dump, " x%0d", d.rd, " 0x%8h", d.commit_data);
+            if (!d.irf && valueOf(`flen) == 64 )
+              $fwrite(dump, " f%0d", d.rd, " 0x%16h", d.commit_data);
+            if (!d.irf && valueOf(`flen) == 32 )
+              $fwrite(dump, " f%0d", d.rd, " 0x%8h", d.commit_data);
+          end
+
+          if(valueOf(`xlen) ==64 && d.access != Fence && d.access != FenceI)
+            $fwrite(dump, " mem 0x%16h", d.address);
+          if(valueOf(`xlen) ==32&& d.access != Fence && d.access != FenceI)
+            $fwrite(dump, " mem 0x%8h", d.address);
+
+        `ifdef atomic
+          if (d.access == Atomic && d.atomic_op[3:0] != 5 && d.atomic_op[3:0] != 7) begin
+            if(valueOf(`xlen) ==64)
+              $fwrite(dump, " mem 0x%16h", d.address);
+            if(valueOf(`xlen) ==32)
+              $fwrite(dump, " mem 0x%8h", d.address);
+          end
+        `endif
+
+          if (d.access == Store  `ifdef atomic || (d.access == Atomic && d.atomic_op[3:0] != 5) `endif ) begin
+            if (d.size == 0) begin
+              if (store_data[7:4]==0)
+                $fwrite(dump, " 0x%1h", store_data[3:0]);
+              else
+                $fwrite(dump, " 0x%2h", store_data[7:0]);
+            end
+            if (d.size == 1)
+              $fwrite(dump, " 0x%4h", store_data[15:0]);
+            if (d.size == 2)
+              $fwrite(dump, " 0x%8h", store_data[31:0]);
+            if (d.size == 3)
+              $fwrite(dump, " 0x%16h", store_data);
+          end
+        end
+          $fwrite(dump, "\n");
+      end
+      end
+
+      rg_prev_mstatus <= prev_mstatus_1;
+      rg_prev_mstatus_valid <= prev_mstatus_valid_1;
+      rg_prev_misa <= prev_misa_1;
+      rg_inst_count <= inst_count;
     endrule
   `endif
 

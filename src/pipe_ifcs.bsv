@@ -118,7 +118,7 @@ interface Ifc_s3_rx;
   interface RXe#(OpMeta)              rx_opmeta_from_stage2;
 `ifdef rtldump 
   // interface to receive the instruction sequence for the rtl dump feature
-  interface RXe#(CommitLogPacket)     rx_commitlog;
+  interface RXe#(Vector#(`num_issue, CommitLogPacket))     rx_commitlog;
 `endif
 endinterface:Ifc_s3_rx
 
@@ -135,7 +135,7 @@ interface Ifc_s3_tx;
 	interface TXe#(Vector#(`num_issue, FUid))        tx_fuid_to_stage4;
 `ifdef rtldump
   // interface to send the instruction sequence for the rtl dump feature
-  interface TXe#(CommitLogPacket)     tx_commitlog;
+  interface TXe#(Vector#(`num_issue, CommitLogPacket))     tx_commitlog;
 `endif
 endinterface: Ifc_s3_tx
 
@@ -285,7 +285,7 @@ interface Ifc_s2_tx;
 
 `ifdef rtldump
   /*doc:subifc: send instruction trace to next stage */
-  interface TXe#(CommitLogPacket) tx_commitlog;
+  interface TXe#(Vector#(`num_issue, CommitLogPacket)) tx_commitlog;
 `endif
 endinterface: Ifc_s2_tx
 
@@ -361,7 +361,7 @@ endinterface:Ifc_s2_debug
   	interface RXe#(Vector#(`num_issue, FUid))        rx_fuid_from_stage3;
   `ifdef rtldump
     // interface to send the instruction sequence for the rtl dump feature
-    interface RXe#(CommitLogPacket)     rx_commitlog;
+    interface RXe#(Vector#(`num_issue, CommitLogPacket))     rx_commitlog;
   `endif
   endinterface:Ifc_s4_rx
 
@@ -372,7 +372,7 @@ endinterface:Ifc_s2_debug
     //interface TXe#(Vector#(`num_issue, WBMemop))         tx_memio_to_stage5;
     interface TXe#(Vector#(`num_issue, CUid))            tx_fuid_to_stage5;
   `ifdef rtldump
-    interface TXe#(CommitLogPacket) tx_commitlog;
+    interface TXe#(Vector#(`num_issue, CommitLogPacket)) tx_commitlog;
   `endif
   endinterface:Ifc_s4_tx
 
@@ -404,7 +404,7 @@ interface Ifc_s5_rx;
   //interface RXe#(Vector#(`num_issue, WBMemop))         rx_memio_from_stage4;
   interface RXe#(Vector#(`num_issue, CUid))            rx_fuid_from_stage4;
 `ifdef rtldump
-  interface RXe#(CommitLogPacket) rx_commitlog;
+  interface RXe#(Vector#(`num_issue, CommitLogPacket)) rx_commitlog;
 `endif
 endinterface:Ifc_s5_rx
 
@@ -439,7 +439,7 @@ interface Ifc_s5_common;
   method Vector#(`num_issue, CommitData) mv_commit_rd;
   method WBFlush mv_flush;
 `ifdef rtldump
-  method Maybe#(CommitLogPacket) mv_commit_log;
+  method Vector#(`num_issue, Maybe#(CommitLogPacket)) mv_commit_log;
 `endif
 endinterface:Ifc_s5_common
 
@@ -538,7 +538,7 @@ endinterface:Ifc_s5_perfmonitors
     FIFOF#(Vector#(`num_issue, Instruction_type)) ff_insttype <- mkLFIFOF();
     FIFOF#(OpMeta) ff_opmeta <- mkLFIFOF();
   `ifdef rtldump
-    FIFOF#(CommitLogPacket) ff_commitlog <- mkLFIFOF();
+    FIFOF#(Vector#(`num_issue, CommitLogPacket)) ff_commitlog <- mkLFIFOF();
   `endif
     let _x1 <- mkConnection(s2.tx_meta_to_stage3, ff_meta);
     let _x2 <- mkConnection(ff_meta, s3.rx_meta_from_stage2);
@@ -574,7 +574,7 @@ endinterface:Ifc_s5_perfmonitors
     //FIFOF#(Vector#(`num_issue, MemoryOut))           ff_memoryout <- mkSizedFIFOF( `isb_s3s4 );
   	FIFOF#(Vector#(`num_issue, FUid))                ff_fuid <- mkSizedFIFOF( `isb_s3s4 );
   `ifdef rtldump
-    FIFOF#(CommitLogPacket)     ff_commitlog <- mkSizedFIFOF( `isb_s3s4 );
+    FIFOF#(Vector#(`num_issue, CommitLogPacket))     ff_commitlog <- mkSizedFIFOF( `isb_s3s4 );
   `endif
     Wire#(Vector#(`num_issue, FwdType)) wr_bypass <- mkDWire(unpack(0));  
 
@@ -634,7 +634,7 @@ endinterface:Ifc_s5_perfmonitors
     //FIFOF#(Vector#(`num_issue, WBMemop)) ff_wbmemop <- mkSizedFIFOF( `isb_s4s5 );
     FIFOF#(Vector#(`num_issue, CUid)) ff_fuid <- mkSizedFIFOF( `isb_s4s5 );
   `ifdef rtldump
-    FIFOF#(CommitLogPacket) ff_commitlog <- mkSizedFIFOF( `isb_s4s5 );
+    FIFOF#(Vector#(`num_issue, CommitLogPacket)) ff_commitlog <- mkSizedFIFOF( `isb_s4s5 );
   `endif
     Wire#(Vector#(`num_issue, FwdType)) wr_bypass <- mkDWire(unpack(0));
   

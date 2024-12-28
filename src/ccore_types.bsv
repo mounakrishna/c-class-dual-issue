@@ -702,28 +702,18 @@ instance FShow#(CUid);
 endinstance
 
 
-function Vector#(`num_issue, CUid) fn_fu2cu(Vector#(`num_issue, FUid) f, Vector#(`num_issue, WBMemop) mem);
-  Vector#(`num_issue, CUid) c;
-  for (Integer i=0; i<`num_issue; i=i+1) begin
-    c[i] =  CUid{pc: f[i].pc, rd: f[i].rd, epochs: f[i].epochs, instpkt : ?
-            `ifdef no_wawstalls ,id: f[i].id `endif 
-            `ifdef spfpu ,rdtype: f[i].rdtype `endif };
-    case (f[i].instpkt) matches
-      tagged BASE .baseout : c[i].instpkt = tagged BASE baseout;
-      tagged TRAP .trapout: c[i].instpkt = tagged TRAP trapout;
-      tagged SYSTEM .systemout: c[i].instpkt = tagged SYSTEM systemout;
-      tagged MEMORY .memoryout: c[i].instpkt = tagged MEMORY mem[i];
-      default: c[i].instpkt = tagged None;
-    endcase
-    //c[i].insttype = case (f[i].insttype) matches
-    //  BASE: BASE;
-    //  SYSTEM: SYSTEM;
-    //  TRAP: TRAP;
-    //  MEMORY: MEMORY;
-    //`ifdef muldiv MULDIV: BASE; `endif 
-    //`ifdef spfpu FLOAT: BASE; `endif
-    //endcase;
-  end
+function CUid fn_fu2cu(FUid f, WBMemop mem);
+  CUid c;
+  c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, instpkt : ?
+          `ifdef no_wawstalls ,id: f.id `endif 
+          `ifdef spfpu ,rdtype: f.rdtype `endif };
+  case (f.instpkt) matches
+    tagged BASE .baseout : c.instpkt = tagged BASE baseout;
+    tagged TRAP .trapout: c.instpkt = tagged TRAP trapout;
+    tagged SYSTEM .systemout: c.instpkt = tagged SYSTEM systemout;
+    tagged MEMORY .memoryout: c.instpkt = tagged MEMORY mem;
+    default: c.instpkt = tagged None;
+  endcase
   return c;
 endfunction:fn_fu2cu
 

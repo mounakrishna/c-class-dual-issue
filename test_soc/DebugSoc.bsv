@@ -31,7 +31,7 @@ package DebugSoc ;
   interface Ifc_DebugSoc;
   `ifdef rtldump
      interface Sbread sbread;
-     method Maybe#(CommitLogPacket) commitlog;
+     method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
   `endif
     interface RS232 uart_io;
       // ------------- JTAG IOs ----------------------//

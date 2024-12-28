@@ -185,7 +185,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   TX#(OpMeta)   tx_opmeta <- mkTX;
 `ifdef rtldump
   // fifo interface used to transmit the trace of the instruction for rtl.dump generation
-  TX#(CommitLogPacket) tx_commitlog <- mkTX;
+  TX#(Vector#(`num_issue, CommitLogPacket)) tx_commitlog <- mkTX;
   RX_MIMO#(2, 2, `instr_queue, CommitLogPacket) rx_commitlog <- mkRX_MIMO;
 `endif
 
@@ -576,18 +576,26 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       tx_opmeta.u.enq(opmeta);
       tx_mtval.u.enq(mtval);
       `ifdef rtldump
-        let clogpkt = rx_commitlog.u.first[0];
-        clogpkt.inst_type = tagged REG (CommitLogReg{wdata:?, rd: stage3meta[0].rd, 
-                            irf: `ifdef spfpu stage3meta[0].rdtype==IRF `else True `endif });
-        if (instrType[0] == SYSTEM_INSTR) begin
-          clogpkt.inst_type = tagged CSR (CommitLogCSR{csr_address : truncate(imm[0]),
-              rd: stage3meta[0].rd, rdata:?, wdata:?, op:truncate(func_cause[0])} );
-        end
-        else if (instrType[0] == MEMORY) begin
-          clogpkt.inst_type = tagged MEM (CommitLogMem{access: stage3meta[0].memaccess, 
-                  rd: stage3meta[0].rd, 
-                  size: truncate(func_cause[0]), address: ?, data: ?, commit_data:?,
-                  irf: `ifdef spfpu stage3meta[0].rdtype==IRF `else True `endif });
+        Vector#(`num_issue, CommitLogPacket) clogpkt;
+        for (Integer i=0; i<`num_issue; i=i+1) begin
+          clogpkt[i] = rx_commitlog.u.first[i];
+          if (instrType[i] != NONE) begin
+            if (instrType[i] == SYSTEM_INSTR) begin
+              clogpkt[i].inst_type = tagged CSR (CommitLogCSR{csr_address : truncate(imm[i]),
+                  rd: stage3meta[i].rd, rdata:?, wdata:?, op:truncate(func_cause[i])} );
+            end
+            else if (instrType[i] == MEMORY) begin
+              clogpkt[i].inst_type = tagged MEM (CommitLogMem{access: stage3meta[i].memaccess, 
+                      rd: stage3meta[i].rd, 
+                      size: truncate(func_cause[i]), address: ?, data: ?, commit_data:?,
+                      irf: `ifdef spfpu stage3meta[i].rdtype==IRF `else True `endif });
+            end
+            else
+              clogpkt[i].inst_type = tagged REG (CommitLogReg{wdata:?, rd: stage3meta[i].rd, 
+                                  irf: `ifdef spfpu stage3meta[i].rdtype==IRF `else True `endif });
+          end
+          else
+            clogpkt[i].inst_type = tagged None;
         end
         tx_commitlog.u.enq(clogpkt);
       `endif
@@ -685,11 +693,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     */
   	method Action ma_commit_rd (Vector#(`num_issue, CommitData) commit);
       `logLevel( stage2, 0, $format("[%2d]STAGE2: ",hartid,fshow(commit)))
-      if (!commit[0].unlock_only) begin
+      if (!commit[0].unlock_only) 
         registerfile.commit_rd_1(commit[0]);
-      //if (!commit[1].unlock_only) begin
-      //  registerfile.commit_rd_2(commit);
-    
+      if (!commit[1].unlock_only) 
+        registerfile.commit_rd_2(commit[1]);
+   
+      if (!commit[1].unlock_only || !commit[0].unlock_only) begin
       `ifdef spfpu
         if(commit[0].addr == rg_op1[1].addr && commit[0].rdtype == rg_op1[1].rdtype)begin
           let _x = rg_op1[1];

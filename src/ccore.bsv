@@ -14,6 +14,7 @@ import Semi_FIFOF:: *;
 import AXI4_Types:: *;
 import AXI4_Fabric:: *;
 //import riscv:: * ;
+import Vector :: *;
 import riscv :: *;
 import ccore_types:: * ;
 import FIFOF::*;
@@ -81,7 +82,7 @@ interface Ifc_ccore_axi4;
   interface Sbread sbread;
   /*doc:method: this method carries the trace dump information of the instruction that was recently
    * committed*/
-  method Maybe#(CommitLogPacket) commitlog;
+  method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
 `endif
 `ifdef debug
   /*doc:method: This method is used to capture the interrupt from the debugger in case of resume or
