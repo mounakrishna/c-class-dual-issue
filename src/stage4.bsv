@@ -123,14 +123,14 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Base ALU Output",hartid))
     `ifdef rtldump
       let clogpkt = rx_commitlog.u.first[i];
+      CommitLogReg _pkt =?;
+      if (clogpkt.inst_type matches tagged REG .r)
+        _pkt = r;
+      //_pkt.wdata = rx_baseout.u.first[0].rdvalue;
+      if (rx_fuid.u.first[i].instpkt matches tagged BASE .baseout)
+        _pkt.wdata = baseout.rdvalue;
+      clogpkt.inst_type = tagged REG _pkt;
       wr_commitlog[i] <= clogpkt;
-      //CommitLogReg _pkt =?;
-      //if (clogpkt.inst_type matches tagged REG .r)
-      //  _pkt = r;
-      ////_pkt.wdata = rx_baseout.u.first[0].rdvalue;
-      //if (rx_fuid.u.first[0].instpkt matches tagged BASE .baseout)
-      //  _pkt.wdata = baseout.rdvalue;
-      //clogpkt.inst_type = tagged REG _pkt;
       //tx_commitlog.u.enq(clogpkt);
       //rx_commitlog.u.deq;
     `endif

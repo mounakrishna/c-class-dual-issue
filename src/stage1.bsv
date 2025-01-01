@@ -255,6 +255,10 @@ package stage1;
         valid_instructions = 0;
         //deq_response;
         lv_action = None;
+        tx_tostage2.u.flush();
+        `ifdef rtldump
+          tx_commitlog.u.flush();
+        `endif
         //enque_instruction = False;
         `logLevel( stage1, 1,$format("[%2d]STAGE1 : Dropping Instruction. ExpEpoch:%b CurrEpoch:%b",
             hartid, imem_resp.epochs, curr_epoch))

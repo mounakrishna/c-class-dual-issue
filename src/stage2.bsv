@@ -505,7 +505,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     //    valid_instructions = valid_instructions + 1;
     //  end
     //end
-    if({eEpoch, wEpoch} != epochs[0] && {eEpoch, wEpoch} != epochs[1] && rx_pipe1.u.deqReady_2) begin
+    if({eEpoch, wEpoch} != epochs[0] && {eEpoch, wEpoch} != epochs[1] && rx_pipe1.u.deqReady_2 && issue_two_inst) begin
       rx_pipe1.u.deq(1);
       `ifdef rtldump
         rx_commitlog.u.deq(1);
@@ -637,7 +637,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       `logLevel( stage2, 0, fstage2( hartid, _op4, decoded_inst[1].op_type.rs1type, 
                 _op5, decoded_inst[1].op_type.rs2type, _op3, instrType[1], stage3meta[1], mtval[1] ))
       // -------------------------------------------------------------------------------------- //
-      if (issue_two_inst) begin
+      if (issue_two_inst && rx_pipe1.u.deqReady_2()) begin
         rx_pipe1.u.deq(1); // TODO: Change it back
       `ifdef rtldump
         rx_commitlog.u.deq(1);

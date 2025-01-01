@@ -307,6 +307,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     end
     else begin
       `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid))
+      wr_commitlog[0] <= tagged Invalid;
       wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                  `ifdef no_wawstalls , id: fuid[0].id `endif
                                  `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
@@ -363,6 +364,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         wr_commit[i].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                    `ifdef no_wawstalls , id: fuid[0].id `endif
                                    `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+        wr_commitlog[i] <= tagged Invalid;
         //rx_baseout.u.deq;
         //rx_fuid.u.deq;
       //`ifdef rtldump
@@ -405,8 +407,15 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
           wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: zeroExtend(cache_resp), unlock_only:False
                                       `ifdef no_wawstalls , id: fuid[0].id `endif
                                       `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+        else
+          wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only: True
+                                    `ifdef no_wawstalls , id: fuid[0].id `endif
+                                    `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
       `else
         Bit#(`elen) cache_resp = 0;
+        wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only: True
+                                  `ifdef no_wawstalls , id: fuid[0].id `endif
+                                  `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
       `endif
       `ifdef rtldump
         //rx_commitlog.u.deq;
@@ -478,6 +487,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                       `ifdef no_wawstalls , id: fuid[0].id `endif
                                       `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+      wr_commitlog[0] <= tagged Invalid;
       //rx_memio.u.deq;
       //rx_fuid.u.deq;
     //`ifdef rtldump
@@ -514,6 +524,8 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   rule rl_deq(wr_commit[0].wget matches tagged Valid .w1 &&& wr_commit[1].wget matches tagged Valid .w2);
     rx_fuid.u.deq;
     `ifdef rtldump
+      `logLevel(stage5, 0, $format("STAGE5: CommitLogPacket0: ", fshow(wr_commitlog[0])))
+      `logLevel(stage5, 0, $format("STAGE5: CommitLogPacket1: ", fshow(wr_commitlog[1])))
       rg_commitlog <= unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])});
       rx_commitlog.u.deq;
     `endif
