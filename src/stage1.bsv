@@ -222,7 +222,11 @@ package stage1;
       let stage0pc = rx_fromstage0.u.first;
       `logLevel( stage1, 1, $format("[%2d]STAGE1 : Prediction: ",hartid, fshow(stage0pc)))
     `ifdef bpu
-      let btbresponse = stage0pc.btbresponse;
+      Vector#(`num_issue, BTBResponse) btbresponse = replicate(stage0pc.btbresponse);
+      //if (btbresponse[0].hi) begin
+      //  btbresponse[0].btbhit = False;
+      //  btbresponse[0].prediction = 1;
+      //end
     `endif
 
       // capture the response from the cache
@@ -244,22 +248,15 @@ package stage1;
       Bool issue = False;
       ActionType lv_action = None;
 
-      // local variable indicating if the current instruction under analysis should be enqueued to
-      // the next stage or dropped.
-      //Bool enque_instruction = True;
-      //Bool deq_resp = False;
       PrevMeta lv_prev = rg_prev;
       // if epochs do not match then drop the instruction
       if(curr_epoch != imem_resp.epochs)begin
-        //deq_resp = True;
         valid_instructions = 0;
-        //deq_response;
         lv_action = None;
         tx_tostage2.u.flush();
         `ifdef rtldump
           tx_commitlog.u.flush();
         `endif
-        //enque_instruction = False;
         `logLevel( stage1, 1,$format("[%2d]STAGE1 : Dropping Instruction. ExpEpoch:%b CurrEpoch:%b",
             hartid, imem_resp.epochs, curr_epoch))
         receiving_upper[0] = False;
@@ -268,10 +265,10 @@ package stage1;
     `ifdef compressed
       else if(rg_action == CheckPrev && rg_prev.epochs == curr_epoch)begin
       `ifdef bpu
-        btbresponse = rg_prev.btbresponse;
-        if(!btbresponse.hi)begin
-          btbresponse.btbhit= False;
-          btbresponse.prediction = 1;
+        btbresponse[0] = rg_prev.btbresponse;
+        if(!btbresponse[1].hi) begin
+          btbresponse[1].btbhit = False;
+          btbresponse[1].prediction = 1;
         end
       `endif
         if(rg_prev.instruction[1 : 0] == 2'b11) begin
@@ -279,6 +276,10 @@ package stage1;
           final_instruction[0] = {imem_resp.word[15:0], rg_prev.instruction};
           instr_pc[0] = rg_prev.pc;
           compressed_instr[0] = False;
+          `ifdef bpu
+            // Enqueue the second instruction only when the prediction of 1st instruction is NOT TAKEN.
+            if (!(btbresponse[0].hi && btbresponse[0].prediction > 1)) begin
+          `endif
           if (imem_resp.word[17:16] != 2'b11) begin
             final_instruction[1] = zeroExtend(imem_resp.word[31:16]);
             compressed_instr[1] = True;
@@ -293,24 +294,23 @@ package stage1;
             compressed_instr[1] = False;
             lv_action = CheckPrev;
             valid_instructions = 1;
-            //deq_response;
             lv_prev.instruction = truncateLSB(imem_resp.word);
             lv_prev.pc = stage0pc.address | zeroExtend(2'b10);
+            lv_prev.btbresponse = stage0pc.btbresponse;
           end
-          trap = imem_resp.trap;
-          //let deq_valid <- tx_tostage2.u.enqReady(valid_instructions);
-          //if (deq_valid)
-          //deq_resp = True;
-
-          //stage0pc.address = rg_prev.pc | zeroExtend(2'b10);
-
-        `ifdef bpu
-          lv_prev.btbresponse = stage0pc.btbresponse;
-          if(btbresponse.prediction > 1) 
+          `ifdef bpu
+          end
+          else begin
+            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 1"))
+            final_instruction[1] = ?;
+            instr_pc[1] = ?;
+            compressed_instr[1] = False;
             lv_action = None;
-          else 
-            lv_action = lv_action;
-        `endif
+            valid_instructions = 1;
+            lv_prev = lv_prev;
+          end
+          `endif
+          trap = imem_resp.trap;
           receiving_upper[0] = True;
           receiving_upper[1] = False;
         end
@@ -318,6 +318,10 @@ package stage1;
           compressed_instr[0] = True;
           final_instruction[0] = zeroExtend(rg_prev.instruction);
           instr_pc[0] = rg_prev.pc;
+          `ifdef bpu
+            // Enqueue the second instruction only when the prediction of 1st instruction is NOT TAKEN.
+            if (!(!btbresponse[0].hi && btbresponse[0].prediction > 1)) begin
+          `endif
           if (imem_resp.word[1:0] != 2'b11) begin
             `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction also has compressed, leading to dual issue and storing upper 16 as previous"))
             final_instruction[1] = zeroExtend(imem_resp.word[15:0]);
@@ -337,6 +341,18 @@ package stage1;
             lv_action = None;
             lv_prev = lv_prev;
           end
+          `ifdef bpu
+          end
+          else begin
+            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 2"))
+            final_instruction[1] = ?;
+            instr_pc[1] = ?;
+            compressed_instr[1] = False;
+            lv_action = None;
+            valid_instructions = 1;
+            lv_prev = lv_prev;
+          end
+          `endif
           receiving_upper = replicate(False);
         end
       end
@@ -344,9 +360,9 @@ package stage1;
       else if(stage0pc.discard && wr_csr_misa_c == 1)begin
         `logLevel( stage1, 1, $format("STAGE1: Discard the lower 16 bits as it has been issued into the pipeline"))
       `ifdef bpu
-        if(!btbresponse.hi)begin
-          btbresponse.btbhit= False;
-          btbresponse.prediction = 1;
+        if(!btbresponse[0].hi)begin
+          btbresponse[0].btbhit= False;
+          btbresponse[0].prediction = 1;
         end
       `endif
         if(imem_resp.word[17 : 16] == 2'b11)begin
@@ -361,7 +377,7 @@ package stage1;
           lv_prev.instruction = imem_resp.word[31 : 16];
           lv_prev.pc = stage0pc.address | zeroExtend(2'b10);
         `ifdef bpu
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse = btbresponse[0];
         `endif
         end
         else begin
@@ -378,16 +394,10 @@ package stage1;
           instr_pc[0] = stage0pc.address | zeroExtend(2'b10);
           instr_pc[1] = ?;
         end
-        //let deq_valid <- tx_tostage2.u.enqReady(valid_instructions);
-        //if (deq_valid)
-        //  deq_response;
-        //deq_response;
-        //deq_resp = True;
       end
     `endif
       else begin
         trap = imem_resp.trap;
-        //deq_response;
         // if instruction is 32-bit simply pass it on
         if(imem_resp.word[1 : 0] == 'b11)begin
           receiving_upper = replicate(False);
@@ -408,6 +418,19 @@ package stage1;
           compressed_instr[0] = True;
           final_instruction[0] = zeroExtend(imem_resp.word[15 : 0]);
           instr_pc[0] = stage0pc.address;
+        `ifdef bpu
+          if (!btbresponse[0].hi) begin
+            btbresponse[1].btbhit = False;
+            btbresponse[1].prediction = 1;
+          end
+          else begin
+            btbresponse[0].btbhit = False;
+            btbresponse[0].prediction = 1;
+          end
+          // When the least 16 bit value is compressed control instruction and if it's prediction is 
+          // TAKEN, then no need to enqueue/store the upper 16 bits.
+          if (!(!btbresponse[0].hi && btbresponse[0].prediction > 1)) begin
+        `endif
           if (imem_resp.word[17:16] == 2'b11) begin
             receiving_upper = replicate(False);
             `logLevel( stage1, 1, $format("STAGE1: The fetched word has one 16 bit instr and the upper 16 bits is part of a 32 bit instruction"))
@@ -415,42 +438,39 @@ package stage1;
             compressed_instr[1] = False;
             valid_instructions = 1;
             lv_prev.instruction = truncateLSB(imem_resp.word);
+            lv_action = CheckPrev;
+          `ifdef bpu
+            lv_prev.btbresponse = btbresponse[1];
+          `endif
             lv_prev.pc = stage0pc.address | zeroExtend(2'b10);
             instr_pc[1] = ?;
-            `ifdef bpu
-              lv_action = (!btbresponse.hi && btbresponse.prediction > 1) ? None: CheckPrev;
-            `else
-              lv_action = CheckPrev;
-            `endif
           end
           else begin
             receiving_upper = replicate(False);
             `logLevel( stage1, 1, $format("STAGE1: The fetched word has two 16 bit instrs"))
             final_instruction[1] = zeroExtend(imem_resp.word[31:16]);
             compressed_instr[1] = True;
-            valid_instructions = 2; //TODO Need to make it 2 for dual issue
+            valid_instructions = 2;
             lv_prev = lv_prev;
             instr_pc[1] = stage0pc.address | zeroExtend(2'b10);
             lv_action = None;
           end
         `ifdef bpu
-          // check if prediction was for lower-16 else reset btbresponse before forwarding.
-          //lv_action = (!btbresponse.hi && btbresponse.prediction > 1) ? None: CheckPrev;
-          //rg_receiving_upper <= !(!btbresponse.hi && btbresponse.prediction > 1);
-          if(btbresponse.hi)begin
-            btbresponse.btbhit= False;
-            btbresponse.prediction = 1;
           end
-          // store the btbresponse for next cycle
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          else begin
+            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 3"))
+            lv_action = None;
+            lv_prev = ?;
+            valid_instructions = 1;
+            instr_pc[1] = ?;
+            compressed_instr[1] = False;
+            final_instruction[1] = ?;
+          end
         `endif
         end
       `endif
       end
       lv_prev.epochs = curr_epoch;
-      //rg_prev <= lv_prev;
-      //Bit#(`vaddr) incr_value = (compressed_instr[0] && !compressed_instr[1]  && wr_csr_misa_c == 1) ? 2:4;
-      //Bit#(`vaddr) incr_value = (compressed_instr[0] && wr_csr_misa_c == 1) ? 2:4;
       Bit#(`causesize) cause = imem_resp.cause;
     `ifdef triggers
       let {trig_trap, trig_cause} <- check_trigger(stage0pc.address, final_instruction
@@ -477,7 +497,7 @@ package stage1;
                       epochs:{rg_eEpoch, rg_wEpoch},
                       trap : trap
                     `ifdef bpu
-                      ,btbresponse: btbresponse
+                      ,btbresponse: btbresponse[i]
                     `endif
                     `ifdef compressed
                       ,upper_err : receiving_upper[i] && imem_resp.trap
@@ -499,23 +519,9 @@ package stage1;
       `logLevel( stage1, 0,$format("[%2d]STAGE1 : PC:%h: ",hartid,stage0pc.address,
                                     fshow(ff_memory_response.first)))
     `ifdef compressed
-      `logLevel( stage1, 1,$format("[%2d]STAGE1 : rg_action: ",hartid,fshow(rg_action),
+      `logLevel( stage1, 1,$format("[%2d]STAGE1 : rg_action: ",hartid,fshow(lv_action),
             " misa[c]:%b discard:%b ",hartid, wr_csr_misa_c, stage0pc.discard))
     `endif
-      //tx_tostage2.u.enqReady_count(valid_instructions);
-      //let enq_ready <- tx_tostage2.u.enqReady(valid_instructions);
-      //Bool enq_ready;
-      //if (valid_instructions == 1)
-      //  enq_ready = tx_tostage2.u.enqReady_1();
-      //else if (valid_instructions == 2)
-      //  enq_ready = tx_tostage2.u.enqReady_2();
-      //else
-      //  enq_ready = False;
-
-      //if (deq_resp && enq_ready)
-      //  deq_response;
-      //if(enque_instruction) begin
-
       if (valid_instructions == 2 && !tx_tostage2.u.enqReady_2()) begin
         `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full. Cannot enque two instructions ", hartid))
         valid_instructions = 0;
@@ -530,8 +536,6 @@ package stage1;
       if (valid_instructions != 0) begin
         `ifdef rtldump 
           tx_commitlog.u.enq(commit_packet, valid_instructions);
-          //tx_commitlog.u.enq(CommitLogPacket{instruction: inst, pc: instr_pc[0], mode: ?,
-          //    inst_type: tagged None});
         `endif
           tx_tostage2.u.enq(pipedata, valid_instructions);
           if (valid_instructions == 1)

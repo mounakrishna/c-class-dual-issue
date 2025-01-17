@@ -680,6 +680,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       end
     endrule:rl_exe_base_arith
 
+    /*doc:rule: The base ALU operations of the second instructions is done in this rule.*/
     rule rl_exe_base_arith_1(instr_type[1] == ALU && epochs_match && !wr_waw_stall);
       let alu_result = fn_base_alu(wr_fwd_op4, wr_fwd_op5, truncateLSB(meta[1].funct),
                                 meta[1].pc, opmeta.rs1type==PC `ifdef RV64 ,meta[1].word32 `endif );
