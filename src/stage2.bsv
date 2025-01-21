@@ -109,17 +109,17 @@ function Fmt fstage2(Bit#(`xlen) hartid, FwdType op1, Op1type op1type, FwdType o
   else
 `endif
   if (op2type == Immediate)
-    op2_addr = $format(" RS2=") + op2_addr + $format("Immediate[%h]",op2.addr,op2.data);
+    op2_addr = $format(" RS2=") + op2_addr + $format("Immediate[%h]",op2.data);
   else
     op2_addr = $format(" RS2=") + op2_addr + $format(" Immediate['h4]");
 
   Fmt op_rd = ?; 
 `ifdef spfpu 
   if(meta.rdtype == FRF)
-    op_rd = $format(" RD=") + op_rd + $format("F[%2d]",meta.rd[0]);
+    op_rd = $format(" RD=") + op_rd + $format("F[%2d]",meta.rd);
   else
 `endif
-    op_rd = $format(" RD=") + op_rd + $format("X[%2d]",meta.rd[0]);
+    op_rd = $format(" RD=") + op_rd + $format("X[%2d]",meta.rd);
 
   Fmt op3_addr = $format(" Immediate[%h]",op3.data);
   Fmt offset = $format(" Offset[%h]",op3.data);
@@ -129,7 +129,7 @@ function Fmt fstage2(Bit#(`xlen) hartid, FwdType op1, Op1type op1type, FwdType o
     BRANCH: result = result + $format("Branch -") + op1_addr + op2_addr + offset;
     JAL: result = result + $format("JAL -") + offset + op_rd;
     JALR: result = result + $format("JAL -") + op1_addr + offset + op_rd;
-    TRAP: result = result + $format("TRAP - Cause:%3d Microtrap:%b Mtval:%h",meta.funct[0], meta.is_microtrap,mtval);
+    TRAP: result = result + $format("TRAP - Cause:%3d Microtrap:%b Mtval:%h",meta.funct, meta.is_microtrap,mtval);
     WFI: result = result + $format("WFI");
     SYSTEM_INSTR: result = result + $format("SYSTEM -") + op1_addr +csr_addr +op_rd;
     MEMORY: begin
@@ -380,30 +380,27 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       `endif
     end
 
-    for (Integer i=0; i<`num_issue; i=i+1) begin
-      `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc[i], inst[i]))
-      `logLevel( stage2, 0, $format("[%2d]STAGE2 : InstrType : ", hartid, fshow(instrType[i])))
-    end
-
     // -------- Instruction Dependency Check ------------ //
     Bool issue_two_inst;
+    for (Integer i=0; i<`num_issue; i=i+1)
+      `logLevel( stage2, 0, $format("STAGE2[%2d]: Decoded Instruction %d : ", hartid, i, fshow(decoded_inst[i])))
     if (instrType[1] != NONE) begin
       // RAW hazard
-      if (decoded_inst[0].op_type.rs1type == IntegerRF && decoded_inst[1].op_type.rs1type == IntegerRF &&
-        (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs1addr || 
-         decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs2addr  
-         `ifdef spfpu || decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs3addr `endif ))
-         issue_two_inst = False;
-      `ifndef no_wawstalls
-      // WAW hazard
-      else if (decoded_inst[0].op_type.rs1type == IntegerRF && decoded_inst[1].op_type.rs1type == IntegerRF &&
-        (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rd))
-         issue_two_inst = False;
-      // WAR Hazard
-      else if (decoded_inst[0].op_addr.rs1type == IntegerRF && decoded_inst[1].op_addr.rs1type == IntegerRF &&
+      if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
         (decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs1addr || 
          decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs2addr  
          `ifdef spfpu || decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs3addr `endif ))
+         issue_two_inst = False;
+      `ifndef no_wawstalls
+      // WAW hazard
+      else if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
+        (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rd))
+         issue_two_inst = False;
+      // WAR Hazard
+      else if (decoded_inst[0].op_addr.rs1type != FloatingRF && decoded_inst[1].op_addr.rs1type != FloatingRF &&
+        (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs1addr || 
+         decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs2addr  
+         `ifdef spfpu || decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs3addr `endif ))
          issue_two_inst = False;
       `endif
       // Issue both only when both the instructions are ALU
@@ -555,7 +552,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                            (decoded_inst[0].meta.memaccess == FenceI)?`FenceI_rerun : `Sfence_rerun ;
   
       // -------------------------- Enque relevant data to the next stage -------------------- //
-      if(instrType[0] == TRAP)// TODO: || instrType[1] == TRAP)
+
+      if(instrType[0] == TRAP)
         rg_stall <= True && !wr_flush_from_exe && !wr_flush_from_wb;
       let opmeta = OpMeta { rs1addr: decoded_inst[0].op_addr.rs1addr,
                             rs2addr: decoded_inst[0].op_addr.rs2addr,
@@ -571,7 +569,15 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                             rs5type: decoded_inst[1].op_type.rs2type
                           };
       tx_meta.u.enq(stage3meta);
-      instrType[1] = NONE; // TODO Need to remove this for dual issue. Just wrote temp so that single issue works properly.
+      //instrType[1] = NONE; // TODO Need to remove this for dual issue. Just wrote temp so that single issue works properly.
+      if (!issue_two_inst)
+        instrType[1] = NONE;
+
+      for (Integer i=0; i<`num_issue; i=i+1) begin
+        `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc[i], inst[i]))
+        `logLevel( stage2, 0, $format("[%2d]STAGE2 : InstrType : ", hartid, fshow(instrType[i])))
+      end
+
       tx_instrtype.u.enq(instrType);
       tx_opmeta.u.enq(opmeta);
       tx_mtval.u.enq(mtval);
@@ -597,6 +603,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           else
             clogpkt[i].inst_type = tagged None;
         end
+
+        if (!issue_two_inst)
+          clogpkt[1].inst_type = tagged None;
         tx_commitlog.u.enq(clogpkt);
       `endif
    
@@ -614,7 +623,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                           epochs: wEpoch
                         `ifdef spfpu ,rdtype: decoded_inst[0].op_type.rs3type `endif 
                         `ifdef no_wawstalls ,id : ? `endif };
-      let _op4 = FwdType{ valid: True, addr: decoded_inst[1].op_addr.rs2addr, data: op1_inst1, epochs: wEpoch
+      let _op4 = FwdType{ valid: True, addr: decoded_inst[1].op_addr.rs1addr, data: op1_inst1, epochs: wEpoch
                         `ifdef no_wawstalls ,id: ? `endif
                         `ifdef spfpu ,rdtype: (decoded_inst[1].op_type.rs2type==FloatingRF)?FRF:IRF `endif
                         };
@@ -638,9 +647,10 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                 _op5, decoded_inst[1].op_type.rs2type, _op3, instrType[1], stage3meta[1], mtval[1] ))
       // -------------------------------------------------------------------------------------- //
       if (issue_two_inst && rx_pipe1.u.deqReady_2()) begin
-        rx_pipe1.u.deq(1); // TODO: Change it back
+        `logLevel( stage2, 0, $format("[%2d]STAGE2: Issuing two independent instructions", hartid))
+        rx_pipe1.u.deq(2); // TODO: Change it back
       `ifdef rtldump
-        rx_commitlog.u.deq(1);
+        rx_commitlog.u.deq(2);
       `endif
       end
       else begin
@@ -698,40 +708,66 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       if (!commit[1].unlock_only) 
         registerfile.commit_rd_2(commit[1]);
    
-      if (!commit[1].unlock_only || !commit[0].unlock_only) begin
+      //if ( || !commit[0].unlock_only) begin
       `ifdef spfpu
-        if(commit[0].addr == rg_op1[1].addr && commit[0].rdtype == rg_op1[1].rdtype)begin
+        if(!commit[1].unlock_only && commit[1].addr == rg_op1[1].addr && commit[1].rdtype == rg_op1[1].rdtype) begin
+          let _x = rg_op1[1];
+          if(commit[1].rdtype == FRF || rg_op1[1].addr!=0)
+            _x.data=commit[1].data;
+          rg_op1[1] <= _x;
+        end
+        else if(!commit[0].unlock_only && commit[0].addr == rg_op1[1].addr && commit[0].rdtype == rg_op1[1].rdtype) begin
           let _x = rg_op1[1];
           if(commit[0].rdtype == FRF || rg_op1[1].addr!=0)
             _x.data=commit[0].data;
           rg_op1[1] <= _x;
         end
     
-        if(commit[0].addr == rg_op2[1].addr && commit[0].rdtype == rg_op2[1].rdtype)begin
+        if(!commit[1].unlock_only && commit[1].addr == rg_op2[1].addr && commit[1].rdtype == rg_op2[1].rdtype) begin
+          let _x = rg_op2[1];
+          if(commit[1].rdtype == FRF || (rg_op2[1].addr != 0 && wr_op2type == IntegerRF))
+            _x.data=commit[1].data;
+          rg_op2[1] <= _x;
+        end
+        else if(!commit[0].unlock_only && commit[0].addr == rg_op2[1].addr && commit[0].rdtype == rg_op2[1].rdtype) begin
           let _x = rg_op2[1];
           if(commit[0].rdtype == FRF || (rg_op2[1].addr != 0 && wr_op2type == IntegerRF))
             _x.data=commit[0].data;
           rg_op2[1] <= _x;
         end
-    
+   
+        //TODO DUAL ISSUE: Need to consider commit output of 2nd pipe inst also when float units are replicated.
         if(rg_op3[1].addr == commit[0].addr && rg_op3[1].rdtype == FRF &&  commit[0].rdtype == FRF)
           rg_op3[1].data <= commit[0].data;
     
-        if(commit[1].addr == rg_op4[1].addr && commit[1].rdtype == rg_op4[1].rdtype)begin
+        if(!commit[1].unlock_only && commit[1].addr == rg_op4[1].addr && commit[1].rdtype == rg_op4[1].rdtype) begin
           let _x = rg_op4[1];
           if(commit[1].rdtype == FRF || rg_op4[1].addr!=0)
             _x.data=commit[1].data;
           rg_op4[1] <= _x;
         end
+        else if(!commit[0].unlock_only && commit[0].addr == rg_op4[1].addr && commit[0].rdtype == rg_op4[1].rdtype) begin
+          let _x = rg_op4[1];
+          if(commit[0].rdtype == FRF || rg_op4[1].addr!=0)
+            _x.data=commit[0].data;
+          rg_op4[1] <= _x;
+        end
 
-        if(commit[1].addr == rg_op5[1].addr && commit[1].rdtype == rg_op5[1].rdtype)begin
+        if(!commit[1].unlock_only && commit[1].addr == rg_op5[1].addr && commit[1].rdtype == rg_op5[1].rdtype) begin
           let _x = rg_op5[1];
           if(commit[1].rdtype == FRF || (rg_op5[1].addr != 0 && wr_op5type == IntegerRF))
             _x.data=commit[1].data;
           rg_op5[1] <= _x;
         end
+        else if(!commit[0].unlock_only && commit[0].addr == rg_op5[1].addr && commit[0].rdtype == rg_op5[1].rdtype) begin
+          let _x = rg_op5[1];
+          if(commit[0].rdtype == FRF || (rg_op5[1].addr != 0 && wr_op5type == IntegerRF))
+            _x.data=commit[0].data;
+          rg_op5[1] <= _x;
+        end
 
       `else
+        //TODO DUAL ISSUE: Add 2nd instruction commit constructs for the time when FPU is not enabled as well
         let _x = rg_op1[1];
         let _y = rg_op2[1];
         if(rg_op1[1].addr == commit[0].addr && rg_op1[1].addr!=0) begin
@@ -743,7 +779,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           _y.data = commit[0].data;
           rg_op2[1] <= _y;
       `endif
-    end
+    //end
     endmethod
 
     // This method will get activated when there is a flush from the execute stage

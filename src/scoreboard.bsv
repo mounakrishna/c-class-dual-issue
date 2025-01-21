@@ -62,13 +62,13 @@ package scoreboard ;
       end
 
       if ((index[0] == index[1]) && index[0] != 0) //TODO: Fixed for dual issue. Need to think of multi-issue
-        rg_rf_board[index[1]][0] <= entry[0]; //TODO: entry[1];
+        rg_rf_board[index[1]][0] <= entry[1]; //TODO: entry[1];
       else begin
         if (index[0] != 0)
           rg_rf_board[index[0]][0] <= entry[0];
         // TODO:
-        //if (index[1] != 0)
-        //  rg_rf_board[index[1]][0] <= entry[1];
+        if (index[1] != 0)
+          rg_rf_board[index[1]][0] <= entry[1];
       end
       rg_renameid <= rg_renameid + 1; //`num_issue;
     `ifdef no_wawstalls
@@ -92,12 +92,12 @@ package scoreboard ;
         `logLevel( sboard, 0, $format("[%2d]SBoard release %d entry : ",hartid, i, fshow(entry[i])))
       end
       if ((index[0] == index[1]) && index[0] != 0) //TODO: Fixed for dual issue. Need to think of multi-issue
-        rg_rf_board[index[1]][1] <= entry[0]; //TODO: entry[1];
+        rg_rf_board[index[1]][1] <= entry[1]; //TODO: entry[1];
       else begin
         if (index[0] != 0)
           rg_rf_board[index[0]][1] <= entry[0];
-        //if (index[1] != 0)
-        //  rg_rf_board[index[1]][1] <= entry[1];
+        if (index[1] != 0)
+          rg_rf_board[index[1]][1] <= entry[1];
       end
     endmethod
     /*doc:method: This method provides a peek into the current score-board status */

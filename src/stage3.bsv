@@ -409,7 +409,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * initiate execution.
   */
   rule rl_perform_fwding(rx_meta.u.notEmpty);
-    `logLevel( stage3, pc, $format("[%2d]STAGE3: PC:%h",hartid, meta[0].pc))
+    `logLevel( stage3, pc, $format("[%2d]STAGE3: PC0:%h, instrType0:",hartid, meta[0].pc,fshow(instr_type[0])))
+    `logLevel( stage3, pc, $format("[%2d]STAGE3: PC1:%h, instrType1:",hartid, meta[1].pc,fshow(instr_type[1])))
     
     // ----------------------- check for WAW hazard ------------------------------------------- //
     `ifdef no_wawstalls
@@ -475,10 +476,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     let {_op4_avail, _fwd_op4} = fn_bypass( req_addr4, byp4, wr_rf_op4);
     let {_op5_avail, _fwd_op5} = fn_bypass( req_addr5, byp5, wr_rf_op5);
 
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op1: ",hartid, fshow(byp1), " req:", fshow(req_addr1)))
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op2: ",hartid, fshow(byp2), " req:", fshow(req_addr2)))
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op4: ",hartid, fshow(byp4), " req:", fshow(req_addr4)))
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op5: ",hartid, fshow(byp5), " req:", fshow(req_addr5)))
+    `logLevel(stage3,0, $format("[%2d]STAGE3: Op1: ",hartid, fshow(byp1), " req:", fshow(req_addr1), " rf_data:", fshow(wr_rf_op1)))
+    `logLevel(stage3,0, $format("[%2d]STAGE3: Op2: ",hartid, fshow(byp2), " req:", fshow(req_addr2), " rf_data:", fshow(wr_rf_op2)))
+    `logLevel(stage3,0, $format("[%2d]STAGE3: Op4: ",hartid, fshow(byp4), " req:", fshow(req_addr4), " rf_data:", fshow(wr_rf_op4)))
+    `logLevel(stage3,0, $format("[%2d]STAGE3: Op5: ",hartid, fshow(byp5), " req:", fshow(req_addr5), " rf_data:", fshow(wr_rf_op5)))
 
     wr_op1_avail <= _op1_avail; wr_fwd_op1 <= _fwd_op1;
     wr_op1_avail_probe <= _op1_avail;
@@ -524,6 +525,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
           hartid, opmeta.rs3addr, _op3_avail, _fwd_op3))
       `logLevel( stage3, 0, $format("[%2d]STAGE3: imm:",hartid, fshow(wr_op3)))
     `endif
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Bypass Op4:%2d Op4Avail:%b Op4Val:%h",
+          hartid, opmeta.rs4addr, _op4_avail, _fwd_op4))
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Bypass Op5:%2d Op5Avail:%b Op5Val:%h",
+          hartid, opmeta.rs5addr, _op5_avail, _fwd_op5))
     end
   endrule:rl_perform_fwding
 
@@ -638,7 +643,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     `endif
       let baseoutput = BaseOut{ rdvalue   : alu_result, rd: meta[0].rd , epochs: curr_epochs[0]
                           `ifdef spfpu ,fflags    : 0 , rdtype: meta[0].rdtype `endif };
-      `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op received",hartid))
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op received in 1st pipe",hartid))
 
       // proceed further only if all the operands are available.
       if (wr_op1_avail && wr_op2_avail) begin
@@ -660,7 +665,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
         wr_fuid[0] <= common_pkt;
         //wr_fuid[1] <= default_common;
         //deq_rx;
-        `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op completed: ",hartid,fshow(baseoutput)))
+        `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op completed of 1st pipe: ",hartid,fshow(baseoutput)))
       `ifdef rtldump
         let clogpkt = rx_commitlog.u.first[0];
         CommitLogReg _pkt =?;
@@ -683,7 +688,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     /*doc:rule: The base ALU operations of the second instructions is done in this rule.*/
     rule rl_exe_base_arith_1(instr_type[1] == ALU && epochs_match && !wr_waw_stall);
       let alu_result = fn_base_alu(wr_fwd_op4, wr_fwd_op5, truncateLSB(meta[1].funct),
-                                meta[1].pc, opmeta.rs1type==PC `ifdef RV64 ,meta[1].word32 `endif );
+                                meta[1].pc, opmeta.rs4type==PC `ifdef RV64 ,meta[1].word32 `endif );
 
     //let alu_result = alu_result_two[0];
     `ifdef RV64
@@ -694,7 +699,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     `endif
       let baseoutput = BaseOut{ rdvalue   : alu_result, rd: meta[1].rd , epochs: curr_epochs[0]
                           `ifdef spfpu ,fflags    : 0 , rdtype: meta[1].rdtype `endif };
-      `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op received",hartid))
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op received in 2nd pipe",hartid))
 
       // proceed further only if all the operands are available.
       if (wr_op4_avail && wr_op5_avail) begin
@@ -716,7 +721,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
         wr_fuid[1] <= common_pkt;
         //wr_fuid[1] <= default_common;
         //deq_rx;
-        `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op completed: ",hartid,fshow(baseoutput)))
+        `logLevel( stage3, 0, $format("[%2d]STAGE3: Base ALU Op completed in 2nd pipe: ",hartid,fshow(baseoutput)))
       `ifdef rtldump
         let clogpkt = rx_commitlog.u.first[1];
         CommitLogReg _pkt =?;
