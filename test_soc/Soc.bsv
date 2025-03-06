@@ -60,12 +60,16 @@ package Soc;
       return slave_num;
     endfunction:fn_slave_map
 
-  interface Ifc_Soc;
+  interface Ifc_soc_io;
   `ifdef rtldump
     interface Sbread sbread;
     method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
   `endif
     interface RS232 uart_io;
+  endinterface
+
+  interface Ifc_Soc;
+    interface Ifc_soc_io soc_sb;
   `ifdef debug
     interface AXI4_Slave_IFC#(`paddr, `elen, USERSPACE) to_debug_master;
     interface AXI4_Master_IFC#(`paddr, `elen, USERSPACE) to_debug_slave;
@@ -165,12 +169,14 @@ package Soc;
       end
     endrule: rl_connect_clint_msip
 
+  interface Ifc_soc_io soc_sb;
   `ifdef rtldump
     // TODO parameterize this
     interface commitlog= ccore[0].commitlog;
     interface sbread = ccore[0].sbread;
   `endif
     interface uart_io=uart.io;
+  endinterface
   `ifdef debug
     interface to_debug_master = fabric.v_from_masters[valueOf(Debug_master_num)];
     interface to_debug_slave  = fabric.v_to_slaves[`Debug_slave_num ];

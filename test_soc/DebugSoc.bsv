@@ -29,11 +29,12 @@ package DebugSoc ;
   // TODO remove below
   `include "Soc.defines"
   interface Ifc_DebugSoc;
-  `ifdef rtldump
-     interface Sbread sbread;
-     method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
-  `endif
-    interface RS232 uart_io;
+    interface Ifc_soc_io soc_sb;
+  //`ifdef rtldump
+  //   interface Sbread sbread;
+  //   method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
+  //`endif
+  //  interface RS232 uart_io;
       // ------------- JTAG IOs ----------------------//
     (*always_enabled,always_ready*)                                                               
     method Action wire_tms(Bit#(1)tms_in);                                                        
@@ -154,11 +155,12 @@ package DebugSoc ;
     method Bit#(1)wire_tdo;                                                                       
       return tdo.crossed();                                                                       
     endmethod
-    `ifdef rtldump
-      interface sbread  =soc.sbread;
-      method commitlog = soc.commitlog;
-    `endif
-    interface uart_io = soc.uart_io;
+    interface soc_sb = soc.soc_sb;
+    //`ifdef rtldump
+    //  interface sbread  =soc.sbread;
+    //  method commitlog = soc.commitlog;
+    //`endif
+    //interface uart_io = soc.uart_io;
 
     interface soc_reset = system_reset;
                                                                                                     

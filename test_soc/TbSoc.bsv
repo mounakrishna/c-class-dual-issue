@@ -175,10 +175,10 @@ package TbSoc;
     endrule
 
     rule connect_uart_out;
-      soc.uart_io.sin(uart.io.sout);
+      soc.soc_sb.uart_io.sin(uart.io.sout);
     endrule
     rule connect_uart_in;
-      uart.io.sin(soc.uart_io.sout);
+      uart.io.sin(soc.soc_sb.uart_io.sout);
     endrule
 
     rule check_if_character_present(!rg_read_rx);
@@ -204,7 +204,7 @@ package TbSoc;
       Bool prev_mstatus_valid = rg_prev_mstatus_valid;
       Bit#(`xlen) prev_misa = rg_prev_misa;
 
-      if (soc.commitlog[0] matches tagged Valid .idump) begin
+      if (soc.soc_sb.commitlog[0] matches tagged Valid .idump) begin
     `ifndef openocd `ifndef cocotb_sim
       if(idump.instruction=='h00006f||idump.instruction =='h00a001)
         $finish(0);
@@ -409,7 +409,7 @@ package TbSoc;
       Bool prev_mstatus_valid_1 = prev_mstatus_valid;
       Bit#(`xlen) prev_misa_1 = prev_misa;
 
-      if (soc.commitlog[1] matches tagged Valid .idump) begin
+      if (soc.soc_sb.commitlog[1] matches tagged Valid .idump) begin
     `ifndef openocd `ifndef cocotb_sim
       if(idump.instruction=='h00006f||idump.instruction =='h00a001)
         $finish(0);

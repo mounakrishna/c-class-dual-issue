@@ -76,11 +76,11 @@ benchmarks:
   url: git@github.com:Mindgrove-Technologies/benchmarks.git
   checkout: master
 csrbox:
-  url: https://gitlab.com/shaktiproject/cores/csrbox
-  checkout: Floating_point
+  url: git@github.com:Mindgrove-Technologies/csrbox.git
+  checkout: perf-monitor-fix
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
-  checkout: No_hyp_reg
+  checkout: master
 application-benchmarks:
   url: git@github.com:mounakrishna/application-benchmarks.git
   checkout: master
