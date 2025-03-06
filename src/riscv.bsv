@@ -134,7 +134,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
 
 `ifdef perfmonitors
     /*doc:wire: */
-    Wire#(Bit#(31)) wr_total_count <- mkDWire(0);
+    Reg#(Bit#(34)) rg_total_count <- mkReg(0);
   `ifdef icache
     Wire#(Bit#(5)) wr_icache_counters <- mkDWire(0);
   `endif
@@ -146,6 +146,9 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Wire#(Bit#(1)) wr_dtlb_counters <- mkDWire(0);
     Wire#(Bit#(1)) wr_itlb_counters <- mkDWire(0);
   `endif
+    Bit#(1) lv_count_instr_queue_full       = stage1.perf.mv_instr_queue_full;
+    Bit#(1) lv_count_instr_queue_empty      = stage2.perf.mv_instr_queue_empty;
+    Bit#(1) lv_dual_issued                  = stage2.perf.mv_dual_issued;
     Bit#(1) lv_count_misprediction          = `ifdef bpu pack(exeflush && !wbflush.flush) `else 0 `endif ;
     Bit#(1) lv_count_exceptions             = stage5.perf.mv_count_exceptions;
     Bit#(1) lv_count_interrupts             = stage5.perf.mv_count_interrupts;
@@ -178,7 +181,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_itlb_misses            = `ifdef supervisor wr_itlb_counters `else 0 `endif ;
     Bit#(1) lv_count_dtlb_misses            = `ifdef supervisor wr_dtlb_counters `else 0 `endif ;
 
-    let lv_total_count = reverseBits({lv_count_misprediction, lv_count_exceptions, lv_count_interrupts,
+    let lv_total_count = reverseBits({lv_count_instr_queue_full, lv_count_instr_queue_empty, lv_dual_issued, lv_count_misprediction, lv_count_exceptions, lv_count_interrupts,
       lv_count_microtraps, lv_count_csrops, lv_count_jumps, lv_count_branches, lv_count_floats, lv_count_muldiv,
       lv_count_rawstalls, lv_count_exetalls, lv_count_icache_access, lv_count_icache_miss,
       lv_count_icache_fbhit, lv_count_icache_ncaccess, lv_count_icache_fbrelease,
@@ -282,11 +285,11 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
   `ifdef perfmonitors
     
     rule rl_connect_events;
-      wr_total_count <= lv_total_count;
+      rg_total_count <= lv_total_count;
     endrule:rl_connect_events
 
     rule rl_connect_events1;
-      stage5.perf.ma_events(wr_total_count);
+      stage5.perf.ma_events(rg_total_count);
     endrule
   `endif
     

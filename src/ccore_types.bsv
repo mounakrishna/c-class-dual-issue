@@ -908,6 +908,9 @@ typedef struct{
 
 `ifdef perfmonitors
 		typedef struct{
+      Bit#(1) instr_queue_full         ;
+      Bit#(1) instr_queue_empty        ;
+      Bit#(1) dual_issued              ;
       Bit#(1) misprediction            ;
       Bit#(1) exceptions               ;
       Bit#(1) interrupts               ;

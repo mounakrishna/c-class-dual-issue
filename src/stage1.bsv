@@ -47,6 +47,9 @@ package stage1;
     interface Ifc_s1_tx tx;
     interface Ifc_s1_icache icache;
     interface Ifc_s1_common common;
+  `ifdef perfmonitors
+    interface Ifc_s1_perfmonitors perf;
+  `endif
 	endinterface:Ifc_stage1
 
 `ifdef stage1_noinline
@@ -622,6 +625,11 @@ package stage1;
       endmethod
     `endif
     endinterface;
+  `ifdef perfmonitors
+    interface perf = interface Ifc_s1_perfmonitors
+      method mv_instr_queue_full = pack(!tx_tostage2.u.enqReady_1);
+    endinterface;
+  `endif
   endmodule
 endpackage
 

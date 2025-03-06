@@ -103,6 +103,12 @@ interface Ifc_s1_icache;
   // instruction response from the memory subsytem or the memory bus
   interface Put#(IMem_core_response#(32, `iesize)) inst_response;
 endinterface:Ifc_s1_icache
+
+`ifdef perfmonitors
+interface Ifc_s1_perfmonitors;
+  method Bit#(1) mv_instr_queue_full;
+endinterface: Ifc_s1_perfmonitors
+`endif
 // -----------------------------------------------------------------------------------------------
 
 
@@ -210,20 +216,20 @@ interface Ifc_s3_float;
 interface Ifc_s3_perfmonitors;
   /*doc:method: */
 `ifdef spfpu
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_floats;
 `endif
 `ifdef muldiv
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_muldiv;
 `endif
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_jumps;
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_branches;
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_rawstalls ;
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_exestalls ;
 endinterface: Ifc_s3_perfmonitors
 `endif
@@ -344,6 +350,15 @@ interface Ifc_s2_debug;
   /*doc:method debug related info checking interrupts */
   method Action debug_status (DebugStatus status);
 endinterface:Ifc_s2_debug
+`endif
+
+`ifdef perfmonitors
+interface Ifc_s2_perfmonitors;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_instr_queue_empty; 
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_dual_issued;
+endinterface
 `endif
 // -----------------------------------------------------------------------------------------------
 // -------------------------------- stage4 interfaces --------------------------------------------
@@ -480,11 +495,16 @@ endinterface:Ifc_s5_csrs
 
 `ifdef perfmonitors
 interface Ifc_s5_perfmonitors;
+  (*always_enabled, always_ready*)
   method Action ma_events (Bit#(`mhpm_eventcount) e);
  	/*doc:method: */
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_exceptions;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_interrupts;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_csrops;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_microtraps;
 endinterface:Ifc_s5_perfmonitors
 `endif

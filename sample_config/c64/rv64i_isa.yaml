@@ -709,6 +709,357 @@ hart0:
                     wr_illegal:
                       - Unchanged
         reset-val: 0
+    mhpmcounter5:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter5[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter6:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter6[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter7:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter7[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter8:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter8[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter9:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter9[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter10:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter10[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter11:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter11[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter12:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter12[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter13:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter13[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter14:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter14[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter15:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter15[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter16:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter16[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter17:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter17[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter18:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter18[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter19:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter19[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter20:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter20[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter21:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter21[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter22:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter22[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter23:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter23[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter24:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter24[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter25:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter25[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter26:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter26[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter27:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter27[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter28:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter28[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter29:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter29[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter30:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter30[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmcounter31:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmcounter31[63:0] in [0x0000000000000000:0xFFFFFFFFFFFFFFFF]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
     mhpmevent3:
         rv32:
             accessible: false
@@ -732,6 +1083,357 @@ hart0:
                     dependency_fields: []
                     legal:
                       - "mhpmevent4[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent5:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent5[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent6:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent6[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent7:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent7[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent8:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent8[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent9:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent9[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent10:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent10[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent11:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent11[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent12:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent12[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent13:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent13[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent14:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent14[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent15:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent15[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent16:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent16[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent17:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent17[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent18:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent18[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent19:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent19[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent20:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent20[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent21:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent21[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent22:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent22[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent23:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent23[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent24:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent24[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent25:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent25[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent26:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent26[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent27:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent27[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent28:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent28[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent29:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent29[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent30:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent30[63:0] in [0x0000000000000000:0x000000000000001F]"
+                    wr_illegal:
+                      - Unchanged
+        reset-val: 0
+    mhpmevent31:
+        rv32:
+            accessible: false
+        rv64:
+            accessible: true
+            type: 
+                warl:
+                    dependency_fields: []
+                    legal:
+                      - "mhpmevent31[63:0] in [0x0000000000000000:0x000000000000001F]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0

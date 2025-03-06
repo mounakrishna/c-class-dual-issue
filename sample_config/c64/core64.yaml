@@ -11,7 +11,7 @@ merged_rf: False
 s_extension:
   itlb_size: 4
   dtlb_size: 4
-total_events : 31
+total_events : 34
 iepoch_size: 2
 m_extension:
   mul_stages_in : 1

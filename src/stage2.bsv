@@ -77,6 +77,9 @@ interface Ifc_stage2;
 `ifdef debug
   interface Ifc_s2_debug debug;
 `endif
+`ifdef perfmonitors
+  interface Ifc_s2_perfmonitors perf;
+`endif
   method Bool mv_wfi_detected;
 endinterface : Ifc_stage2
 
@@ -264,6 +267,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     This register holds the latest value of operand3 from the RF. This will get updated
     every time a retirement to the same register occurs.*/
   Reg#(FwdType) rg_op3[2] <- mkCReg(2, unpack(0));
+
+  Wire#(Bit#(1)) wr_dual_issued <- mkDWire(0);
 
   /*doc:reg: This register stores the 2nd instruction for the next cycle if it was not
     issued due to dependency reasons.
@@ -647,6 +652,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                 _op5, decoded_inst[1].op_type.rs2type, _op3, instrType[1], stage3meta[1], mtval[1] ))
       // -------------------------------------------------------------------------------------- //
       if (issue_two_inst && rx_pipe1.u.deqReady_2()) begin
+        wr_dual_issued <= pack(issue_two_inst);
         `logLevel( stage2, 0, $format("[%2d]STAGE2: Issuing two independent instructions", hartid))
         rx_pipe1.u.deq(2); // TODO: Change it back
       `ifdef rtldump
@@ -824,5 +830,13 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     endmethod
   endinterface;
 `endif
+
+`ifdef perfmonitors
+  interface perf = interface Ifc_s2_perfmonitors
+    method mv_instr_queue_empty = pack(!rx_pipe1.u.deqReady_1);
+    method mv_dual_issued = wr_dual_issued;
+  endinterface;
+`endif
+
 endmodule
 endpackage
