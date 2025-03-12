@@ -231,6 +231,8 @@ interface Ifc_s3_perfmonitors;
   method Bit#(1) mv_count_rawstalls ;
   (*always_enabled, always_ready*)
   method Bit#(1) mv_count_exestalls ;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_count_isb3_isb4_full ;
 endinterface: Ifc_s3_perfmonitors
 `endif
 
@@ -380,6 +382,14 @@ endinterface
   `endif
   endinterface:Ifc_s4_rx
 
+`ifdef perfmonitors
+  interface Ifc_s4_perfmonitors;
+    (*always_enabled, always_ready*)  
+    method Bit#(1) mv_count_isb3_isb4_empty;
+    method Bit#(1) mv_count_isb4_isb5_full;
+  endinterface
+`endif
+
   interface Ifc_s4_tx;
     //interface TXe#(Vector#(`num_issue, SystemOut))       tx_systemout_to_stage5;
     //interface TXe#(Vector#(`num_issue, TrapOut))         tx_trapout_to_stage5;
@@ -498,6 +508,8 @@ interface Ifc_s5_perfmonitors;
   (*always_enabled, always_ready*)
   method Action ma_events (Bit#(`mhpm_eventcount) e);
  	/*doc:method: */
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_count_isb4_isb5_empty;
   (*always_enabled, always_ready*)
   method Bit#(1) mv_count_exceptions;
   (*always_enabled, always_ready*)

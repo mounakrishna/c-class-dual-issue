@@ -83,9 +83,9 @@ interface Ifc_stage2;
   method Bool mv_wfi_detected;
 endinterface : Ifc_stage2
 
-function Fmt fstage2(Bit#(`xlen) hartid, FwdType op1, Op1type op1type, FwdType op2, Op2type op2type, 
+function Fmt fstage2(Bit#(`xlen) hartid, Bit#(1) buffer_no, FwdType op1, Op1type op1type, FwdType op2, Op2type op2type, 
                         FwdType op3, Instruction_type insttype, Stage3Meta meta, Bit#(`xlen) mtval );
-  Fmt result = $format("[%2d]STAGE2 : ",hartid);
+  Fmt result = $format("[%2d]STAGE2 : ",hartid) + $format(" BUFFER_NO: ", buffer_no);
   Fmt op1_addr = ?;
   if (op1type == IntegerRF)
     op1_addr = $format(" RS1=") + op1_addr + $format("X[%2d][%h]",op1.addr,op1.data);
@@ -411,6 +411,18 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       // Issue both only when both the instructions are ALU
       else if (instrType[0] == ALU && instrType[1] == ALU)
         issue_two_inst = True;
+      //else if (instrType[0] == ALU && instrType[1] == MULDIV)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == MULDIV && instrType[1] == ALU)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == ALU && instrType[1] == FLOAT)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == FLOAT && instrType[1] == ALU)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == ALU && instrType[1] == MEMORY)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == MEMORY && instrType[1] == ALU)
+      //  issue_two_inst = True;
       // For all other cases issue only one instruction.
       else 
         issue_two_inst = False;
@@ -443,8 +455,26 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       issue_two_inst = False;
     // -------------------------------------------------- //
 
-    // --------------------------------------------//
+
+    if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY)) begin
+      decoded_inst = reverse(decoded_inst);
+      imm = reverse(imm);
+      func_cause = reverse(func_cause);
+      mtval = reverse(mtval);
+      word32 = reverse(word32);
+      compressed = reverse(compressed);
+      inst = reverse(inst);
+      pc = reverse(pc);
+      epochs = reverse(epochs);
+      btbresponse = reverse(btbresponse);
+      instr_data = reverse(instr_data);
+      highbyte_err = reverse(highbyte_err);
+      instrType = reverse(instrType);
+    end
+    
     frf_rs3addr = inst[0][31:27];
+
+    // --------------------------------------------//
     `ifdef spfpu
       rf1type = `ifdef spfpu decoded_inst[0].op_type.rs1type == FloatingRF ? FRF : `endif IRF;
       rf2type = `ifdef spfpu decoded_inst[0].op_type.rs2type == FloatingRF ? FRF : `endif IRF;
@@ -560,6 +590,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
       if(instrType[0] == TRAP)
         rg_stall <= True && !wr_flush_from_exe && !wr_flush_from_wb;
+
       let opmeta = OpMeta { rs1addr: decoded_inst[0].op_addr.rs1addr,
                             rs2addr: decoded_inst[0].op_addr.rs2addr,
                             rs1type: decoded_inst[0].op_type.rs1type,
@@ -646,9 +677,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       rg_op5[0] <= _op5;
       wr_op5type <= IntegerRF;
 
-      `logLevel( stage2, 0, fstage2( hartid, _op1, decoded_inst[0].op_type.rs1type, 
+      `logLevel( stage2, 0, fstage2( hartid, 0, _op1, decoded_inst[0].op_type.rs1type, 
                 _op2, decoded_inst[0].op_type.rs2type, _op3, instrType[0], stage3meta[0], mtval[0] ))
-      `logLevel( stage2, 0, fstage2( hartid, _op4, decoded_inst[1].op_type.rs1type, 
+      `logLevel( stage2, 0, fstage2( hartid, 1, _op4, decoded_inst[1].op_type.rs1type, 
                 _op5, decoded_inst[1].op_type.rs2type, _op3, instrType[1], stage3meta[1], mtval[1] ))
       // -------------------------------------------------------------------------------------- //
       if (issue_two_inst && rx_pipe1.u.deqReady_2()) begin

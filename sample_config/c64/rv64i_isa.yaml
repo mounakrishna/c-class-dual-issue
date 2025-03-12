@@ -1069,7 +1069,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent3[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent3[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1082,7 +1082,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent4[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent4[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1095,7 +1095,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent5[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent5[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1108,7 +1108,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent6[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent6[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1121,7 +1121,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent7[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent7[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1134,7 +1134,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent8[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent8[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1147,7 +1147,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent9[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent9[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1160,7 +1160,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent10[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent10[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1173,7 +1173,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent11[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent11[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1186,7 +1186,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent12[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent12[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1199,7 +1199,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent13[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent13[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1212,7 +1212,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent14[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent14[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1225,7 +1225,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent15[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent15[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1238,7 +1238,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent16[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent16[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1251,7 +1251,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent17[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent17[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1264,7 +1264,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent18[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent18[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1277,7 +1277,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent19[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent19[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1290,7 +1290,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent20[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent20[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1303,7 +1303,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent21[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent21[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1316,7 +1316,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent22[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent22[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1329,7 +1329,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent23[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent23[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1342,7 +1342,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent24[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent24[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1355,7 +1355,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent25[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent25[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1368,7 +1368,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent26[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent26[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1381,7 +1381,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent27[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent27[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1394,7 +1394,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent28[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent28[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1407,7 +1407,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent29[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent29[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1420,7 +1420,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent30[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent30[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0
@@ -1433,7 +1433,7 @@ hart0:
                 warl:
                     dependency_fields: []
                     legal:
-                      - "mhpmevent31[63:0] in [0x0000000000000000:0x0000000000000022]"
+                      - "mhpmevent31[63:0] in [0x0000000000000000:0x0000000000000030]"
                     wr_illegal:
                       - Unchanged
         reset-val: 0

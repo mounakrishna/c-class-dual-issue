@@ -134,7 +134,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
 
 `ifdef perfmonitors
     /*doc:wire: */
-    Reg#(Bit#(34)) rg_total_count <- mkReg(0);
+    Reg#(Bit#(`mhpm_eventcount)) rg_total_count <- mkReg(0);
   `ifdef icache
     Wire#(Bit#(5)) wr_icache_counters <- mkDWire(0);
   `endif
@@ -156,7 +156,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_floats                 = `ifdef spfpu stage3.perfmonitors.mv_count_floats `else 0 `endif ;
     Bit#(1) lv_count_muldiv                 = `ifdef muldiv stage3.perfmonitors.mv_count_muldiv `else 0 `endif ;
     Bit#(1) lv_count_rawstalls              = stage3.perfmonitors.mv_count_rawstalls;
-    Bit#(1) lv_count_exetalls               = stage3.perfmonitors.mv_count_exestalls;
+    Bit#(1) lv_count_exestalls               = stage3.perfmonitors.mv_count_exestalls;
     Bit#(1) lv_count_icache_access          = `ifdef icache wr_icache_counters[4] `else 0 `endif ;
     Bit#(1) lv_count_icache_miss            = `ifdef icache wr_icache_counters[2] `else 0 `endif ;
     Bit#(1) lv_count_icache_fbhit           = `ifdef icache wr_icache_counters[0] `else 0 `endif ;
@@ -180,10 +180,14 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_instr_queue_full       = stage1.perf.mv_instr_queue_full;
     Bit#(1) lv_count_instr_queue_empty      = stage2.perf.mv_instr_queue_empty;
     Bit#(1) lv_dual_issued                  = stage2.perf.mv_dual_issued;
+    Bit#(1) lv_count_isb3_isb4_full         = stage3.perfmonitors.mv_count_isb3_isb4_full;
+    Bit#(1) lv_count_isb3_isb4_empty        = stage4.perf.mv_count_isb3_isb4_empty;
+    Bit#(1) lv_count_isb4_isb5_full         = stage4.perf.mv_count_isb4_isb5_full;
+    Bit#(1) lv_count_isb4_isb5_empty        = stage5.perf.mv_count_isb4_isb5_empty;
 
     let lv_total_count = reverseBits({lv_count_misprediction, lv_count_exceptions, lv_count_interrupts,
       lv_count_microtraps, lv_count_csrops, lv_count_jumps, lv_count_branches, lv_count_floats, lv_count_muldiv,
-      lv_count_rawstalls, lv_count_exetalls, lv_count_icache_access, lv_count_icache_miss,
+      lv_count_rawstalls, lv_count_exestalls, lv_count_icache_access, lv_count_icache_miss,
       lv_count_icache_fbhit, lv_count_icache_ncaccess, lv_count_icache_fbrelease,
       lv_count_dcache_read_access		, lv_count_dcache_write_access		,
       lv_count_dcache_atomic_access		, lv_count_dcache_nc_read_access		,
@@ -191,7 +195,11 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       lv_count_dcache_atomic_miss		, lv_count_dcache_read_fb_hits		,
       lv_count_dcache_write_fb_hits		, lv_count_dcache_atomic_fb_hits		,
       lv_count_dcache_fb_releases		, lv_count_dcache_line_evictions		, lv_count_itlb_misses,
-      lv_count_dtlb_misses, lv_count_instr_queue_full, lv_count_instr_queue_empty, lv_dual_issued});
+      lv_count_dtlb_misses, lv_count_instr_queue_full, lv_count_instr_queue_empty, lv_dual_issued,
+      lv_count_isb3_isb4_full,
+      lv_count_isb3_isb4_empty,
+      lv_count_isb4_isb5_full, 
+      lv_count_isb4_isb5_empty });
 `endif
 
   `ifdef muldiv

@@ -77,7 +77,7 @@ benchmarks:
   checkout: master
 csrbox:
   url: git@github.com:Mindgrove-Technologies/csrbox.git
-  checkout: perf-monitor-fix
+  checkout: master
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
   checkout: master

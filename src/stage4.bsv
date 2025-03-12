@@ -34,6 +34,7 @@ package stage4;
 
   interface Ifc_stage4;
     interface Ifc_s4_rx rx;
+    interface Ifc_s4_perfmonitors perf;
     interface Ifc_s4_tx tx;
     interface Ifc_s4_cache cache;
   `ifdef muldiv
@@ -460,6 +461,13 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       interface rx_commitlog = rx_commitlog.e;
     `endif
     endinterface;
+
+  `ifdef perfmonitors
+    interface perf = interface Ifc_s4_perfmonitors
+      method mv_count_isb3_isb4_empty = pack(!(rx_fuid.u.notEmpty));
+      method mv_count_isb4_isb5_full = pack(!(tx_fuid.u.notFull));
+    endinterface;
+  `endif
 
     interface tx = interface Ifc_s4_tx
       //interface tx_systemout_to_stage5  = tx_systemout.e;

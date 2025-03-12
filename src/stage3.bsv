@@ -237,6 +237,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
   Vector#(`num_issue, Wire#(SBDUpd)) wr_lock <- replicateM(mkWire);
 
+  //Wire#(Bool) wr_instr0_trap <- mkWire;
+
   Wire#(Vector#(`num_issue, Bit#(`wawid))) wr_id <- mkWire();
 
   /*doc:wire: holds value of operand1 after checking the bypass signals from downstream isbs and
@@ -331,6 +333,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   Wire#(Bit#(1)) wr_count_rawstalls <- mkDWire(0);
   /*doc:wire: set to one when a stall occurs because of a structural hazard*/
   Wire#(Bit#(1)) wr_count_exestalls <- mkDWire(0);
+  /*doc:wire: set to one when the ISB between stage3 and stage4 is FULL.*/
+  Wire#(Bit#(1)) wr_isb3_isb4_full <- mkDWire(0);
+  /*doc:wire: Set when branch is mispredicted and redirects the PC. Just used for perfmonitors*/
+  Wire#(Bool) wr_redirection <- mkDWire(False);
 `endif
   // ---------------------- End Instatiations --------------------------//
   let meta = rx_meta.u.first;
@@ -397,6 +403,15 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   `endif
     `logLevel( stage3, stall, $format("[%2d]STAGE3: Structural stall in EXE", hartid))
   endrule:rl_structural_stalls
+
+  /*doc:rule: This rule will set the perfmonitor ISB full when the ISB between stage3 and 
+  stage4 is full.*/
+  rule rl_isb_full(!tx_fuid.u.notFull);
+    `ifdef perfmonitors
+      wr_isb3_isb4_full <= 1;
+    `endif
+    `logLevel( stage3, stall, $format("[%2d]STAGE3: ISB3-4 is FULL", hartid))
+  endrule
 
   /*doc:rule: This rule performs the operand bypass for each operand. For each operand, this rule
   * will read all the values from the downstream FIFOs, feed them to the bypass module and check if
@@ -557,6 +572,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     if (wr_op1_avail) begin
       //let _id <- sboard.ma_lock_rd(unpack({0, pack(SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif })}));
       wr_lock[0] <= SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif };
+      //wr_instr0_trap <= False;
       let common_pkt = FUid{pc    : meta[0].pc,
                               rd    : meta[0].rd,
                               epochs : meta[0].epochs[0],
@@ -968,6 +984,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     else begin
       td.state = 3;
     end
+    wr_redirection <= redirection;
     if(redirection && wr_op1_avail && wr_op2_avail)
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Misprediction. NextPC in Pipe:%h ExpectedPC:%h",hartid,nextpc,redirect_pc))
   `endif
@@ -1185,8 +1202,31 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
 `ifdef perfmonitors
   rule rl_update_rawstalls;
-    if (wr_op1_avail && wr_op2_avail && wr_op3_avail && wr_op4_avail && wr_op5_avail)
+    if (instr_type[0] == ALU && instr_type[1] == ALU &&
+      !(wr_op1_avail && wr_op2_avail && wr_op4_avail && wr_op5_avail))
       wr_count_rawstalls <= 1;
+    else if (instr_type[0] == ALU && epochs_match &&
+           !(wr_op1_avail && wr_op2_avail)) 
+      wr_count_rawstalls <= 1;
+    else if (instr_type[0] == MULDIV && epochs_match &&
+            ((meta[0].funct[2]==0 && wr_mul_ready) || (meta[0].funct[2]==1 && wr_div_ready)) && 
+           !(wr_op1_avail && wr_op2_avail)) 
+      wr_count_rawstalls <= 1;
+    else if (instr_type[0] == FLOAT && epochs_match && wr_fbox_ready && 
+           !(wr_op1_avail && wr_op2_avail && wr_op3_avail)) 
+      wr_count_rawstalls <= 1;
+    else if (instr_type[0] == SYSTEM_INSTR && epochs_match &&
+           !(wr_op1_avail)) 
+      wr_count_rawstalls <= 1;
+    else if (instr_type[0] == MEMORY && epochs_match && wr_cache_avail &&
+           !(wr_op1_avail && wr_op2_avail)) 
+      wr_count_rawstalls <= 1;
+    else if ((instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) 
+            && epochs_match && wr_redirection &&
+           !(wr_op1_avail && wr_op2_avail)) 
+      wr_count_rawstalls <= 1;
+    else 
+      wr_count_rawstalls <= 0;
   endrule
 `endif
 
@@ -1350,6 +1390,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     method mv_count_branches = wr_count_branches;
     method mv_count_rawstalls = wr_count_rawstalls;
     method mv_count_exestalls = wr_count_exestalls;
+    method mv_count_isb3_isb4_full = wr_isb3_isb4_full;
   endinterface;
 `endif
 `ifdef muldiv

@@ -432,6 +432,7 @@ typedef struct{
   Bit#(`vaddr) pc;
   Bit#(2) epochs;
   Bit#(5) rd;
+  //Bool upper_instr;
 } Stage3Meta deriving(Bits, Eq);
 
 instance FShow#(Stage3Meta);

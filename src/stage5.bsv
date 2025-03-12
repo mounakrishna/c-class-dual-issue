@@ -571,6 +571,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 `ifdef perfmonitors
   interface perf = interface Ifc_s5_perfmonitors
     method ma_events = csr.ma_events;
+    method mv_count_isb4_isb5_empty = pack(!(rx_fuid.u.notEmpty));
    	method mv_count_exceptions = wr_count_exceptions;
    	method mv_count_interrupts = wr_count_interrupts;
    	method mv_count_csrops = wr_count_csrops;
