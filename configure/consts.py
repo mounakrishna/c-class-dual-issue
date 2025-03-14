@@ -51,15 +51,18 @@ include depends.mk
 '''
 
 dependency_yaml='''
+application-benchmarks:
+  url: git@github.com:mounakrishna/application-benchmarks.git
+  checkout: master
 common_bsv:
   url: git@github.com:mounakrishna/common_bsv.git
-  checkout: Logger_change
+  checkout: master
 devices:
   url: git@github.com:mounakrishna/devices.git
-  checkout: 8.0.1
+  checkout: master
 fabrics:
   url: git@github.com:mounakrishna/fabrics.git
-  checkout: 1.2.0
+  checkout: master
 common_verilog:
   url: git@github.com:mounakrishna/common_verilog.git
   checkout: master
@@ -77,11 +80,8 @@ benchmarks:
   checkout: master
 csrbox:
   url: git@github.com:Mindgrove-Technologies/csrbox.git
-  checkout: perf-monitor-fix
+  checkout: Logger_changes
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
-  checkout: master
-application-benchmarks:
-  url: git@github.com:mounakrishna/application-benchmarks.git
   checkout: master
 '''
