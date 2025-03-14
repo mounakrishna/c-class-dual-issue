@@ -109,7 +109,7 @@ package TbSoc;
 
     rule display_eol;
 	    let timeval <- $time;
-      `logLevel( tb, 0, $format("\n[%10d]", timeval))
+      `logLevel( tb, 0, $format("\n[%10d]", timeval), soc.mv_simulate_log_start)
     endrule
 
   `ifdef rtldump
@@ -154,7 +154,7 @@ package TbSoc;
         String dumpFile = "rtl.dump" ;
     	  File lfh <- $fopen( dumpFile, "w" ) ;
     	  if ( lfh == InvalidFile )begin
-    	    `logLevel( tb, 0, $format("TB: cannot open %s", dumpFile))
+    	    `logLevel( tb, 0, $format("TB: cannot open %s", dumpFile), soc.mv_simulate_log_start)
     	    $finish(0);
     	  end
     	  dump <= lfh ;
@@ -167,7 +167,7 @@ package TbSoc;
       String dumpFile1 = "app_log" ;
     	File lfh1 <- $fopen( dumpFile1, "w" ) ;
     	if (lfh1==InvalidFile )begin
-    	  `logLevel( tb, 0, $format("TB: cannot open %s", dumpFile1))
+    	  `logLevel( tb, 0, $format("TB: cannot open %s", dumpFile1), soc.mv_simulate_log_start)
     	  $finish(0);
     	end
       dump1 <= lfh1;
@@ -175,10 +175,10 @@ package TbSoc;
     endrule
 
     rule connect_uart_out;
-      soc.soc_sb.uart_io.sin(uart.io.sout);
+      soc.uart_io.sin(uart.io.sout);
     endrule
     rule connect_uart_in;
-      uart.io.sin(soc.soc_sb.uart_io.sout);
+      uart.io.sin(soc.uart_io.sout);
     endrule
 
     rule check_if_character_present(!rg_read_rx);
@@ -204,7 +204,7 @@ package TbSoc;
       Bool prev_mstatus_valid = rg_prev_mstatus_valid;
       Bit#(`xlen) prev_misa = rg_prev_misa;
 
-      if (soc.soc_sb.commitlog[0] matches tagged Valid .idump) begin
+      if (soc.commitlog[0] matches tagged Valid .idump) begin
     `ifndef openocd `ifndef cocotb_sim
       if(idump.instruction=='h00006f||idump.instruction =='h00a001)
         $finish(0);
@@ -282,12 +282,12 @@ package TbSoc;
           Bit#(`xlen) wdata = fn_probe_csr(csr_address);
           if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
             //$display("Tb: Dumping instruction: %h", idump.instruction);
-           `logLevel( tb, 0, $format("\n %h", idump.instruction))
+           `logLevel( tb, 0, $format("\n %h", idump.instruction), soc.mv_simulate_log_start)
            `ifdef hypervisor
             if(idump.instruction=='h10200073 && csr_address== 'h300) begin //sret
               Bit#(`xlen) hstatus = fn_probe_csr('h600);
               //$display("Tb: %h", hstatus);
-              `logLevel( tb, 0, $format("\n hstatus: %h", hstatus))
+              `logLevel( tb, 0, $format("\n hstatus: %h", hstatus), soc.mv_simulate_log_start)
               $fwrite(dump, " c1536_hstatus 0x%16h", hstatus);
             end
             `endif
@@ -409,7 +409,7 @@ package TbSoc;
       Bool prev_mstatus_valid_1 = prev_mstatus_valid;
       Bit#(`xlen) prev_misa_1 = prev_misa;
 
-      if (soc.soc_sb.commitlog[1] matches tagged Valid .idump) begin
+      if (soc.commitlog[1] matches tagged Valid .idump) begin
     `ifndef openocd `ifndef cocotb_sim
       if(idump.instruction=='h00006f||idump.instruction =='h00a001)
         $finish(0);
@@ -487,12 +487,12 @@ package TbSoc;
           Bit#(`xlen) wdata = fn_probe_csr(csr_address);
           if (!(d.op==2'b10 && idump.instruction[19:15] == 0)) begin
             //$display("Tb: Dumping instruction: %h", idump.instruction);
-           `logLevel( tb, 0, $format("\n %h", idump.instruction))
+           `logLevel( tb, 0, $format("\n %h", idump.instruction), soc.mv_simulate_log_start)
            `ifdef hypervisor
             if(idump.instruction=='h10200073 && csr_address== 'h300) begin //sret
               Bit#(`xlen) hstatus = fn_probe_csr('h600);
               //$display("Tb: %h", hstatus);
-              `logLevel( tb, 0, $format("\n hstatus: %h", hstatus))
+              `logLevel( tb, 0, $format("\n hstatus: %h", hstatus), soc.mv_simulate_log_start)
               $fwrite(dump, " c1536_hstatus 0x%16h", hstatus);
             end
             `endif

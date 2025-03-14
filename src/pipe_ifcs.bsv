@@ -42,6 +42,10 @@ interface Ifc_s0_common;
 
   /*doc:method: Method indicates that the reset sequence is done*/
   method Action ma_reset_done(Bool _done);
+
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
 endinterface:Ifc_s0_common
 
 `ifdef bpu
@@ -91,6 +95,10 @@ interface Ifc_s1_common;
 
   // csrs from the csrfile.
   method Action ma_csr_misa_c (Bit#(1) c);
+
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
 
 `ifdef triggers
   method Action trigger_data1(Vector#(`trigger_num, TriggerData) t);
@@ -255,6 +263,10 @@ interface Ifc_s3_common;
   (*always_enabled, always_ready*)
   method Action ma_mstatus (Bit#(`xlen) mstatus);
 
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
+
 `ifdef hypervisor
   (*always_enabled, always_ready*)
   method Action ma_vs_mode (Bit#(1) vs);
@@ -344,6 +356,9 @@ interface Ifc_s2_common;
 	/*doc:method: method to indicate if the hart whould resume from a WFI*/
 	method Action ma_resume_wfi (Bool w);
 
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
 endinterface:Ifc_s2_common
 
 `ifdef debug
@@ -379,6 +394,9 @@ endinterface
   `ifdef rtldump
     // interface to send the instruction sequence for the rtl dump feature
     interface RXe#(Vector#(`num_issue, CommitLogPacket))     rx_commitlog;
+  `endif
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
   `endif
   endinterface:Ifc_s4_rx
 
@@ -465,6 +483,9 @@ interface Ifc_s5_common;
   method WBFlush mv_flush;
 `ifdef rtldump
   method Vector#(`num_issue, Maybe#(CommitLogPacket)) mv_commit_log;
+`endif
+`ifdef simulate
+  method Bit#(1) mv_simulate_log_start;
 `endif
 endinterface:Ifc_s5_common
 

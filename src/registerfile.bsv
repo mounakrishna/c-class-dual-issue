@@ -30,6 +30,9 @@ package registerfile;
     method ActionValue#(Bit#(`elen)) read_rs5(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
 		method Action commit_rd_1 (CommitData c);
 		method Action commit_rd_2 (CommitData c);
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
 	endinterface
 `ifdef registerfile_noinline
 	(*synthesize*)
@@ -48,6 +51,9 @@ package registerfile;
 `endif
 
 		Reg#(Bool) initialize <- mkReg(True);
+  `ifdef simulate
+    Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+  `endif
 
     // The following rule is fired on system reset and writes all the register values to "0". This
     // rule will never fire otherwise
@@ -63,7 +69,7 @@ package registerfile;
 			rg_index <= rg_index + 1;
 			if(rg_index == `ifdef merged_rf 'd63 `else 'd31 `endif )
 				initialize <= False;
-        `logLevel( regfile, 1, $format("[%2d]RF : Initialization phase. Count: %d",hartid,rg_index))
+        `logLevel( regfile, 1, $format("[%2d]RF : Initialization phase. Count: %d",hartid,rg_index), wr_simulate_log_start)
 		endrule
 
 
@@ -153,7 +159,7 @@ package registerfile;
     // Implicit Conditions : None
 		method Action commit_rd_1 (CommitData c) if(!initialize);
      `logLevel( regfile, 1, $format("[%2d]RF : Writing Rd: %d(%h) ",hartid,c.addr, c.data
-                                                  `ifdef spfpu, fshow(c.rdtype) `endif ))
+                                                  `ifdef spfpu, fshow(c.rdtype) `endif ), wr_simulate_log_start)
     `ifdef merged_rf 
   	  if (c.rdtype != IRF || c.addr != 0)
     	  rf.upd_1({pack(c.rdtype==FRF),c.addr},truncate(c.data));
@@ -167,7 +173,7 @@ package registerfile;
 
 		method Action commit_rd_2 (CommitData c) if(!initialize);
      `logLevel( regfile, 1, $format("[%2d]RF : Writing Rd: %d(%h) ",hartid,c.addr, c.data
-                                                  `ifdef spfpu, fshow(c.rdtype) `endif ))
+                                                  `ifdef spfpu, fshow(c.rdtype) `endif ), wr_simulate_log_start)
     `ifdef merged_rf 
   	  if (c.rdtype != IRF || c.addr != 0)
     	  rf.upd_2({pack(c.rdtype==FRF),c.addr},truncate(c.data));
@@ -178,5 +184,10 @@ package registerfile;
         if(c.addr != 0) xrf.upd_2(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
     `endif
 		endmethod
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+      wr_simulate_log_start <= start;
+    endmethod
+  `endif
 	endmodule
 endpackage

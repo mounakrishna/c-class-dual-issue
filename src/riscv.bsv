@@ -108,6 +108,9 @@ package riscv;
     method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
     interface Sbread sbread;
   `endif
+  `ifdef simulate
+    method Bit#(1) mv_simulate_log_start;
+  `endif
   endinterface: Ifc_riscv
 
 `ifdef riscv_noinline
@@ -128,6 +131,10 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     /*doc:reg: This register is used to set the above registers after certain amount of clock cycles
      * have passed since the deassertion of the reset*/
     Reg#(Bit#(TAdd#(1,TLog#(`reset_cycles)))) rg_reset_cycle <- mkReg(0);
+
+  `ifdef simulate
+    Bit#(1) simulate_log_start = stage5.common.mv_simulate_log_start;
+  `endif
 
     let wbflush = stage5.common.mv_flush;
     let {exeflush, exepc} = stage3.common.mv_flush;
@@ -290,6 +297,17 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       stage0.s0_bpu.ma_bpu_enable(unpack(stage5.csrs.mv_cacheenable[2]));
     endrule:rl_connect_bpu_enable
   `endif
+  `ifdef simulate
+    rule rl_upd_log_start;
+      fbox.ma_simulate_log_start(simulate_log_start);
+      mbox.ma_simulate_log_start(simulate_log_start);
+      stage0.common.ma_simulate_log_start(simulate_log_start);
+      stage1.common.ma_simulate_log_start(simulate_log_start);
+      stage2.common.ma_simulate_log_start(simulate_log_start);
+      stage3.common.ma_simulate_log_start(simulate_log_start);
+      stage4.rx.ma_simulate_log_start(simulate_log_start);
+    endrule
+  `endif
   `ifdef perfmonitors
     
     rule rl_connect_events;
@@ -319,7 +337,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
         rg_reset_done <= 1;
         rg_reset_event <= 1;
         rg_reset_cycle <= rg_reset_cycle + 1;
-        `logLevel( riscv, 0, $format("[%2d]RISCV: Hart is out of reset sequence",hartid))
+        `logLevel( riscv, 0, $format("[%2d]RISCV: Hart is out of reset sequence",hartid), simulate_log_start)
       end                                                                       
       else if (rg_reset_cycle < `reset_cycles) 
         rg_reset_cycle <= rg_reset_cycle + 1;
@@ -401,6 +419,9 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
   `ifdef rtldump
     method commitlog = stage5.common.mv_commit_log;
     interface sbread = stage5.csrs.sbread;
+  `endif
+  `ifdef simulate
+    method mv_simulate_log_start = simulate_log_start;
   `endif
   `ifdef perfmonitors
     interface perfmonitors = interface Ifc_riscv_perfmonitors

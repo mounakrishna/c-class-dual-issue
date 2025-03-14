@@ -53,12 +53,12 @@ include depends.mk
 dependency_yaml='''
 common_bsv:
   url: git@github.com:mounakrishna/common_bsv.git
-  checkout: Pipeline_stage_MIMO
+  checkout: Logger_change
 devices:
-  url: https://gitlab.com/shaktiproject/uncore/devices
+  url: git@github.com:mounakrishna/devices.git
   checkout: 8.0.1
 fabrics:
-  url: https://gitlab.com/shaktiproject/uncore/fabrics
+  url: git@github.com:mounakrishna/fabrics.git
   checkout: 1.2.0
 common_verilog:
   url: git@github.com:mounakrishna/common_verilog.git
@@ -77,7 +77,7 @@ benchmarks:
   checkout: master
 csrbox:
   url: git@github.com:Mindgrove-Technologies/csrbox.git
-  checkout: master
+  checkout: perf-monitor-fix
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
   checkout: master

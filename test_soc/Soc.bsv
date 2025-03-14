@@ -60,16 +60,19 @@ package Soc;
       return slave_num;
     endfunction:fn_slave_map
 
-  interface Ifc_soc_io;
+  //interface Ifc_soc_io;
+  //endinterface
+
+  interface Ifc_Soc;
   `ifdef rtldump
     interface Sbread sbread;
     method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
   `endif
+  `ifdef simulate
+    method Bit#(1) mv_simulate_log_start;
+  `endif
     interface RS232 uart_io;
-  endinterface
-
-  interface Ifc_Soc;
-    interface Ifc_soc_io soc_sb;
+    //interface Ifc_soc_io soc_sb;
   `ifdef debug
     interface AXI4_Slave_IFC#(`paddr, `elen, USERSPACE) to_debug_master;
     interface AXI4_Master_IFC#(`paddr, `elen, USERSPACE) to_debug_slave;
@@ -108,6 +111,15 @@ package Soc;
     Ifc_bram_axi4#(`paddr, `elen, USERSPACE, `Addr_space) main_memory <- mkbram_axi4(`MemoryBase,
                                                 "code.mem", "MainMEM");
 		Ifc_bootrom_axi4#(`paddr, `elen, USERSPACE, 13) bootrom <-mkbootrom_axi4(`BootRomBase);
+
+`ifdef simulate
+  // ------------------ Connecting Log Start -------------------//
+  mkConnection(fabric.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(uart.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(clint.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(main_memory.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(bootrom.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+`endif
 
   `ifdef debug
     Bit#(`num_harts) lv_haveresets=0;
@@ -169,14 +181,17 @@ package Soc;
       end
     endrule: rl_connect_clint_msip
 
-  interface Ifc_soc_io soc_sb;
+  //interface Ifc_soc_io soc_sb;
   `ifdef rtldump
     // TODO parameterize this
     interface commitlog= ccore[0].commitlog;
     interface sbread = ccore[0].sbread;
   `endif
+  `ifdef simulate
+    method mv_simulate_log_start = ccore[0].mv_simulate_log_start;
+  `endif
     interface uart_io=uart.io;
-  endinterface
+  //endinterface
   `ifdef debug
     interface to_debug_master = fabric.v_from_masters[valueOf(Debug_master_num)];
     interface to_debug_slave  = fabric.v_to_slaves[`Debug_slave_num ];

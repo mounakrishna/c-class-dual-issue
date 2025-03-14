@@ -77,6 +77,9 @@ interface Ifc_restoring_div;
     method Tuple2#(Bool, Bit#(`causesize)) mv_arith_trap_out;
     method Action ma_div_arith_trap_en(Bit#(1) en);
  `endif
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
 endinterface
 
 `ifdef mbox_div_noinline
@@ -106,25 +109,28 @@ module mkrestoring_div#(parameter Bit#(`xlen) hartid) (Ifc_restoring_div);
   Reg#(Bool)        rg_wordop <- mkReg(False);
 `endif
 
+  `ifdef simulate
+    Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+  `endif
   `ifdef arith_trap
     Wire#(Bit#(1)) wr_arith_trap <- mkDWire(0);
     Reg#(Bool)  rg_trap <- mkDReg(False);
   `endif
 
   rule rl_display;
-    `logLevel( divider, 0, $format("[%2d]DIV: RgCount:%d rg_valid:%d",hartid, rg_count, rg_valid))
+    `logLevel( divider, 0, $format("[%2d]DIV: RgCount:%d rg_valid:%d",hartid, rg_count, rg_valid), wr_simulate_log_start)
   endrule
 
   rule single_step_div(rg_count != 0 && !rg_valid);
     let {upper, lower}=fn_single_div(truncateLSB(partial),truncate(partial), rg_op2);
     partial<= {upper, lower};
-    `logLevel( divider, 0, $format("[%2d]DIV: RgCount:%d partial:%h QR:%b",hartid, rg_count, partial, quotient_remainder))
+    `logLevel( divider, 0, $format("[%2d]DIV: RgCount:%d partial:%h QR:%b",hartid, rg_count, partial, quotient_remainder), wr_simulate_log_start)
     if(rg_op2 == 0)begin
-      `logLevel( divider, 0, $format("[%2d] DIV: Divide by zero detected. RgCount:%d",hartid, rg_count))
+      `logLevel( divider, 0, $format("[%2d] DIV: Divide by zero detected. RgCount:%d",hartid, rg_count), wr_simulate_log_start)
       rg_count <= 0;
       rg_valid <= True;
       `ifdef arith_trap
-        `logLevel( divider, 0, $format("[%2d] DIV: Arith_trap_EN ",hartid, wr_arith_trap))
+        `logLevel( divider, 0, $format("[%2d] DIV: Arith_trap_EN ",hartid, wr_arith_trap), wr_simulate_log_start)
         if(wr_arith_trap==1)
           rg_trap <= True;
       `endif
@@ -143,7 +149,7 @@ module mkrestoring_div#(parameter Bit#(`xlen) hartid) (Ifc_restoring_div);
       reslt = ~reslt+ 1;
       Bit#(`xlen) product= `ifdef RV64 rg_wordop?signExtend(reslt[31:0]): `endif truncate(reslt);
       rg_result <= product;
-      `logLevel( divider, 0, $format("[%2d] DIV: Sending output:%h",hartid,product))
+      `logLevel( divider, 0, $format("[%2d] DIV: Sending output:%h",hartid,product), wr_simulate_log_start)
     end
     else
       rg_count <= rg_count +1;
@@ -151,7 +157,7 @@ module mkrestoring_div#(parameter Bit#(`xlen) hartid) (Ifc_restoring_div);
 
   method Action ma_inputs(Bit#(`xlen) in1, Bit#(`xlen) in2,  Bit#(3) funct3
                         `ifdef RV64 ,Bool wordop `endif );
-    `logLevel( divider, 0, $format("[%2d]DIV: Got inputs rg_count: %d",hartid, rg_count))
+    `logLevel( divider, 0, $format("[%2d]DIV: Got inputs rg_count: %d",hartid, rg_count), wr_simulate_log_start)
     let {op1, op2, complement, sign_op1} = fn_fix_inputs(in1, in2, funct3 `ifdef RV64 ,wordop `endif );
     partial<= zeroExtend(op1);
     rg_op2<= op2;
@@ -172,6 +178,11 @@ module mkrestoring_div#(parameter Bit#(`xlen) hartid) (Ifc_restoring_div);
 	  rg_valid <= False;
     return rg_result;
   endmethod
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+      wr_simulate_log_start <= start;
+    endmethod
+  `endif
   `ifdef arith_trap
     method mv_arith_trap_out = tuple2(rg_trap, `Int_divide_by_zero);
     method Action ma_div_arith_trap_en(Bit#(1) en);
