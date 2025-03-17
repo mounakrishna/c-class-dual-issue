@@ -184,7 +184,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     let fuid = rx_fuid.u.first;
     `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid[0].pc), simulate_log_start)
     `logLevel( stage5, 0, $format("[%2d]STAGE5 : Trap: ",hartid, fshow(trapout)), simulate_log_start)
+  `ifdef rtldump
     wr_commitlog[0] <= tagged Invalid;
+  `endif
     wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                `ifdef no_wawstalls , id: fuid[0].id `endif
                                `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
@@ -309,7 +311,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     end
     else begin
       `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
+    `ifdef rtldump
       wr_commitlog[0] <= tagged Invalid;
+    `endif
       wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                  `ifdef no_wawstalls , id: fuid[0].id `endif
                                  `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
@@ -366,7 +370,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         wr_commit[i].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                    `ifdef no_wawstalls , id: fuid[0].id `endif
                                    `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+      `ifdef rtldump
         wr_commitlog[i] <= tagged Invalid;
+      `endif
         //rx_baseout.u.deq;
         //rx_fuid.u.deq;
       //`ifdef rtldump
@@ -489,7 +495,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                       `ifdef no_wawstalls , id: fuid[0].id `endif
                                       `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+    `ifdef rtldump
       wr_commitlog[0] <= tagged Invalid;
+    `endif
       //rx_memio.u.deq;
       //rx_fuid.u.deq;
     //`ifdef rtldump
@@ -516,7 +524,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   endrule:rl_incr_minstret
 
   rule rl_update_2nd_instruction_default(rx_fuid.u.first[1].instpkt matches tagged None);
+  `ifdef rtldump
     wr_commitlog[1] <= tagged Invalid;
+  `endif
     let fuid = rx_fuid.u.first;
     wr_commit[1].wset(CommitData{addr: fuid[1].rd, data: ?, unlock_only:True
                                `ifdef no_wawstalls , id: fuid[1].id `endif

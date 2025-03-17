@@ -313,13 +313,14 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   // Implicit Conditions :  and all tx fifos are not full
   // Description : This rule decodes the current fetched instruction, fetches the operands from the
   // registerfile and sends the required struct to the next stage.
-  rule decode_and_opfetch(!rg_stall && tx_instrtype.u.notFull && !rg_wfi && rx_pipe1.u.deqReady_1 && rx_commitlog.u.deqReady_1 );
+  rule decode_and_opfetch(!rg_stall && tx_instrtype.u.notFull && !rg_wfi && rx_pipe1.u.deqReady_1 `ifdef rtldump && rx_commitlog.u.deqReady_1 `endif );
 
     // --- extract the fields from the packet received from the stage1 ---- //
     Vector#(`num_issue, Bit#(32)) inst = replicate(0);
     Vector#(`num_issue, PIPE1) instr_data = replicate(unpack(?));
     Vector#(`num_issue, Bit#(`vaddr)) pc = replicate(?);
     Vector#(`num_issue, Bit#(`iesize)) epochs = replicate(?);
+    Vector#(`num_issue, Bool) upper_instr = replicate(?);
     Bool trap = False;
     Bit#(`causesize) trapcause = ?;
     `ifdef compressed
@@ -341,6 +342,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       btbresponse[i] = instr_data[i].btbresponse;
     `endif
       inst[i] = instr_data[i].instruction;
+      upper_instr[i] = unpack(fromInteger(i));
     end
 
     trap = instr_data[0].trap;
@@ -418,18 +420,18 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       // Issue both only when both the instructions are ALU
       else if (instrType[0] == ALU && instrType[1] == ALU)
         issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == MULDIV)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == MULDIV && instrType[1] == ALU)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == FLOAT)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == FLOAT && instrType[1] == ALU)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == MEMORY)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == MEMORY && instrType[1] == ALU)
-      //  issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == MULDIV)
+        issue_two_inst = True;
+      else if (instrType[0] == MULDIV && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == FLOAT)
+        issue_two_inst = True;
+      else if (instrType[0] == FLOAT && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == MEMORY)
+        issue_two_inst = True;
+      else if (instrType[0] == MEMORY && instrType[1] == ALU)
+        issue_two_inst = True;
       // For all other cases issue only one instruction.
       else 
         issue_two_inst = False;
@@ -477,6 +479,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       instr_data = reverse(instr_data);
       highbyte_err = reverse(highbyte_err);
       instrType = reverse(instrType);
+      upper_instr = reverse(upper_instr);
     end
     
     frf_rs3addr = inst[0][31:27];
@@ -524,7 +527,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                               pc : pc[i], 
                               epochs : epochs[i],
                               rd: decoded_inst[i].op_addr.rd,
-                              is_microtrap: rg_microtrap
+                              is_microtrap: rg_microtrap,
+                              upper_instr: upper_instr[i]
            `ifdef hypervisor ,hlvx : decoded_inst[i].meta.hlvx
                              ,hvm_loadstore : decoded_inst[i].meta.hvm_loadstore
            `endif

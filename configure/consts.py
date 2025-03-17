@@ -77,7 +77,7 @@ verification:
     - [riscv-tests/env , verification/patches/riscv-tests-shakti-signature-machine.patch]
 benchmarks:
   url: git@github.com:Mindgrove-Technologies/benchmarks.git
-  checkout: master
+  checkout: Logging_efficiency
 csrbox:
   url: git@github.com:Mindgrove-Technologies/csrbox.git
   checkout: Logger_changes

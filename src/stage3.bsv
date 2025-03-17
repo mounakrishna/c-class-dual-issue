@@ -379,7 +379,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                                             ,v : ?
                                           `endif
                                           };
-  Bool epochs_match = curr_epochs == meta[0].epochs;
+  Bool epochs_match_instr0 = curr_epochs == meta[0].epochs;
+  Bool epochs_match_instr1 = curr_epochs == meta[1].epochs;
 `ifdef bpu
   let btbresponse = meta[0].btbresponse;
 `endif
@@ -563,7 +564,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * The other option of locking and performing the WAW stalls here itself has not been explored,
   * but intuition says it will add further to the critical path
   */
-  rule rl_drop_instr(!epochs_match);
+  rule rl_drop_instr(!(epochs_match_instr0) && !(epochs_match_instr1));
     deq_rx;
     `logLevel( stage3, 0, $format("[%2d]STAGE3: NOPing instruction - epochs-mismatch",hartid), wr_simulate_log_start)
   endrule:rl_drop_instr
@@ -571,7 +572,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match the instruction has been decoded as a
   * system instruction from the previous stage. Only operand1 is required for these instructions
   * and thus a stall is created only if operand-1 is not available*/
-  rule rl_system_instr(instr_type[0] == SYSTEM_INSTR && !wr_waw_stall && epochs_match && tx_fuid.u.notFull);
+  rule rl_system_instr(instr_type[0] == SYSTEM_INSTR && !wr_waw_stall && epochs_match_instr0 && tx_fuid.u.notFull);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: System Op received.",hartid), wr_simulate_log_start)
     let systemout = SystemOut {funct3     : truncate(meta[0].funct),
                                lpc        : truncate(meta[0].pc),
@@ -615,7 +616,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
   /*doc:rule: This rule is fired if an instruction was tagged as trap by any of the previous
   * stages. No operand availability is required here*/
-  rule rl_trap_from_prev(instr_type[0] == TRAP && epochs_match && tx_fuid.u.notFull);
+  rule rl_trap_from_prev(instr_type[0] == TRAP && epochs_match_instr0 && tx_fuid.u.notFull);
     TrapOut trapout = TrapOut {cause   : truncate(meta[0].funct),
                                mtval : mtval[0]
                              `ifdef hypervisor
@@ -655,7 +656,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule is used to perform execution of base arithmetic ops. Both operands are
   * required to perform these operations. In case of 32-bit ops in RV64, the result is
   * sign-Extended version of the lower 32-bits results from the alu */
-    rule rl_exe_base_arith(instr_type[0] == ALU && epochs_match && tx_fuid.u.notFull && !wr_waw_stall);
+    rule rl_exe_base_arith(instr_type[0] == ALU && epochs_match_instr0 && tx_fuid.u.notFull && !wr_waw_stall);
       let alu_result = fn_base_alu(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta[0].funct),
                                 meta[0].pc, opmeta.rs1type==PC `ifdef RV64 ,meta[0].word32 `endif );
 
@@ -711,7 +712,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     endrule:rl_exe_base_arith
 
     /*doc:rule: The base ALU operations of the second instructions is done in this rule.*/
-    rule rl_exe_base_arith_1(instr_type[1] == ALU && epochs_match && tx_fuid.u.notFull && !wr_waw_stall);
+    rule rl_exe_base_arith_1(instr_type[1] == ALU && epochs_match_instr1 && tx_fuid.u.notFull && !wr_waw_stall);
       let alu_result = fn_base_alu(wr_fwd_op4, wr_fwd_op5, truncateLSB(meta[1].funct),
                                 meta[1].pc, opmeta.rs4type==PC `ifdef RV64 ,meta[1].word32 `endif );
 
@@ -774,7 +775,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * SFence instruction henceforth will be treated as a regular nop instruction and avoiding
   * polling on the data subsystem in the subsequent pipeline stages.
   */
-  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match && tx_fuid.u.notFull && !wr_waw_stall);
+  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match_instr0 && tx_fuid.u.notFull && !wr_waw_stall);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Memory Op received",hartid), wr_simulate_log_start)
     Bit#(`vaddr) memory_address = wr_fwd_op1 + truncate(wr_op3.data);
     Bit#(3) funct3  = truncate(meta[0].funct);
@@ -918,7 +919,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   rule rl_exe_base_control((instr_type[0] == JALR || 
                           instr_type[0] == JAL ||
                           instr_type[0] == BRANCH )
-                          && epochs_match && tx_fuid.u.notFull && !wr_waw_stall
+                          && epochs_match_instr0 && tx_fuid.u.notFull && !wr_waw_stall
                `ifdef bpu && (isValid(wr_next_pc)) `endif );
 
     let inst_type = instr_type[0];
@@ -1074,7 +1075,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match and when the multiplier/divider are
   * avaialble based on the current instruction. Both the operands are required for execution to be
   * offloaded the mbox.*/
-  rule rl_mbox(instr_type[0] == MULDIV && epochs_match && tx_fuid.u.notFull && !wr_waw_stall &&
+  rule rl_mbox(instr_type[0] == MULDIV && epochs_match_instr0 && tx_fuid.u.notFull && !wr_waw_stall &&
               ( (meta[0].funct[2]==0 && wr_mul_ready) || 
                 (meta[0].funct[2]==1 && wr_div_ready) ) );
     `logLevel( stage3, 0, $format("[%2d]STAGE3: MULDIV Op received",hartid), wr_simulate_log_start)
@@ -1144,7 +1145,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match and when the multiplier/divider are
   * avaialble based on the current instruction. Both the operands are required for execution to be
   * offloaded the mbox.*/
-  rule rl_fbox(instr_type[0] == FLOAT && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_fbox_ready);
+  rule rl_fbox(instr_type[0] == FLOAT && epochs_match_instr0 && tx_fuid.u.notFull && !wr_waw_stall && wr_fbox_ready);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: FLOAT Op received",hartid), wr_simulate_log_start)
     if (wr_op1_avail && wr_op2_avail && wr_op3_avail) begin
       wr_float_inputs <= Input_Packet{operand1: truncate(wr_fwd_op1), operand2: truncate(wr_fwd_op2), operand3:truncate(wr_fwd_op3),
@@ -1211,27 +1212,28 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
 `ifdef perfmonitors
   rule rl_update_rawstalls;
-    if (instr_type[0] == ALU && instr_type[1] == ALU &&
+    if (instr_type[0] == ALU && instr_type[1] == ALU 
+      && epochs_match_instr0 && epochs_match_instr1 &&
       !(wr_op1_avail && wr_op2_avail && wr_op4_avail && wr_op5_avail))
       wr_count_rawstalls <= 1;
-    else if (instr_type[0] == ALU && epochs_match &&
+    else if (instr_type[0] == ALU && epochs_match_instr0 &&
            !(wr_op1_avail && wr_op2_avail)) 
       wr_count_rawstalls <= 1;
-    else if (instr_type[0] == MULDIV && epochs_match &&
+    else if (instr_type[0] == MULDIV && epochs_match_instr0 &&
             ((meta[0].funct[2]==0 && wr_mul_ready) || (meta[0].funct[2]==1 && wr_div_ready)) && 
            !(wr_op1_avail && wr_op2_avail)) 
       wr_count_rawstalls <= 1;
-    else if (instr_type[0] == FLOAT && epochs_match && wr_fbox_ready && 
+    else if (instr_type[0] == FLOAT && epochs_match_instr0 && wr_fbox_ready && 
            !(wr_op1_avail && wr_op2_avail && wr_op3_avail)) 
       wr_count_rawstalls <= 1;
-    else if (instr_type[0] == SYSTEM_INSTR && epochs_match &&
+    else if (instr_type[0] == SYSTEM_INSTR && epochs_match_instr0 &&
            !(wr_op1_avail)) 
       wr_count_rawstalls <= 1;
-    else if (instr_type[0] == MEMORY && epochs_match && wr_cache_avail &&
+    else if (instr_type[0] == MEMORY && epochs_match_instr0 && wr_cache_avail &&
            !(wr_op1_avail && wr_op2_avail)) 
       wr_count_rawstalls <= 1;
     else if ((instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) 
-            && epochs_match && wr_redirection &&
+            && epochs_match_instr0 && wr_redirection &&
            !(wr_op1_avail && wr_op2_avail)) 
       wr_count_rawstalls <= 1;
     else 
@@ -1255,6 +1257,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     `ifdef rtldump
       commitlog[i] = wr_commitlog[i];
     `endif
+    end
+
+    // Drop upper instruction if lower instruction generates a trap.
+    if (!meta.upper[0] && fuid[0].instpkt tagged TRAP) begin
+      fuid[1].epochs = ~fuid[1].epochs;
+      fuid[1].insttype = NONE;
     end
 
     tx_fuid.u.enq(fuid);

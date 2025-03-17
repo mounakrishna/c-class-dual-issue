@@ -20,7 +20,9 @@ package Soc;
   // peripheral imports
   import uart::*;
   import clint::*;
+`ifdef simulate
   import sign_dump::*;
+`endif
   import err_slave::*;
   // package imports
   import Connectable:: *;
@@ -48,8 +50,10 @@ package Soc;
         slave_num = `Uart_slave_num;
       else if(addr>= `ClintBase && addr<= `ClintEnd)
         slave_num = `Clint_slave_num;
+    `ifdef simulate
       else if(addr>= `SignBase && addr<= `SignEnd)
         slave_num = `Sign_slave_num;
+    `endif
     `ifdef debug
       else if(addr>= `DebugBase && addr<= `DebugEnd)
         slave_num = `Debug_slave_num;
@@ -104,7 +108,9 @@ package Soc;
       ccore[i] <- mkccore_axi4(`resetpc, fromInteger(i), reset_by core_reset[i]);
     end
 
+  `ifdef simulate
     Ifc_sign_dump signature<- mksign_dump();
+  `endif
 	  Ifc_uart_axi4#(`paddr,`elen,0, 16) uart <- mkuart_axi4(curr_clk,curr_reset, 5, 0, 0);
     Ifc_clint_axi4#(`paddr, `elen, 0, `num_harts, 2) clint <- mkclint_axi4();
     Ifc_err_slave_axi4#(`paddr,`elen,0) err_slave <- mkerr_slave_axi4;
@@ -147,11 +153,15 @@ package Soc;
    	  mkConnection(ccore[i].master_d,	fabric.v_from_masters[i*2+1]);
      	mkConnection(ccore[i].master_i, fabric.v_from_masters[i*2+2]);
     end
+  `ifdef simulate
    	mkConnection(signature.master, fabric.v_from_masters[valueOf(Sign_master_num) ]);
+  `endif
 
  	  mkConnection (fabric.v_to_slaves [`Uart_slave_num ],uart.slave);
   	mkConnection (fabric.v_to_slaves [`Clint_slave_num ],clint.slave);
+  `ifdef simulate
     mkConnection (fabric.v_to_slaves [`Sign_slave_num ] , signature.slave);
+  `endif
     mkConnection (fabric.v_to_slaves [`Err_slave_num ] , err_slave.slave);
   	mkConnection(fabric.v_to_slaves[`Memory_slave_num] , main_memory.slave);
 		mkConnection(fabric.v_to_slaves[`BootRom_slave_num] , bootrom.slave);

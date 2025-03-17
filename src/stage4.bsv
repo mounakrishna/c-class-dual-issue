@@ -449,9 +449,11 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 
     rule rl_update_pipeline;
       tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
-      tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
       rx_fuid.u.deq;
+    `ifdef rtldump
+      tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
       rx_commitlog.u.deq;
+    `endif
     endrule
 
     interface rx = interface Ifc_s4_rx
