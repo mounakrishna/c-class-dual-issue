@@ -57,19 +57,19 @@ bsc_compile_options:
   ovl_assertions: False
   sva_assertions: False
   ovl_path: ""
-  trace_dump: false
-  compile_target: 'asic'
+  trace_dump: true
+  compile_target: 'sim'
   suppress_warnings: ["G0020"]
   verilog_dir: build/hw/verilog
   build_dir: build/hw/intermediate
-  top_module: mkDebugSoc
-  top_file: DebugSoc.bsv
+  top_module: mkTbSoc
+  top_file: TbSoc.bsv
   top_dir: test_soc
   open_ocd: False
   cocotb_sim: False
 verilator_configuration:
   coverage: none
-  trace: false
+  trace: true
   threads: 1
   verbosity: true
   opt_fast: "-O3"
