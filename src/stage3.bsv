@@ -380,7 +380,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                                           `endif
                                           };
   Bool epochs_match_instr0 = curr_epochs == meta[0].epochs;
-  Bool epochs_match_instr1 = curr_epochs == meta[1].epochs;
+  Bool epochs_match_instr1 = (instr_type[1] != NONE) ? curr_epochs == meta[1].epochs : False;
 `ifdef bpu
   let btbresponse = meta[0].btbresponse;
 `endif
@@ -762,7 +762,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       end
       // stall until operands are available.
       else begin
-        `logLevel( stage3, stall, $format("[%2d]STAGE3: Waiting of operands of 1st instruction",hartid), wr_simulate_log_start)
+        `logLevel( stage3, stall, $format("[%2d]STAGE3: Waiting of operands of 2nd instruction",hartid), wr_simulate_log_start)
         `logLevel( stage3, 4, $format("[%2d]STAGE3: SBD: ",hartid,fshow(sboard.mv_board)), wr_simulate_log_start)
       end
     endrule:rl_exe_base_arith_1
@@ -1260,7 +1260,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     end
 
     // Drop upper instruction if lower instruction generates a trap.
-    if (!meta.upper[0] && fuid[0].instpkt tagged TRAP) begin
+    if (!meta[0].upper_instr && fuid[0].insttype == TRAP) begin
       fuid[1].epochs = ~fuid[1].epochs;
       fuid[1].insttype = NONE;
     end
