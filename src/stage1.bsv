@@ -96,6 +96,9 @@ package stage1;
 
     // This variable holds the current epoch values of the pipe
     let curr_epoch = {rg_eEpoch, rg_wEpoch};
+`ifdef simulate
+  Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+`endif
 
   `ifdef triggers
     Vector#(`trigger_num, Wire#(TriggerData)) v_trigger_data1 <- replicateM(mkWire());
@@ -124,11 +127,11 @@ package stage1;
       Bool chain = False;
       for(Integer i=0; i < `trigger_num; i=i+1)begin
         `logLevel( stage1, 3, $format("[%2d]STAGE1: Trigger[%2d] Data1: ",hartid, i, 
-                                                                        fshow(v_trigger_data1[i])))
+                                                                        fshow(v_trigger_data1[i])), wr_simulate_log_start)
         `logLevel( stage1, 3, $format("[%2d]STAGE1: Trigger[%2d] Data2: ",hartid, i, 
-                                                                        fshow(v_trigger_data2[i])))
+                                                                        fshow(v_trigger_data2[i])), wr_simulate_log_start)
         `logLevel( stage1, 3, $format("[%2d]STAGE1: Trigger[%2d] Enable: ",hartid, i, 
-                                                                        fshow(v_trigger_enable[i])))
+                                                                        fshow(v_trigger_enable[i])), wr_simulate_log_start)
         if(v_trigger_enable[i] &&& v_trigger_data1[i] matches tagged MCONTROL .mc &&&
                               ((!trap && !chain) || (chain && trap)) &&& mc.execute == 1)begin
           Bit#(`xlen) trigger_compare = `ifdef compressed
@@ -173,13 +176,13 @@ package stage1;
     // ---------------------- End local function definitions ------------------//
 
     rule rl_instr_queue_full(!tx_tostage2.u.enqReady_1());
-      `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full to enque one instruction ", hartid))
+      `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full to enque one instruction ", hartid), wr_simulate_log_start)
     endrule
     rule rl_stage0_pipe_notEmpty(!rx_fromstage0.u.notEmpty);
-      `logLevel( stage1, 0, $format("[%2d]STAGE1 : Stage0 pipe is not yet full", hartid))
+      `logLevel( stage1, 0, $format("[%2d]STAGE1 : Stage0 pipe is not yet full", hartid), wr_simulate_log_start)
     endrule
     rule rl_mem_response_wait(!ff_memory_response.notEmpty);
-      `logLevel( stage1, 0, $format("[%2d]STAGE1 : Waiting for Icache response", hartid))
+      `logLevel( stage1, 0, $format("[%2d]STAGE1 : Waiting for Icache response", hartid), wr_simulate_log_start)
     endrule
 
 
@@ -223,7 +226,7 @@ package stage1;
     // repsonse are probed in the next cycle.
     rule process_instruction(tx_tostage2.u.enqReady_1() && rx_fromstage0.u.notEmpty);// && tx_tostage2.u.notFull);
       let stage0pc = rx_fromstage0.u.first;
-      `logLevel( stage1, 1, $format("[%2d]STAGE1 : Prediction: ",hartid, fshow(stage0pc)))
+      `logLevel( stage1, 1, $format("[%2d]STAGE1 : Prediction: ",hartid, fshow(stage0pc)), wr_simulate_log_start)
     `ifdef bpu
       Vector#(`num_issue, BTBResponse) btbresponse = replicate(stage0pc.btbresponse);
       //if (btbresponse[0].hi) begin
@@ -261,7 +264,7 @@ package stage1;
           tx_commitlog.u.flush();
         `endif
         `logLevel( stage1, 1,$format("[%2d]STAGE1 : Dropping Instruction. ExpEpoch:%b CurrEpoch:%b",
-            hartid, imem_resp.epochs, curr_epoch))
+            hartid, imem_resp.epochs, curr_epoch), wr_simulate_log_start)
         receiving_upper[0] = False;
         receiving_upper[1] = False;
       end
@@ -275,7 +278,7 @@ package stage1;
         end
       `endif
         if(rg_prev.instruction[1 : 0] == 2'b11) begin
-          `logLevel( stage1, 1, $format("Forming a 32 bit instruction from two ICACHE responses"))
+          `logLevel( stage1, 1, $format("Forming a 32 bit instruction from two ICACHE responses"), wr_simulate_log_start)
           final_instruction[0] = {imem_resp.word[15:0], rg_prev.instruction};
           instr_pc[0] = rg_prev.pc;
           compressed_instr[0] = False;
@@ -304,7 +307,7 @@ package stage1;
           `ifdef bpu
           end
           else begin
-            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 1"))
+            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 1"), wr_simulate_log_start)
             final_instruction[1] = ?;
             instr_pc[1] = ?;
             compressed_instr[1] = False;
@@ -326,7 +329,7 @@ package stage1;
             if (!(!btbresponse[0].hi && btbresponse[0].prediction > 1)) begin
           `endif
           if (imem_resp.word[1:0] != 2'b11) begin
-            `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction also has compressed, leading to dual issue and storing upper 16 as previous"))
+            `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction also has compressed, leading to dual issue and storing upper 16 as previous"), wr_simulate_log_start)
             final_instruction[1] = zeroExtend(imem_resp.word[15:0]);
             instr_pc[1] = stage0pc.address;
             compressed_instr[1] = True;
@@ -336,7 +339,7 @@ package stage1;
             lv_prev.pc = stage0pc.address | zeroExtend(2'b10);
           end
           else begin
-            `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction is not compressed. Issueing both"))
+            `logLevel( stage1, 1, $format("STAGE1: Previous stored instr is compressed and the new received instruction is not compressed. Issueing both"), wr_simulate_log_start)
             valid_instructions = 2;
             compressed_instr[1] = False;
             final_instruction[1] = imem_resp.word;
@@ -347,7 +350,7 @@ package stage1;
           `ifdef bpu
           end
           else begin
-            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 2"))
+            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 2"), wr_simulate_log_start)
             final_instruction[1] = ?;
             instr_pc[1] = ?;
             compressed_instr[1] = False;
@@ -361,7 +364,7 @@ package stage1;
       end
       // discard the lower - 16bits of the imem - response.
       else if(stage0pc.discard && wr_csr_misa_c == 1)begin
-        `logLevel( stage1, 1, $format("STAGE1: Discard the lower 16 bits as it has been issued into the pipeline"))
+        `logLevel( stage1, 1, $format("STAGE1: Discard the lower 16 bits as it has been issued into the pipeline"), wr_simulate_log_start)
       `ifdef bpu
         if(!btbresponse[0].hi)begin
           btbresponse[0].btbhit= False;
@@ -369,7 +372,7 @@ package stage1;
         end
       `endif
         if(imem_resp.word[17 : 16] == 2'b11)begin
-          `logLevel( stage1, 1, $format("STAGE1: After discarding lower 16 bits, the upper 16 bits is part of a 32 bit instruction. So CheckPrev action set."))
+          `logLevel( stage1, 1, $format("STAGE1: After discarding lower 16 bits, the upper 16 bits is part of a 32 bit instruction. So CheckPrev action set."), wr_simulate_log_start)
           trap = imem_resp.trap;
           lv_action = CheckPrev;
           valid_instructions = 0;
@@ -384,7 +387,7 @@ package stage1;
         `endif
         end
         else begin
-          `logLevel( stage1, 1, $format("STAGE1: After discarding lower 16 bits, the upper 16 bits is a compressed instruction. So issuing it."))
+          `logLevel( stage1, 1, $format("STAGE1: After discarding lower 16 bits, the upper 16 bits is a compressed instruction. So issuing it."), wr_simulate_log_start)
           lv_action = None;
           receiving_upper = replicate(False);
           compressed_instr[0] = True;
@@ -404,7 +407,7 @@ package stage1;
         // if instruction is 32-bit simply pass it on
         if(imem_resp.word[1 : 0] == 'b11)begin
           receiving_upper = replicate(False);
-          `logLevel( stage1, 1, $format("STAGE1: The fetched word is a 32 bit instr, just passing it"))
+          `logLevel( stage1, 1, $format("STAGE1: The fetched word is a 32 bit instr, just passing it"), wr_simulate_log_start)
           final_instruction[0] = imem_resp.word;
           final_instruction[1] = ?;
           compressed_instr[0] = False;
@@ -436,7 +439,7 @@ package stage1;
         `endif
           if (imem_resp.word[17:16] == 2'b11) begin
             receiving_upper = replicate(False);
-            `logLevel( stage1, 1, $format("STAGE1: The fetched word has one 16 bit instr and the upper 16 bits is part of a 32 bit instruction"))
+            `logLevel( stage1, 1, $format("STAGE1: The fetched word has one 16 bit instr and the upper 16 bits is part of a 32 bit instruction"), wr_simulate_log_start)
             final_instruction[1] = ?;
             compressed_instr[1] = False;
             valid_instructions = 1;
@@ -450,7 +453,7 @@ package stage1;
           end
           else begin
             receiving_upper = replicate(False);
-            `logLevel( stage1, 1, $format("STAGE1: The fetched word has two 16 bit instrs"))
+            `logLevel( stage1, 1, $format("STAGE1: The fetched word has two 16 bit instrs"), wr_simulate_log_start)
             final_instruction[1] = zeroExtend(imem_resp.word[31:16]);
             compressed_instr[1] = True;
             valid_instructions = 2;
@@ -461,7 +464,7 @@ package stage1;
         `ifdef bpu
           end
           else begin
-            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 3"))
+            `logLevel( stage1, 1, $format("STAGE1: Not enqueuing second instruction as the first instruction predicted as TAKEN. 3"), wr_simulate_log_start)
             lv_action = None;
             lv_prev = ?;
             valid_instructions = 1;
@@ -520,13 +523,13 @@ package stage1;
   `endif
 
       `logLevel( stage1, 0,$format("[%2d]STAGE1 : PC:%h: ",hartid,stage0pc.address,
-                                    fshow(ff_memory_response.first)))
+                                    fshow(ff_memory_response.first)), wr_simulate_log_start)
     `ifdef compressed
       `logLevel( stage1, 1,$format("[%2d]STAGE1 : rg_action: ",hartid,fshow(lv_action),
-            " misa[c]:%b discard:%b ",hartid, wr_csr_misa_c, stage0pc.discard))
+            " misa[c]:%b discard:%b ",hartid, wr_csr_misa_c, stage0pc.discard), wr_simulate_log_start)
     `endif
       if (valid_instructions == 2 && !tx_tostage2.u.enqReady_2()) begin
-        `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full. Cannot enque two instructions ", hartid))
+        `logLevel( stage1, 0, $format("[%2d]STAGE1 : Instruction queue full. Cannot enque two instructions ", hartid), wr_simulate_log_start)
         valid_instructions = 0;
       end
       else begin
@@ -542,9 +545,9 @@ package stage1;
         `endif
           tx_tostage2.u.enq(pipedata, valid_instructions);
           if (valid_instructions == 1)
-            `logLevel( stage1, 0,$format("[%2d]STAGE1 : Enquing 1 pipe data: ",hartid,fshow(pipedata[0])))
+            `logLevel( stage1, 0,$format("[%2d]STAGE1 : Enquing 1 pipe data: ",hartid,fshow(pipedata[0])), wr_simulate_log_start)
           else 
-            `logLevel( stage1, 0,$format("[%2d]STAGE1 : Enquing 2 pipe data: ",hartid,fshow(pipedata)))
+            `logLevel( stage1, 0,$format("[%2d]STAGE1 : Enquing 2 pipe data: ",hartid,fshow(pipedata)), wr_simulate_log_start)
 
       end
     endrule
@@ -565,7 +568,7 @@ package stage1;
     interface icache = interface Ifc_s1_icache
   		interface inst_response = interface Put
   			method Action put (IMem_core_response#(32, `iesize) resp);
-          `logLevel( stage1, 3, $format("[%2d]STAGE1: ",hartid,fshow(resp)))
+          `logLevel( stage1, 3, $format("[%2d]STAGE1: ",hartid,fshow(resp)), wr_simulate_log_start)
           ff_memory_response.enq(resp);
   			endmethod
       endinterface;
@@ -610,6 +613,11 @@ package stage1;
       method Action ma_csr_misa_c (Bit#(1) c);
         wr_csr_misa_c <= c;
       endmethod
+    `ifdef simulate
+      method Action ma_simulate_log_start(Bit#(1) start);
+        wr_simulate_log_start <= start;
+      endmethod
+    `endif
     `ifdef triggers
       method Action trigger_data1(Vector#(`trigger_num, TriggerData) t);
         for(Integer i=0; i<`trigger_num; i=i+1)

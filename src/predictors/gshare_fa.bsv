@@ -99,6 +99,9 @@ package gshare_fa;
 
     /*doc : method : This method captures if the bpu is enabled through csr or not*/
     method Action ma_bpu_enable (Bool e);
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
   endinterface
 
 `ifdef bpu_noinline
@@ -110,6 +113,9 @@ package gshare_fa;
 
   `ifdef bpu_ras
     Ifc_stack#(`vaddr, `rasdepth) ras_stack <- mkstack;
+  `endif
+  `ifdef simulate
+    Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
   `endif
 
     /*doc : vec : This vector of register holds the BTB entries. We use vector instead of array
@@ -229,7 +235,7 @@ package gshare_fa;
     method ActionValue#(PredictionResponse) mav_prediction_response (PredictionRequest r)
                                                          `ifdef ifence if(!rg_initialize) `endif ;
       `logLevel( bpu, 0, $format("[%2d]BPU : Received Request: ",hartid, fshow(r),
-                                 " ghr:%h",hartid,rg_ghr[0]))
+                                 " ghr:%h",hartid,rg_ghr[0]), wr_simulate_log_start)
     `ifdef ifence
       if( r.fence && wr_bpu_enable)
         rg_initialize <= True;
@@ -254,13 +260,13 @@ package gshare_fa;
         for(Integer i = 0; i < `btbdepth; i =  i + 1)
           match_[i] = pack(v_reg_btb_tag[i].tag == truncateLSB(r.pc) && v_reg_btb_tag[i].valid);
 
-        `logLevel( bpu, 1, $format("[%2d]BPU : Match:%h",hartid, match_))
+        `logLevel( bpu, 1, $format("[%2d]BPU : Match:%h",hartid, match_), wr_simulate_log_start)
 
         hit = unpack(|match_);
         let hit_entry = select(readVReg(v_reg_btb_entry), unpack(match_));
 
         if(|match_ == 1) begin
-          `logLevel( bpu, 1, $format("[%2d]BPU : BTB Hit: ",hartid,fshow(hit_entry)))
+          `logLevel( bpu, 1, $format("[%2d]BPU : BTB Hit: ",hartid,fshow(hit_entry)), wr_simulate_log_start)
         end
 
         `ifdef compressed
@@ -280,14 +286,14 @@ package gshare_fa;
         if(True `ifdef compressed && ( hit_entry.hi || !r.discard ) `endif ) begin
           if(hit_entry.ci == Call)begin // push to ras in case of Call instructions
             Bit#(`vaddr) push_pc = r.pc + ras_push_offset;
-            `logLevel( bpu, 1, $format("[%2d]BPU: Pushing1 to RAS:%h",hartid,(push_pc)))
+            `logLevel( bpu, 1, $format("[%2d]BPU: Pushing1 to RAS:%h",hartid,(push_pc)), wr_simulate_log_start)
             ras_stack.push(push_pc);
           end
 
           if(hit_entry.ci == Ret) begin // pop from ras in case of Ret instructions
             target_ = ras_stack.top;
             ras_stack.pop;
-            `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_))
+            `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
           end
           else
         `endif
@@ -300,7 +306,7 @@ package gshare_fa;
             if(hit_entry.ci == Branch) begin
               prediction_ = branch_state_[pack(hi)];
               lv_ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
-              `logLevel( bpu, 0, $format("[%2d]BPU : New GHR:%h",hartid, lv_ghr))
+              `logLevel( bpu, 0, $format("[%2d]BPU : New GHR:%h",hartid, lv_ghr), wr_simulate_log_start)
             end
           end
 
@@ -309,7 +315,7 @@ package gshare_fa;
           rg_ghr[0] <= lv_ghr;
 
         `logLevel( bpu, 0, $format("[%2d]BPU : BHTindex_:%d Target:%h Pred:%d",hartid,
-                                                  bht_index_, target_, prediction_))
+                                                  bht_index_, target_, prediction_), wr_simulate_log_start)
 
         `ifdef ASSERT
           dynamicAssert(countOnes(match_) < 2, "Multiple Matches in BTB");
@@ -344,7 +350,7 @@ package gshare_fa;
     */
     method Action ma_train_bpu (Training_data d) if(wr_bpu_enable
                                                           `ifdef ifence && !rg_initialize `endif );
-      `logLevel( bpu, 4, $format("[%2d]BPU : Received Training: ",hartid,fshow(d)))
+      `logLevel( bpu, 4, $format("[%2d]BPU : Received Training: ",hartid,fshow(d)), wr_simulate_log_start)
 
       function Bool fn_tag_match (BTBTag a);
         return  (a.tag == truncateLSB(d.pc) && a.valid);
@@ -355,16 +361,16 @@ package gshare_fa;
       if(hit_index_ matches tagged Valid .h) begin
         v_reg_btb_entry[h] <= BTBEntry{ target : d.target, ci : d.ci
                             `ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
-        `logLevel( bpu, 4, $format("[%2d]BPU : Training existing Entry index: %d",hartid,h))
+        `logLevel( bpu, 4, $format("[%2d]BPU : Training existing Entry index: %d",hartid,h), wr_simulate_log_start)
       end
       else begin
-        `logLevel( bpu, 4, $format("[%2d]BPU : Allocating new index: %d",hartid,rg_allocate))
+        `logLevel( bpu, 4, $format("[%2d]BPU : Allocating new index: %d",hartid,rg_allocate), wr_simulate_log_start)
         v_reg_btb_entry[rg_allocate] <= BTBEntry{ target : d.target, ci : d.ci
                             `ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
         v_reg_btb_tag[rg_allocate] <= BTBTag{tag: truncateLSB(d.pc), valid: True};
         rg_allocate <= rg_allocate + 1;
         if(v_reg_btb_tag[rg_allocate].valid)
-          `logLevel( bpu, 4, $format("[%2d]BPU : Conflict Detected",hartid))
+          `logLevel( bpu, 4, $format("[%2d]BPU : Conflict Detected",hartid), wr_simulate_log_start)
       end
 
       // we use the ghr version before the prediction to train the BHT
@@ -372,7 +378,7 @@ package gshare_fa;
       if(d.ci == Branch && d.btbhit) begin
         rg_bht_arr[d.pc[1]].upd(bht_index_, d.state);
         `logLevel( bpu, 4, $format("[%2d]BPU : Upd BHT entry: %d with state: %d",hartid,
-                                                                              bht_index_, d.state))
+                                                                              bht_index_, d.state), wr_simulate_log_start)
       end
     endmethod
 
@@ -386,9 +392,14 @@ package gshare_fa;
       if(btbhit)
         ghr[`histlen-1] = ~ghr[`histlen-1];
       `logLevel( bpu, 4, $format("[%2d]BPU : Misprediction fired. Restoring ghr:%h",hartid,
-                                                                                              ghr))
+                                                                                              ghr), wr_simulate_log_start)
       rg_ghr[1] <= ghr;
     endmethod
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+      wr_simulate_log_start <= start;
+    endmethod
+  `endif
 
     method Action ma_bpu_enable (Bool e);
       wr_bpu_enable <= e;

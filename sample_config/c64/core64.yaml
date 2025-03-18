@@ -6,7 +6,7 @@ isb_sizes:
     isb_s4s5: 8
 num_harts: 1
 num_issue: 2
-instr_queue: 8
+instr_queue: 16
 merged_rf: False
 s_extension:
   itlb_size: 4
@@ -57,9 +57,9 @@ bsc_compile_options:
   ovl_assertions: False
   sva_assertions: False
   ovl_path: ""
-  trace_dump: True
+  trace_dump: true
   compile_target: 'sim'
-  suppress_warnings: ["none"]
+  suppress_warnings: ["G0020"]
   verilog_dir: build/hw/verilog
   build_dir: build/hw/intermediate
   top_module: mkTbSoc

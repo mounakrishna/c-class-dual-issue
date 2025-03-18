@@ -84,6 +84,9 @@ interface Ifc_ccore_axi4;
    * committed*/
   method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
 `endif
+`ifdef simulate
+  method Bit#(1) mv_simulate_log_start;
+`endif
 `ifdef debug
   /*doc:method: This method is used to capture the interrupt from the debugger in case of resume or
    * halt indication*/
@@ -144,6 +147,10 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
   /*doc:mod: instantiate the data memory subsystem*/
 	Ifc_dmem dmem <- mkdmem(truncate(hartid) `ifdef pmp ,lv_pmp_cfg, lv_pmp_adr `endif );
 
+`ifdef simulate
+  let simulate_log_start = riscv.mv_simulate_log_start;
+`endif
+
 `ifdef dcache
   /*doc:reg: This register is used to keep track of the beats/bursts occurring during the write
   * operation of a data line to memory. A new line-write or an io-write operation can be initiated
@@ -179,6 +186,12 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
   /*doc:connect: Connect the data memory subsystem's response to stage4 of the pipeline*/
 	let core_resp <- mkConnection(dmem.send_core_cache_resp, riscv.s4_cache.memory_response); // dmem integration
 
+`ifdef simulate
+  rule rl_upd_log_start;
+    ptwalk.ma_simulate_log_start(simulate_log_start);
+  endrule
+`endif
+  
   /*doc:rule: This rule sends out requests from the I-cache to the fabric. This rule will only fire
   * when there has been a line-miss in the instructino cache or the request is an io operation. This
   * rule also will not fire if the fetch-xactor fifo is full - which can happen due to contention in
@@ -189,7 +202,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
       aruser: ?, arlen : request.burst_len, arsize : request.burst_size, arburst : 'b10,
       arid : zeroExtend(pack(request.io)), arprot:{1'b1, 1'b0, curr_priv[1]} }; // arburst : 00 - FIXED 01 - INCR 10 - WRAP
 	  fetch_xactor.i_rd_addr.enq(imem_request);
-		`logLevel( core, 1, $format("[%2d]CORE : IMEM Line Requesting ",hartid, fshow(imem_request)))
+		`logLevel( core, 1, $format("[%2d]CORE : IMEM Line Requesting ",hartid, fshow(imem_request)), simulate_log_start)
   endrule:rl_handle_imem_line_request
 
   /*doc:rule: This rule captures the response from the fetch transactor of the fabric and routes
@@ -202,7 +215,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
     imem.put_read_mem_resp.put(ICache_mem_readresp{data   : truncate(fab_resp.rdata),
                                                last   : fab_resp.rlast,
                                                err    : bus_error});
-		`logLevel( core, 1, $format("[%2d]CORE : IMEM Line Response ",hartid, fshow(fab_resp)))
+		`logLevel( core, 1, $format("[%2d]CORE : IMEM Line Response ",hartid, fshow(fab_resp)), simulate_log_start)
 	endrule:rl_handle_imem_line_resp
 
 `ifdef icache
@@ -235,7 +248,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
   rule rl_initiate_io `ifdef dcache (rg_burst_count == 0) `endif ;
 	  // receive the request from the data memory subsystem
 	  let req <- dmem.send_mem_io_req.get;
-    `logLevel( core, 0, $format("CORE: Received io op: ",fshow(req)))
+    `logLevel( core, 0, $format("CORE: Received io op: ",fshow(req)), simulate_log_start)
 
     // resize the data and duplicate the bytes based on the size of the transaction
     if(req.size[1:0]== 0)
@@ -282,7 +295,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
   	let bus_error = !(response.rresp == AXI4_OKAY);
     dmem.receive_mem_io_resp.put(DCache_io_response{data:response.rdata, 
                                               error:bus_error});
-    `logLevel( core, 1, $format("[%2d]CORE : IO Read Response ",hartid, fshow(response)))
+    `logLevel( core, 1, $format("[%2d]CORE : IO Read Response ",hartid, fshow(response)), simulate_log_start)
   endrule:rl_handle_io_read_response
 
 
@@ -295,7 +308,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
   	let bus_error = !(response.bresp == AXI4_OKAY);
     dmem.receive_mem_io_resp.put(DCache_io_response{data: ?, 
                                               error:bus_error});
-    `logLevel( core, 1, $format("[%2d]CORE : IO Write Response ",hartid, fshow(response)))
+    `logLevel( core, 1, $format("[%2d]CORE : IO Write Response ",hartid, fshow(response)), simulate_log_start)
   endrule:rl_handle_io_write_resp
 
 `ifdef dcache
@@ -346,12 +359,12 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
       if((waddr>>(`dwords + `dblocks )) == (req.address>>(`dwords + `dblocks ) ))begin
         perform_req = False;
         rg_read_line_req <= tagged Valid dmem_request;
-        `logLevel( core, 1, $format("[%2d]CORE: Delaying Request: ",hartid,fshow(req)))
+        `logLevel( core, 1, $format("[%2d]CORE: Delaying Request: ",hartid,fshow(req)), simulate_log_start)
       end
     end
     if(perform_req)  begin
  	    memory_xactor.i_rd_addr.enq(dmem_request);
-      `logLevel( core, 1, $format("[%2d]CORE : DMEM Line Requesting ",hartid, fshow(dmem_request)))
+      `logLevel( core, 1, $format("[%2d]CORE : DMEM Line Requesting ",hartid, fshow(dmem_request)), simulate_log_start)
     end
 	endrule:rl_handle_dmem_line_read_request
 
@@ -360,7 +373,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
   rule rl_handle_delayed_read(rg_read_line_req matches tagged Valid .r &&& 
                                   wr_write_req matches tagged Invalid );
 	  memory_xactor.i_rd_addr.enq(r);
-    `logLevel( core, 1, $format("[%2d]CORE : DMEM Delayed Line Requesting ",hartid, fshow(r)))
+    `logLevel( core, 1, $format("[%2d]CORE : DMEM Delayed Line Requesting ",hartid, fshow(r)), simulate_log_start)
     rg_read_line_req <= tagged Invalid;
   endrule:rl_handle_delayed_read
 
@@ -371,7 +384,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
     dmem.receive_mem_rd_resp.put(DCache_mem_readresp{data:truncate(lv_data),
                                                last:fab_resp.rlast,
                                                err :bus_error});
-    `logLevel( core, 1, $format("[%2d]CORE : DMEM Line Response ",hartid, fshow(fab_resp)))
+    `logLevel( core, 1, $format("[%2d]CORE : DMEM Line Response ",hartid, fshow(fab_resp)), simulate_log_start)
   endrule:rl_handle_dmem_line_resp
 
   /*doc:rule: This rule is fired when the data memory subsytem is requesting to write an entire line
@@ -398,7 +411,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
                            wid : 0};
     memory_xactor.i_wr_addr.enq(aw);
 	  memory_xactor.i_wr_data.enq(w);
-    `logLevel( core, 1, $format("[%2d]CORE : DMEM Line Write Addr : Request ",hartid, fshow(aw)))
+    `logLevel( core, 1, $format("[%2d]CORE : DMEM Line Write Addr : Request ",hartid, fshow(aw)), simulate_log_start)
     if(req.burst_len != 0 )
       wr_write_req <= tagged Valid req.address;
   endrule:rl_handle_dmem_write_request
@@ -434,7 +447,7 @@ module mkccore_axi4#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_cco
     end
 	  memory_xactor.i_wr_data.enq(w);
     `logLevel( core, 1, $format("[%2d]CORE : DMEM Write Data: %h rg_burst_count: %d last: %b \
-_shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
+_shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount), simulate_log_start)
   endrule:rl_dmem_burst_write_data
 
   /*doc:rule: This rule will simply forward the response obtained from the fabric for a previous
@@ -443,7 +456,7 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
     let response <- pop_o(memory_xactor.o_wr_resp);
   	let bus_error = !(response.bresp == AXI4_OKAY);
 	  dmem.receive_mem_wr_resp.put(bus_error);
-    `logLevel( core, 1, $format("[%2d]CORE : DMEM Write Line Response ",hartid, fshow(response)))
+    `logLevel( core, 1, $format("[%2d]CORE : DMEM Write Line Response ",hartid, fshow(response)), simulate_log_start)
   endrule: handle_dmem_line_write_resp
 
 `ifdef itim 
@@ -453,13 +466,13 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
     dmem.put_nc_read_resp.put(DCache_mem_readresp{data:zeroExtend(response.data),
                                               last:True,
                                               err :bus_error});
-    `logLevel( core, 1, $format("[%2d]CORE : DMEM ITIM Response ",hartid, fshow(response)))
+    `logLevel( core, 1, $format("[%2d]CORE : DMEM ITIM Response ",hartid, fshow(response)), simulate_log_start)
   endrule
   rule handle_itim_write_resp;
   	let response <- imem.get_mem_write_itim_resp.get;
   	Bool bus_error = response;
   	riscv.s5_cache.ma_io_response(tagged Valid tuple2(pack(bus_error),?));
-    `logLevel( core, 1, $format("[%2d]CORE : ITIM Memory Write Response ",hartid, fshow(response)))
+    `logLevel( core, 1, $format("[%2d]CORE : ITIM Memory Write Response ",hartid, fshow(response)), simulate_log_start)
   endrule
 `endif
 `endif
@@ -570,6 +583,9 @@ _shift_amount:%d",hartid, req.data, rg_burst_count, last, rg_shift_amount))
 `ifdef rtldump
   interface commitlog = riscv.commitlog;
   interface sbread = riscv.sbread;
+`endif
+`ifdef simulate
+  method mv_simulate_log_start = riscv.mv_simulate_log_start;
 `endif
 `ifdef debug
   method ma_debug_interrupt= riscv.ma_debug_interrupt;

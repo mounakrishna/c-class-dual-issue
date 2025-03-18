@@ -269,6 +269,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   Reg#(FwdType) rg_op3[2] <- mkCReg(2, unpack(0));
 
   Wire#(Bit#(1)) wr_dual_issued <- mkDWire(0);
+`ifdef simulate
+  Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+`endif
 
   /*doc:reg: This register stores the 2nd instruction for the next cycle if it was not
     issued due to dependency reasons.
@@ -296,8 +299,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
 `ifdef simulate
   rule rl_polling_check(!tx_instrtype.u.notFull || rg_stall || rg_wfi);
-    `logLevel( stage2, 0, $format("[%2d]STAGE2: Waiting for response from stage1", hartid))
-    `logLevel( stage2, 0, $format("[%2d]STAGE2: rg_stall: %d, rg_wfi: %d, instrNotFull: %d", hartid, rg_stall, rg_wfi, tx_instrtype.u.notFull))
+    `logLevel( stage2, 0, $format("[%2d]STAGE2: Waiting for response from stage1", hartid), wr_simulate_log_start)
+    `logLevel( stage2, 0, $format("[%2d]STAGE2: rg_stall: %d, rg_wfi: %d, instrNotFull: %d", hartid, rg_stall, rg_wfi, tx_instrtype.u.notFull), wr_simulate_log_start)
+  endrule
+
+  rule rl_upd_log_start;
+    registerfile.ma_simulate_log_start(wr_simulate_log_start);
   endrule
 `endif
 
@@ -306,13 +313,14 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   // Implicit Conditions :  and all tx fifos are not full
   // Description : This rule decodes the current fetched instruction, fetches the operands from the
   // registerfile and sends the required struct to the next stage.
-  rule decode_and_opfetch(!rg_stall && tx_instrtype.u.notFull && !rg_wfi && rx_pipe1.u.deqReady_1 && rx_commitlog.u.deqReady_1 );
+  rule decode_and_opfetch(!rg_stall && tx_instrtype.u.notFull && !rg_wfi && rx_pipe1.u.deqReady_1 `ifdef rtldump && rx_commitlog.u.deqReady_1 `endif );
 
     // --- extract the fields from the packet received from the stage1 ---- //
     Vector#(`num_issue, Bit#(32)) inst = replicate(0);
     Vector#(`num_issue, PIPE1) instr_data = replicate(unpack(?));
     Vector#(`num_issue, Bit#(`vaddr)) pc = replicate(?);
     Vector#(`num_issue, Bit#(`iesize)) epochs = replicate(?);
+    Vector#(`num_issue, Bool) upper_instr = replicate(?);
     Bool trap = False;
     Bit#(`causesize) trapcause = ?;
     `ifdef compressed
@@ -334,6 +342,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       btbresponse[i] = instr_data[i].btbresponse;
     `endif
       inst[i] = instr_data[i].instruction;
+      upper_instr[i] = unpack(fromInteger(i));
     end
 
     trap = instr_data[0].trap;
@@ -342,7 +351,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
     // ---------------------------------------------------------------------------------------- //
 
-    `logLevel( stage2, 0, $format("[%2d]STAGE2: csrs:",hartid,fshow(wr_csrs)))
+    `logLevel( stage2, 0, $format("[%2d]STAGE2: csrs:",hartid,fshow(wr_csrs)), wr_simulate_log_start)
 
     // ----------------------------- perform decode ------------------------ //
     Vector#(`num_issue, DecodeOut) decoded_inst;
@@ -388,7 +397,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     // -------- Instruction Dependency Check ------------ //
     Bool issue_two_inst;
     for (Integer i=0; i<`num_issue; i=i+1)
-      `logLevel( stage2, 0, $format("STAGE2[%2d]: Decoded Instruction %d : ", hartid, i, fshow(decoded_inst[i])))
+      `logLevel( stage2, 0, $format("STAGE2[%2d]: Decoded Instruction %d : ", hartid, i, fshow(decoded_inst[i])), wr_simulate_log_start)
     if (instrType[1] != NONE) begin
       // RAW hazard
       if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
@@ -411,18 +420,18 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       // Issue both only when both the instructions are ALU
       else if (instrType[0] == ALU && instrType[1] == ALU)
         issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == MULDIV)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == MULDIV && instrType[1] == ALU)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == FLOAT)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == FLOAT && instrType[1] == ALU)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == MEMORY)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == MEMORY && instrType[1] == ALU)
-      //  issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == MULDIV)
+        issue_two_inst = True;
+      else if (instrType[0] == MULDIV && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == FLOAT)
+        issue_two_inst = True;
+      else if (instrType[0] == FLOAT && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == MEMORY)
+        issue_two_inst = True;
+      else if (instrType[0] == MEMORY && instrType[1] == ALU)
+        issue_two_inst = True;
       // For all other cases issue only one instruction.
       else 
         issue_two_inst = False;
@@ -470,6 +479,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       instr_data = reverse(instr_data);
       highbyte_err = reverse(highbyte_err);
       instrType = reverse(instrType);
+      upper_instr = reverse(upper_instr);
     end
     
     frf_rs3addr = inst[0][31:27];
@@ -517,7 +527,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                               pc : pc[i], 
                               epochs : epochs[i],
                               rd: decoded_inst[i].op_addr.rd,
-                              is_microtrap: rg_microtrap
+                              is_microtrap: rg_microtrap,
+                              upper_instr: upper_instr[i]
            `ifdef hypervisor ,hlvx : decoded_inst[i].meta.hlvx
                              ,hvm_loadstore : decoded_inst[i].meta.hvm_loadstore
            `endif
@@ -542,23 +553,23 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       `ifdef rtldump
         rx_commitlog.u.deq(1);
       `endif
-      `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping Two Instructions due to epoch mis - match",hartid))
+      `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping Two Instructions due to epoch mis - match",hartid), wr_simulate_log_start)
     end
     else if ({eEpoch, wEpoch} != epochs[0]) begin
       rx_pipe1.u.deq(1);
       `ifdef rtldump
         rx_commitlog.u.deq(1);
       `endif
-      `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping Instruction due to epoch mis - match",hartid))
+      `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping Instruction due to epoch mis - match",hartid), wr_simulate_log_start)
     end
     else begin
       if (instrType[0] == WFI) begin 
         if(!wr_flush_from_exe && !wr_flush_from_wb) begin
-          `logLevel( stage2, 0, $format("[%2d]STAGE2 : Encountered WFI",hartid))
+          `logLevel( stage2, 0, $format("[%2d]STAGE2 : Encountered WFI",hartid), wr_simulate_log_start)
           rg_wfi <= True;
         end
         else
-          `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping WFI",hartid))
+          `logLevel( stage2, 0, $format("[%2d]STAGE2 : Dropping WFI",hartid), wr_simulate_log_start)
         instrType[0] = ALU;
         instrType[1] = NONE;
       end
@@ -570,7 +581,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       // branch/jump) is tagged as a Trap with HaltStep cause code, thus causing the core to go back
       // to the halted stage. When the core is again halted then, rg_step_done is reset to False.
       `ifdef debug
-        `logLevel( stage2, 0, $format("[%2d]STAGE2: step_done:%b rerun:%b",hartid,rg_step_done,rg_microtrap))
+        `logLevel( stage2, 0, $format("[%2d]STAGE2: step_done:%b rerun:%b",hartid,rg_step_done,rg_microtrap), wr_simulate_log_start)
         if(rg_step_done && wr_debug_info.debug_mode)
           rg_step_done<=False;
         else if(!rg_microtrap)
@@ -610,8 +621,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         instrType[1] = NONE;
 
       for (Integer i=0; i<`num_issue; i=i+1) begin
-        `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc[i], inst[i]))
-        `logLevel( stage2, 0, $format("[%2d]STAGE2 : InstrType : ", hartid, fshow(instrType[i])))
+        `logLevel( stage2, 0, $format("[%2d]STAGE2 : PC:%h Instruction:%h",hartid,pc[i], inst[i]), wr_simulate_log_start)
+        `logLevel( stage2, 0, $format("[%2d]STAGE2 : InstrType : ", hartid, fshow(instrType[i])), wr_simulate_log_start)
       end
 
       tx_instrtype.u.enq(instrType);
@@ -678,13 +689,13 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       wr_op5type <= IntegerRF;
 
       `logLevel( stage2, 0, fstage2( hartid, 0, _op1, decoded_inst[0].op_type.rs1type, 
-                _op2, decoded_inst[0].op_type.rs2type, _op3, instrType[0], stage3meta[0], mtval[0] ))
+                _op2, decoded_inst[0].op_type.rs2type, _op3, instrType[0], stage3meta[0], mtval[0] ), wr_simulate_log_start)
       `logLevel( stage2, 0, fstage2( hartid, 1, _op4, decoded_inst[1].op_type.rs1type, 
-                _op5, decoded_inst[1].op_type.rs2type, _op3, instrType[1], stage3meta[1], mtval[1] ))
+                _op5, decoded_inst[1].op_type.rs2type, _op3, instrType[1], stage3meta[1], mtval[1] ), wr_simulate_log_start)
       // -------------------------------------------------------------------------------------- //
       if (issue_two_inst && rx_pipe1.u.deqReady_2()) begin
         wr_dual_issued <= pack(issue_two_inst);
-        `logLevel( stage2, 0, $format("[%2d]STAGE2: Issuing two independent instructions", hartid))
+        `logLevel( stage2, 0, $format("[%2d]STAGE2: Issuing two independent instructions", hartid), wr_simulate_log_start)
         rx_pipe1.u.deq(2); // TODO: Change it back
       `ifdef rtldump
         rx_commitlog.u.deq(2);
@@ -728,6 +739,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     method Action ma_csrs (CSRtoDecode csr);
       wr_csrs <= csr;
     endmethod
+
+    `ifdef simulate
+      method Action ma_simulate_log_start(Bit#(1) start);
+        wr_simulate_log_start <= start;
+      endmethod
+    `endif
   
     /*doc:method: This method is use to perform the commit to the registerfile. This method is also
     * used to update the operands presented by the registerfile to the subsequent stage. This update
@@ -739,7 +756,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     * maintain a single register state for each operand source.
     */
   	method Action ma_commit_rd (Vector#(`num_issue, CommitData) commit);
-      `logLevel( stage2, 0, $format("[%2d]STAGE2: ",hartid,fshow(commit)))
+      `logLevel( stage2, 0, $format("[%2d]STAGE2: ",hartid,fshow(commit)), wr_simulate_log_start)
       if (!commit[0].unlock_only) 
         registerfile.commit_rd_1(commit[0]);
       if (!commit[1].unlock_only) 

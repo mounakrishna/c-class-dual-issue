@@ -97,6 +97,9 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     Vector#(`num_issue, Wire#(CUid)) wr_fuid <- replicateM(mkWire());
     Vector#(`num_issue, Wire#(CommitLogPacket)) wr_commitlog <- replicateM(mkWire());
 
+`ifdef simulate
+  Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+`endif
     // fifo to capture the response from the dmem subsystem
   FIFOF#(DMem_core_response#(`elen,1)) ff_memory_response <- mkBypassFIFOF();
 
@@ -106,8 +109,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
      * respective functional unit's output is not available, then this rule will fire and print a stall
      * signal in the log*/
     rule rl_polling_check(rx_fuid.u.notEmpty);
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: Waiting for FUid:",hartid,fshow(rx_fuid.u.first[0].insttype)))
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Waiting for FUid:",hartid,fshow(rx_fuid.u.first[0].insttype)), wr_simulate_log_start)
     endrule:rl_polling_check
   `endif
 
@@ -120,8 +123,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       wr_fuid[i] <= fn_fu2cu(rx_fuid.u.first[i], ?);
       //rx_baseout.u.deq;
       //rx_fuid.u.deq;
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: Output: ",hartid,fshow(fn_fu2cu(rx_fuid.u.first[i], ?))))
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Base ALU Output",hartid))
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Output: ",hartid,fshow(fn_fu2cu(rx_fuid.u.first[i], ?))), wr_simulate_log_start)
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Base ALU Output",hartid), wr_simulate_log_start)
     `ifdef rtldump
       let clogpkt = rx_commitlog.u.first[i];
       CommitLogReg _pkt =?;
@@ -146,8 +149,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       wr_fuid[0] <= fn_fu2cu(rx_fuid.u.first[0], ?);
       //rx_systemout.u.deq;
       //rx_fuid.u.deq;
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering System Output",hartid))
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering System Output",hartid), wr_simulate_log_start)
     `ifdef rtldump
       let clogpkt = rx_commitlog.u.first[0];
       wr_commitlog[0] <= clogpkt;
@@ -164,8 +167,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       wr_fuid[0] <= fn_fu2cu(rx_fuid.u.first[0], ?);
       //rx_trapout.u.deq;
       //rx_fuid.u.deq;
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Trap Output",hartid))
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Buffering Trap Output",hartid), wr_simulate_log_start)
     `ifdef rtldump
       let clogpkt = rx_commitlog.u.first[0];
       wr_commitlog[0] <= clogpkt;
@@ -191,7 +194,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     * tagged as Memory for correct log-keeping
     */
     rule rl_handle_memory(rx_fuid.u.first[0].insttype == MEMORY && ff_memory_response.notEmpty);
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
       let mem_response = ff_memory_response.first;
       ff_memory_response.deq;
       let epochs = rx_fuid.u.first[0].epochs;
@@ -207,7 +210,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       Bit#(`causesize) cause = mem_response.cause;
 
       if (mem_response.epochs != epochs) begin
-        `logLevel( stage4, 0, $format("[%2d]STAGE4: Dropping Mem response",hartid))
+        `logLevel( stage4, 0, $format("[%2d]STAGE4: Dropping Mem response",hartid), wr_simulate_log_start)
       end
       else begin
         //rx_fuid.u.deq;
@@ -229,7 +232,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
           fuid[0].instpkt = tagged TRAP trapout;
           wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
           //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
-          `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with trap: ",hartid, fshow(trapout)))
+          `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with trap: ",hartid, fshow(trapout)), wr_simulate_log_start)
         `ifdef rtldump
           wr_commitlog[0] <= clogpkt;
           //tx_commitlog.u.enq(clogpkt);
@@ -245,7 +248,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
           //fuid[0].instpkt = tagged MEMORY lv_memop;
           //tx_fuid.u.enq(fn_fu2cu(fuid, unpack({?, pack(lv_memop)})));
           wr_fuid[0] <= fn_fu2cu(fuid[0], lv_memop);
-          `logLevel( stage4, 0, $format("[%2d]STAGE4: Mem response received:",hartid, fshow(lv_memop)))
+          `logLevel( stage4, 0, $format("[%2d]STAGE4: Mem response received:",hartid, fshow(lv_memop)), wr_simulate_log_start)
         `ifdef rtldump
           //tx_commitlog.u.enq(clogpkt);
           wr_commitlog[0] <= clogpkt;
@@ -263,7 +266,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
           fuid[0].instpkt = tagged BASE baseout;
           //tx_fuid.u.enq(fn_fu2cu(fuid, ?));
           wr_fuid[0] <= fn_fu2cu(fuid[0], ?);
-          `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with data:",hartid, fshow(baseout)))
+          `logLevel( stage4, 0, $format("[%2d]STAGE4: Memory responded with data:",hartid, fshow(baseout)), wr_simulate_log_start)
         `ifdef rtldump
           if (memop.memaccess == Atomic && !mem_response.entry_alloc && memop.atomicop=='b0111) begin
             clogpkt.inst_type = tagged REG (CommitLogReg{wdata: mem_response.word, rd:
@@ -338,10 +341,10 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
         end
       `endif
 
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
-      `logLevel( stage4, 0, $format("[%2d]STAGE4: Enquing MULDIV Output: ",hartid, fshow(mbox_result)))
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
+      `logLevel( stage4, 0, $format("[%2d]STAGE4: Enquing MULDIV Output: ",hartid, fshow(mbox_result)), wr_simulate_log_start)
       `ifdef arith_trap
-        `logLevel(stage4, 0, $format("[%2d]STAGE4: MBOX: ArithTrap: ", hartid, fshow(mbox_arith_trap_output)))
+        `logLevel(stage4, 0, $format("[%2d]STAGE4: MBOX: ArithTrap: ", hartid, fshow(mbox_arith_trap_output)), wr_simulate_log_start)
       `endif
     endrule:rl_capture_muldiv
   `endif
@@ -414,8 +417,8 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
         //rx_commitlog.u.deq;
       `endif
     end
-    `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc))
-    `logLevel( stage4, 0, $format("[%2d]STAGE4: Enquing FLOAT Output: ",hartid, fshow(_r)))
+    `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
+    `logLevel( stage4, 0, $format("[%2d]STAGE4: Enquing FLOAT Output: ",hartid, fshow(_r)), wr_simulate_log_start)
   endrule:rl_capture_float
 `endif
 
@@ -446,9 +449,11 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 
     rule rl_update_pipeline;
       tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
-      tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
       rx_fuid.u.deq;
+    `ifdef rtldump
+      tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
       rx_commitlog.u.deq;
+    `endif
     endrule
 
     interface rx = interface Ifc_s4_rx
@@ -459,6 +464,11 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       interface rx_fuid_from_stage3 = rx_fuid.e;
     `ifdef rtldump
       interface rx_commitlog = rx_commitlog.e;
+    `endif
+    `ifdef simulate
+      method Action ma_simulate_log_start(Bit#(1) start);
+        wr_simulate_log_start <= start;
+      endmethod
     `endif
     endinterface;
 

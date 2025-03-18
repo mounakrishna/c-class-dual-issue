@@ -20,7 +20,9 @@ package Soc;
   // peripheral imports
   import uart::*;
   import clint::*;
+`ifdef simulate
   import sign_dump::*;
+`endif
   import err_slave::*;
   // package imports
   import Connectable:: *;
@@ -48,8 +50,10 @@ package Soc;
         slave_num = `Uart_slave_num;
       else if(addr>= `ClintBase && addr<= `ClintEnd)
         slave_num = `Clint_slave_num;
+    `ifdef simulate
       else if(addr>= `SignBase && addr<= `SignEnd)
         slave_num = `Sign_slave_num;
+    `endif
     `ifdef debug
       else if(addr>= `DebugBase && addr<= `DebugEnd)
         slave_num = `Debug_slave_num;
@@ -60,16 +64,19 @@ package Soc;
       return slave_num;
     endfunction:fn_slave_map
 
-  interface Ifc_soc_io;
+  //interface Ifc_soc_io;
+  //endinterface
+
+  interface Ifc_Soc;
   `ifdef rtldump
     interface Sbread sbread;
     method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
   `endif
+  `ifdef simulate
+    method Bit#(1) mv_simulate_log_start;
+  `endif
     interface RS232 uart_io;
-  endinterface
-
-  interface Ifc_Soc;
-    interface Ifc_soc_io soc_sb;
+    //interface Ifc_soc_io soc_sb;
   `ifdef debug
     interface AXI4_Slave_IFC#(`paddr, `elen, USERSPACE) to_debug_master;
     interface AXI4_Master_IFC#(`paddr, `elen, USERSPACE) to_debug_slave;
@@ -101,13 +108,24 @@ package Soc;
       ccore[i] <- mkccore_axi4(`resetpc, fromInteger(i), reset_by core_reset[i]);
     end
 
+  `ifdef simulate
     Ifc_sign_dump signature<- mksign_dump();
+  `endif
 	  Ifc_uart_axi4#(`paddr,`elen,0, 16) uart <- mkuart_axi4(curr_clk,curr_reset, 5, 0, 0);
     Ifc_clint_axi4#(`paddr, `elen, 0, `num_harts, 2) clint <- mkclint_axi4();
     Ifc_err_slave_axi4#(`paddr,`elen,0) err_slave <- mkerr_slave_axi4;
     Ifc_bram_axi4#(`paddr, `elen, USERSPACE, `Addr_space) main_memory <- mkbram_axi4(`MemoryBase,
                                                 "code.mem", "MainMEM");
 		Ifc_bootrom_axi4#(`paddr, `elen, USERSPACE, 13) bootrom <-mkbootrom_axi4(`BootRomBase);
+
+`ifdef simulate
+  // ------------------ Connecting Log Start -------------------//
+  mkConnection(fabric.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(uart.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(clint.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(main_memory.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+  mkConnection(bootrom.ma_simulate_log_start, ccore[0].mv_simulate_log_start);
+`endif
 
   `ifdef debug
     Bit#(`num_harts) lv_haveresets=0;
@@ -135,11 +153,15 @@ package Soc;
    	  mkConnection(ccore[i].master_d,	fabric.v_from_masters[i*2+1]);
      	mkConnection(ccore[i].master_i, fabric.v_from_masters[i*2+2]);
     end
+  `ifdef simulate
    	mkConnection(signature.master, fabric.v_from_masters[valueOf(Sign_master_num) ]);
+  `endif
 
  	  mkConnection (fabric.v_to_slaves [`Uart_slave_num ],uart.slave);
   	mkConnection (fabric.v_to_slaves [`Clint_slave_num ],clint.slave);
+  `ifdef simulate
     mkConnection (fabric.v_to_slaves [`Sign_slave_num ] , signature.slave);
+  `endif
     mkConnection (fabric.v_to_slaves [`Err_slave_num ] , err_slave.slave);
   	mkConnection(fabric.v_to_slaves[`Memory_slave_num] , main_memory.slave);
 		mkConnection(fabric.v_to_slaves[`BootRom_slave_num] , bootrom.slave);
@@ -169,14 +191,17 @@ package Soc;
       end
     endrule: rl_connect_clint_msip
 
-  interface Ifc_soc_io soc_sb;
+  //interface Ifc_soc_io soc_sb;
   `ifdef rtldump
     // TODO parameterize this
     interface commitlog= ccore[0].commitlog;
     interface sbread = ccore[0].sbread;
   `endif
+  `ifdef simulate
+    method mv_simulate_log_start = ccore[0].mv_simulate_log_start;
+  `endif
     interface uart_io=uart.io;
-  endinterface
+  //endinterface
   `ifdef debug
     interface to_debug_master = fabric.v_from_masters[valueOf(Debug_master_num)];
     interface to_debug_slave  = fabric.v_to_slaves[`Debug_slave_num ];

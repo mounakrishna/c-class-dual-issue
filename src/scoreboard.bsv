@@ -23,6 +23,9 @@ package scoreboard ;
     method ActionValue#(Vector#(`num_issue, Bit#(`wawid))) ma_lock_rd (Vector#(`num_issue, SBDUpd) lock);
     method Action ma_release_rd (Vector#(`num_issue, SBDUpd) rls);
     method SBD mv_board;
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
   endinterface: Ifc_scoreboard
 
   /*doc:module: */
@@ -36,6 +39,9 @@ package scoreboard ;
   `else
     Vector#(32, Array#(Reg#(SBEntry))) rg_rf_board <- replicateM(mkCReg(2,unpack(0)));
   `endif
+  `ifdef simulate
+    Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+  `endif
 
   `ifdef no_wawstalls
     /*doc:reg: */
@@ -44,8 +50,8 @@ package scoreboard ;
     /*doc:method: This method is used to lock a destination register. WAW is prevented by ensuring
     * that the rd of the new instruction is not already locked*/
     method ActionValue#(Vector#(`num_issue, Bit#(`wawid))) ma_lock_rd (Vector#(`num_issue, SBDUpd) lock);
-      `logLevel( sboard, 0, $format("[%2d]SBoard Lock 0 for : ",hartid,fshow(lock[0])))
-      `logLevel( sboard, 0, $format("[%2d]SBoard Lock 1 for : ",hartid,fshow(lock[1])))
+      `logLevel( sboard, 0, $format("[%2d]SBoard Lock 0 for : ",hartid,fshow(lock[0])), wr_simulate_log_start)
+      `logLevel( sboard, 0, $format("[%2d]SBoard Lock 1 for : ",hartid,fshow(lock[1])), wr_simulate_log_start)
       Vector#(`num_issue, Bit#(`wawid)) id;
       Vector#(`num_issue, Bit#(6)) index;
       Vector#(`num_issue, SBEntry) entry;
@@ -88,8 +94,8 @@ package scoreboard ;
         `ifdef no_wawstalls if (rls[i].id == entry[i].id) `endif entry[i].lock = 0;
         //if (index !=0  ) 
         //    rg_rf_board[index][1] <=  entry;
-        `logLevel( sboard, 0, $format("[%2d]SBoard release %d for : ",hartid, i, fshow(rls[i])))
-        `logLevel( sboard, 0, $format("[%2d]SBoard release %d entry : ",hartid, i, fshow(entry[i])))
+        `logLevel( sboard, 0, $format("[%2d]SBoard release %d for : ",hartid, i, fshow(rls[i])), wr_simulate_log_start)
+        `logLevel( sboard, 0, $format("[%2d]SBoard release %d entry : ",hartid, i, fshow(entry[i])), wr_simulate_log_start)
       end
       if ((index[0] == index[1]) && index[0] != 0) //TODO: Fixed for dual issue. Need to think of multi-issue
         rg_rf_board[index[1]][1] <= entry[1]; //TODO: entry[1];
@@ -117,6 +123,11 @@ package scoreboard ;
                  `ifdef no_wawstalls ,v_id: _id `endif
                 };
     endmethod
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+      wr_simulate_log_start <= start;
+    endmethod
+  `endif
   endmodule:mkscoreboard
 endpackage: scoreboard
 
