@@ -42,6 +42,10 @@ interface Ifc_s0_common;
 
   /*doc:method: Method indicates that the reset sequence is done*/
   method Action ma_reset_done(Bool _done);
+
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
 endinterface:Ifc_s0_common
 
 `ifdef bpu
@@ -92,6 +96,10 @@ interface Ifc_s1_common;
   // csrs from the csrfile.
   method Action ma_csr_misa_c (Bit#(1) c);
 
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
+
 `ifdef triggers
   method Action trigger_data1(Vector#(`trigger_num, TriggerData) t);
   method Action trigger_data2(Vector#(`trigger_num, Bit#(`xlen)) t);
@@ -103,6 +111,12 @@ interface Ifc_s1_icache;
   // instruction response from the memory subsytem or the memory bus
   interface Put#(IMem_core_response#(32, `iesize)) inst_response;
 endinterface:Ifc_s1_icache
+
+`ifdef perfmonitors
+interface Ifc_s1_perfmonitors;
+  method Bit#(1) mv_instr_queue_full;
+endinterface: Ifc_s1_perfmonitors
+`endif
 // -----------------------------------------------------------------------------------------------
 
 
@@ -210,21 +224,23 @@ interface Ifc_s3_float;
 interface Ifc_s3_perfmonitors;
   /*doc:method: */
 `ifdef spfpu
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_floats;
 `endif
 `ifdef muldiv
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_muldiv;
 `endif
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_jumps;
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_branches;
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_rawstalls ;
-  (*always_ready*)
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_exestalls ;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_count_isb3_isb4_full ;
 endinterface: Ifc_s3_perfmonitors
 `endif
 
@@ -246,6 +262,10 @@ interface Ifc_s3_common;
   
   (*always_enabled, always_ready*)
   method Action ma_mstatus (Bit#(`xlen) mstatus);
+
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
 
 `ifdef hypervisor
   (*always_enabled, always_ready*)
@@ -336,6 +356,9 @@ interface Ifc_s2_common;
 	/*doc:method: method to indicate if the hart whould resume from a WFI*/
 	method Action ma_resume_wfi (Bool w);
 
+`ifdef simulate
+  method Action ma_simulate_log_start(Bit#(1) start);
+`endif
 endinterface:Ifc_s2_common
 
 `ifdef debug
@@ -344,6 +367,15 @@ interface Ifc_s2_debug;
   /*doc:method debug related info checking interrupts */
   method Action debug_status (DebugStatus status);
 endinterface:Ifc_s2_debug
+`endif
+
+`ifdef perfmonitors
+interface Ifc_s2_perfmonitors;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_instr_queue_empty; 
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_dual_issued;
+endinterface
 `endif
 // -----------------------------------------------------------------------------------------------
 // -------------------------------- stage4 interfaces --------------------------------------------
@@ -363,7 +395,18 @@ endinterface:Ifc_s2_debug
     // interface to send the instruction sequence for the rtl dump feature
     interface RXe#(Vector#(`num_issue, CommitLogPacket))     rx_commitlog;
   `endif
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
   endinterface:Ifc_s4_rx
+
+`ifdef perfmonitors
+  interface Ifc_s4_perfmonitors;
+    (*always_enabled, always_ready*)  
+    method Bit#(1) mv_count_isb3_isb4_empty;
+    method Bit#(1) mv_count_isb4_isb5_full;
+  endinterface
+`endif
 
   interface Ifc_s4_tx;
     //interface TXe#(Vector#(`num_issue, SystemOut))       tx_systemout_to_stage5;
@@ -441,6 +484,9 @@ interface Ifc_s5_common;
 `ifdef rtldump
   method Vector#(`num_issue, Maybe#(CommitLogPacket)) mv_commit_log;
 `endif
+`ifdef simulate
+  method Bit#(1) mv_simulate_log_start;
+`endif
 endinterface:Ifc_s5_common
 
 interface Ifc_s5_cache;
@@ -480,11 +526,18 @@ endinterface:Ifc_s5_csrs
 
 `ifdef perfmonitors
 interface Ifc_s5_perfmonitors;
+  (*always_enabled, always_ready*)
   method Action ma_events (Bit#(`mhpm_eventcount) e);
  	/*doc:method: */
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_count_isb4_isb5_empty;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_exceptions;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_interrupts;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_csrops;
+  (*always_enabled, always_ready*)
   method Bit#(1) mv_count_microtraps;
 endinterface:Ifc_s5_perfmonitors
 `endif

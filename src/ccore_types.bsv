@@ -432,6 +432,7 @@ typedef struct{
   Bit#(`vaddr) pc;
   Bit#(2) epochs;
   Bit#(5) rd;
+  Bool upper_instr;
 } Stage3Meta deriving(Bits, Eq);
 
 instance FShow#(Stage3Meta);
@@ -911,6 +912,7 @@ typedef struct{
       Bit#(1) misprediction            ;
       Bit#(1) exceptions               ;
       Bit#(1) interrupts               ;
+      Bit#(1) micro_traps              ;
       Bit#(1) csrops                   ;
       Bit#(1) jumps                    ;
       Bit#(1) branches                 ;
@@ -938,6 +940,9 @@ typedef struct{
       Bit#(1) dcache_line_evictions		;
       Bit#(1) itlb_misses              ;
       Bit#(1) dtlb_misses              ;
+      Bit#(1) instr_queue_full         ;
+      Bit#(1) instr_queue_empty        ;
+      Bit#(1) dual_issued              ;
   	} Events deriving(Bits, Eq, FShow);
 	// types for events
 	`ifdef csr_grp4

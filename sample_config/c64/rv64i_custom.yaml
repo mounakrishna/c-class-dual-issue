@@ -81,6 +81,20 @@ hart0:
           shadow:
           msb: 4
           lsb: 4
+        simulate_log_start:
+          implemented: true
+          type:
+            warl:
+              dependency_fields: []
+              legal:
+                - simulate_log_start[0:0] in [0x0:0x1]
+              wr_illegal:
+                - Unchanged
+          description: bit for enabling the display statements used for RTL debugging
+          shadow_type:
+          shadow:
+          msb: 5
+          lsb: 5
       description: the register holds enable bits for arithmetic exceptions, branch predictor unit, i-cache, d-cache units
       address: 0x800
       priv_mode: U

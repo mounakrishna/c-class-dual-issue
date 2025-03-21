@@ -29,9 +29,13 @@ package DebugSoc ;
   // TODO remove below
   `include "Soc.defines"
   interface Ifc_DebugSoc;
+    //interface Ifc_soc_io soc_sb;
   `ifdef rtldump
      interface Sbread sbread;
      method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
+  `endif
+  `ifdef simulate
+    method Bit#(1) mv_simulate_log_start;
   `endif
     interface RS232 uart_io;
       // ------------- JTAG IOs ----------------------//
@@ -107,7 +111,7 @@ package DebugSoc ;
 
     rule rl_generate_ndmreset(debug_module.mv_ndm_reset== 1);
       ndm_reset.assertReset;
-      `logLevel( debugsoc, 0, $format("DebubSoc: Asserting NDM Reset"))
+      `logLevel( debugsoc, 0, $format("DebubSoc: Asserting NDM Reset"), soc.mv_simulate_log_start)
     endrule
              // ----------- Connect JTAG IOs through null-crossing registers ------ //
     rule assign_jtag_inputs;                                                                                
@@ -154,9 +158,13 @@ package DebugSoc ;
     method Bit#(1)wire_tdo;                                                                       
       return tdo.crossed();                                                                       
     endmethod
+    //interface soc_sb = soc.soc_sb;
     `ifdef rtldump
       interface sbread  =soc.sbread;
       method commitlog = soc.commitlog;
+    `endif
+    `ifdef simulate
+      method mv_simulate_log_start = soc.mv_simulate_log_start;
     `endif
     interface uart_io = soc.uart_io;
 

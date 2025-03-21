@@ -33,6 +33,9 @@ interface Ifc_mbox;
     method Action ma_arith_trap_en(Bit#(1) en);
     method TXe#(Tuple2#(Bool, Bit#(`causesize))) tx_arith_trap_output;
   `endif
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
 endinterface: Ifc_mbox
 
 `ifdef mbox_noinline
@@ -50,10 +53,17 @@ module mkmbox#(parameter Bit#(`xlen) hartid) (Ifc_mbox);
     //Wire#(Bit#(1)) wr_arith_trap_en <- mkDWire(0);
     TX#(Tuple2#(Bool, Bit#(`causesize))) tx_arith_trap_out <- mkTX;
   `endif
+  `ifdef simulate
+    Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+    rule rl_upd_log_start;
+      mul_.ma_simulate_log_start(wr_simulate_log_start);
+      div_.ma_simulate_log_start(wr_simulate_log_start);
+    endrule
+  `endif
 
   /*doc:rule: */
   rule rl_fifo_full(!tx_mbox_out.u.notFull());
-    `logLevel( mbox, 0, $format("[%2d]MBOX: Buffer is FULL",hartid))
+    `logLevel( mbox, 0, $format("[%2d]MBOX: Buffer is FULL",hartid), wr_simulate_log_start)
     dynamicAssert(!mul_.mv_output_valid ,"MUL provided result when O/P FIFO is full");
     dynamicAssert(!div_.mv_output_valid ,"DIV provided result when O/P FIFO is full");
   endrule:rl_fifo_full
@@ -68,10 +78,10 @@ module mkmbox#(parameter Bit#(`xlen) hartid) (Ifc_mbox);
           tx_arith_trap_out.u.enq(unpack(0));
         `endif
         ff_ordering.deq;
-        `logLevel( mbox, 0, $format("MBOX: Collecting MUL o/p"))
+        `logLevel( mbox, 0, $format("MBOX: Collecting MUL o/p"), wr_simulate_log_start)
       end
       else
-        `logLevel( mbox, 0, $format("MBOX: Waiting for Mul o/p"))
+        `logLevel( mbox, 0, $format("MBOX: Waiting for Mul o/p"), wr_simulate_log_start)
     end
     else if (!ff_ordering.first) begin // div operation
       if (div_.mv_output_valid) begin
@@ -81,10 +91,10 @@ module mkmbox#(parameter Bit#(`xlen) hartid) (Ifc_mbox);
           tx_arith_trap_out.u.enq(div_.mv_arith_trap_out);
         `endif
         ff_ordering.deq;
-        `logLevel( mbox, 0, $format("MBOX: Collecting DIV o/p"))
+        `logLevel( mbox, 0, $format("MBOX: Collecting DIV o/p"), wr_simulate_log_start)
       end
       else
-        `logLevel( mbox, 0, $format("MBOX: Waiting for Div o/p"))
+        `logLevel( mbox, 0, $format("MBOX: Waiting for Div o/p"), wr_simulate_log_start)
     end
   endrule: rl_capture_output
 
@@ -93,13 +103,13 @@ module mkmbox#(parameter Bit#(`xlen) hartid) (Ifc_mbox);
     dynamicAssert(ff_ordering.notFull(), "Enquing MBOX inputs to full fifo");
   `endif
     if( inputs.funct3[2] == 0 ) begin // Multiplication ops
-      `logLevel( mbox, 0, $format("MBOX: To MUL. Op1:%h Op2:%h ", inputs.in1, inputs.in2 ))
+      `logLevel( mbox, 0, $format("MBOX: To MUL. Op1:%h Op2:%h ", inputs.in1, inputs.in2 ), wr_simulate_log_start)
       mul_.ma_inputs(inputs.in1, inputs.in2, inputs.funct3 `ifdef RV64 ,inputs.wordop `endif );
       ff_ordering.enq(True);
     end
     if (inputs.funct3[2] == 1) begin
       ff_ordering.enq(False);
-      `logLevel( mbox, 0, $format("MBOX: To DIV. Op1:%h Op2:%h sign:%b", inputs.in1, inputs.in2, inputs.in1[valueOf(`xlen)-1] ))
+      `logLevel( mbox, 0, $format("MBOX: To DIV. Op1:%h Op2:%h sign:%b", inputs.in1, inputs.in2, inputs.in1[valueOf(`xlen)-1] ), wr_simulate_log_start)
       div_.ma_inputs( inputs.in1, inputs.in2, inputs.funct3 `ifdef RV64 ,inputs.wordop `endif ) ;
     end
   endmethod
@@ -108,11 +118,16 @@ module mkmbox#(parameter Bit#(`xlen) hartid) (Ifc_mbox);
   method tx_output = tx_mbox_out.e;
   `ifdef arith_trap
     method Action ma_arith_trap_en(Bit#(1) en);
-      `logLevel( mbox, 0, $format("MBOX: arith_en: %h ", en ))
+      `logLevel( mbox, 0, $format("MBOX: arith_en: %h ", en ), wr_simulate_log_start)
        div_.ma_div_arith_trap_en(en);
       //wr_arith_trap_en <= en;
     endmethod
     method tx_arith_trap_output = tx_arith_trap_out.e;
+  `endif
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+      wr_simulate_log_start <= start;
+    endmethod
   `endif
 endmodule
 endpackage

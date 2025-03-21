@@ -51,15 +51,18 @@ include depends.mk
 '''
 
 dependency_yaml='''
+application-benchmarks:
+  url: git@github.com:mounakrishna/application-benchmarks.git
+  checkout: master
 common_bsv:
   url: git@github.com:mounakrishna/common_bsv.git
-  checkout: Pipeline_stage_MIMO
+  checkout: master
 devices:
-  url: https://gitlab.com/shaktiproject/uncore/devices
-  checkout: 8.0.1
+  url: git@github.com:mounakrishna/devices.git
+  checkout: master
 fabrics:
-  url: https://gitlab.com/shaktiproject/uncore/fabrics
-  checkout: 1.2.0
+  url: git@github.com:mounakrishna/fabrics.git
+  checkout: master
 common_verilog:
   url: git@github.com:mounakrishna/common_verilog.git
   checkout: master
@@ -74,14 +77,11 @@ verification:
     - [riscv-tests/env , verification/patches/riscv-tests-shakti-signature-machine.patch]
 benchmarks:
   url: git@github.com:Mindgrove-Technologies/benchmarks.git
-  checkout: master
+  checkout: Logging_efficiency
 csrbox:
-  url: https://gitlab.com/shaktiproject/cores/csrbox
-  checkout: Floating_point
+  url: git@github.com:Mindgrove-Technologies/csrbox.git
+  checkout: Logger_changes
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
-  checkout: No_hyp_reg
-application-benchmarks:
-  url: git@github.com:mounakrishna/application-benchmarks.git
   checkout: master
 '''

@@ -20,6 +20,9 @@ interface Ifc_combo_mul;
 	method Bool mv_ready;
 	method Bool mv_output_valid;
 	method ActionValue#(Bit#(`xlen)) mv_output;
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+  `endif
 endinterface
 
 `ifdef mbox_mul_noinline
@@ -53,6 +56,10 @@ module mkcombo_mul(Ifc_combo_mul);
   Wire#(Bit#(`xlen)) wr_output <- mkDWire(?);
   /*doc:wire: */
   Wire#(Bool) wr_valid <- mkDWire(False);
+
+  `ifdef simulate
+    Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+  `endif
 
   Ifc_signedmul#(TAdd#(`xlen, 1), TAdd#(`xlen, 1)) signed_mul <- mksignedmul();
 
@@ -133,7 +140,7 @@ module mkcombo_mul(Ifc_combo_mul);
     `endif
       wr_output <= default_out;
       wr_valid <= True;
-      `logLevel( mul, 0, $format("MUL: product computed:%h",default_out))
+      `logLevel( mul, 0, $format("MUL: product computed:%h",default_out), wr_simulate_log_start)
     endrule:rl_perform_mul_2
   end
   else begin
@@ -201,6 +208,12 @@ module mkcombo_mul(Ifc_combo_mul);
   method mv_ready = (`MULSTAGES_IN > 0)?rg_valid_in[0].notFull(): 
                        (`MULSTAGES_OUT> 0)?rg_valid_out[0].notFull: True;
   method mv_output_valid = (`MULSTAGES_OUT > 0)?rg_valid_out[`MULSTAGES_OUT - 1].notEmpty : wr_valid;
+
+  `ifdef simulate
+    method Action ma_simulate_log_start(Bit#(1) start);
+      wr_simulate_log_start <= start;
+    endmethod
+  `endif
 
 endmodule:mkcombo_mul
 endpackage: combo
