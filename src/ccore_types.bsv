@@ -615,6 +615,7 @@ typedef struct{
   Bit#(1)      epochs;
   EXEType     insttype;
   FUPacket    instpkt;
+  Bool upper_instr;
 } FUid deriving(Bits, Eq);
 
 instance FShow#(FUid);
@@ -685,7 +686,7 @@ typedef struct{
   Bit#(5)      rd;
   Bit#(1)      epochs;
   CUPacket     instpkt;
-  //CommitType   insttype;
+  Bool upper_instr;
 } CUid deriving(Bits, Eq);
 
 instance FShow#(CUid);
@@ -705,7 +706,7 @@ endinstance
 
 function CUid fn_fu2cu(FUid f, WBMemop mem);
   CUid c;
-  c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, instpkt : ?
+  c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, upper_instr: f.upper_instr, instpkt : ?
           `ifdef no_wawstalls ,id: f.id `endif 
           `ifdef spfpu ,rdtype: f.rdtype `endif };
   case (f.instpkt) matches
