@@ -398,25 +398,58 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     Bool issue_two_inst;
     for (Integer i=0; i<`num_issue; i=i+1)
       `logLevel( stage2, 0, $format("STAGE2[%2d]: Decoded Instruction %d : ", hartid, i, fshow(decoded_inst[i])), wr_simulate_log_start)
+
+    Vector#(`num_issue, Bit#(6)) src1_addr, src2_addr, src3_addr, dest_addr;
+    Vector#(`num_issue, RFType) src1_type, src2_type;
+    for (Integer i=0; i<`num_issue; i=i+1) begin
+      src1_type[i] = `ifdef spfpu decoded_inst[i].op_type.rs1type == FloatingRF ? FRF : `endif IRF;
+      src1_addr[i] = {pack(src1_type[i]), decoded_inst[i].op_addr.rs1addr};
+
+      src2_type[i] = `ifdef spfpu decoded_inst[i].op_type.rs2type == FloatingRF ? FRF : `endif IRF;
+      src2_addr[i] = {pack(src2_type[i]), decoded_inst[i].op_addr.rs2addr};
+
+      if (instrType[i] == FLOAT)
+        src3_addr[i] = {pack(FRF), decoded_inst[i].op_addr.rs3addr};
+      else
+        src3_addr[i] = 0;
+
+      //dest_type[i] = `ifdef spfpu decoded_inst[i].op_type.rdtype == FloatingRF ? FRF : `endif IRF;
+      dest_addr[i] = {pack(decoded_inst[i].op_type.rdtype), decoded_inst[i].op_addr.rd};
+    end
     if (instrType[1] != NONE) begin
+      //if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
+      //  (decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs1addr || 
+      //   decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs2addr  
+      //   `ifdef spfpu || decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs3addr `endif ))
+      //   issue_two_inst = False;
+      //`ifndef no_wawstalls
+      //// WAW hazard
+      //else if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
+      //  (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rd))
+      //   issue_two_inst = False;
+      //// WAR Hazard
+      //else if (decoded_inst[0].op_addr.rs1type != FloatingRF && decoded_inst[1].op_addr.rs1type != FloatingRF &&
+      //  (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs1addr || 
+      //   decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs2addr  
+      //   `ifdef spfpu || decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs3addr `endif ))
+      //   issue_two_inst = False;
+      //`endif
       // RAW hazard
-      if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
-        (decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs1addr || 
-         decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs2addr  
-         `ifdef spfpu || decoded_inst[0].op_addr.rd == decoded_inst[1].op_addr.rs3addr `endif ))
-         issue_two_inst = False;
-      `ifndef no_wawstalls
-      // WAW hazard
-      else if (decoded_inst[0].op_type.rs1type != FloatingRF && decoded_inst[1].op_type.rs1type != FloatingRF &&
-        (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rd))
-         issue_two_inst = False;
+      if (!(dest_addr[0] == 0) &&
+          (dest_addr[0] == src1_addr[1] ||
+          dest_addr[0] == src2_addr[1]
+          `ifdef spfpu || dest_addr[0] == src3_addr[1] `endif ))
+        issue_two_inst = False;
+    `ifndef no_wawstalls
       // WAR Hazard
-      else if (decoded_inst[0].op_addr.rs1type != FloatingRF && decoded_inst[1].op_addr.rs1type != FloatingRF &&
-        (decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs1addr || 
-         decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs2addr  
-         `ifdef spfpu || decoded_inst[1].op_addr.rd == decoded_inst[0].op_addr.rs3addr `endif ))
-         issue_two_inst = False;
-      `endif
+      else if (dest_addr[1] == src1_addr[0] ||
+               dest_addr[1] == src2_addr[0]
+               `ifdef spfpu || dest_addr[1] == src3_addr[0] `endif )
+        issue_two_inst = False;
+      //WAW Hazard
+      else if (dest_addr[1] == dest_addr[0])
+        issue_two_inst = False;
+    `endif
       // Issue both only when both the instructions are ALU
       else if (instrType[0] == ALU && instrType[1] == ALU)
         issue_two_inst = True;
@@ -431,6 +464,18 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       else if (instrType[0] == ALU && instrType[1] == MEMORY)
         issue_two_inst = True;
       else if (instrType[0] == MEMORY && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == BRANCH)
+        issue_two_inst = True;
+      else if (instrType[0] == BRANCH && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == JAL)
+        issue_two_inst = True;
+      else if (instrType[0] == JAL && instrType[1] == ALU)
+        issue_two_inst = True;
+      else if (instrType[0] == ALU && instrType[1] == JALR)
+        issue_two_inst = True;
+      else if (instrType[0] == JALR && instrType[1] == ALU)
         issue_two_inst = True;
       // For all other cases issue only one instruction.
       else 
@@ -465,7 +510,14 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     // -------------------------------------------------- //
 
 
-    if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY)) begin
+
+  `ifdef rtldump
+    Vector#(`num_issue, CommitLogPacket) clogpkt;
+    clogpkt = rx_commitlog.u.first;
+  `endif
+
+    if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY ||
+                            instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) begin
       decoded_inst = reverse(decoded_inst);
       imm = reverse(imm);
       func_cause = reverse(func_cause);
@@ -480,15 +532,18 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       highbyte_err = reverse(highbyte_err);
       instrType = reverse(instrType);
       upper_instr = reverse(upper_instr);
+      `ifdef rtldump
+        clogpkt = reverse(clogpkt);
+      `endif
     end
     
     frf_rs3addr = inst[0][31:27];
 
+  `ifdef spfpu
+    rf1type = `ifdef spfpu decoded_inst[0].op_type.rs1type == FloatingRF ? FRF : `endif IRF;
+    rf2type = `ifdef spfpu decoded_inst[0].op_type.rs2type == FloatingRF ? FRF : `endif IRF;
+  `endif
     // --------------------------------------------//
-    `ifdef spfpu
-      rf1type = `ifdef spfpu decoded_inst[0].op_type.rs1type == FloatingRF ? FRF : `endif IRF;
-      rf2type = `ifdef spfpu decoded_inst[0].op_type.rs2type == FloatingRF ? FRF : `endif IRF;
-    `endif
 
     let rs1_from_rf <- registerfile.read_rs1(decoded_inst[0].op_addr.rs1addr
                         `ifdef spfpu ,rf1type `endif );
@@ -629,9 +684,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       tx_opmeta.u.enq(opmeta);
       tx_mtval.u.enq(mtval);
       `ifdef rtldump
-        Vector#(`num_issue, CommitLogPacket) clogpkt;
         for (Integer i=0; i<`num_issue; i=i+1) begin
-          clogpkt[i] = rx_commitlog.u.first[i];
           if (instrType[i] != NONE) begin
             if (instrType[i] == SYSTEM_INSTR) begin
               clogpkt[i].inst_type = tagged CSR (CommitLogCSR{csr_address : truncate(imm[i]),

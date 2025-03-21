@@ -422,36 +422,57 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
   endrule:rl_capture_float
 `endif
 
-  let default_common = CUid { pc : ?,
-                              rd : ?,
-                              epochs: ?,
-                              instpkt : tagged None
-                            `ifdef no_wawstalls 
-                              ,id: ? 
-                            `endif
-                            `ifdef spfpu
-                              ,rdtype : ?
-                            `endif } ;
-
-  let default_commitlog = CommitLogPacket { mode : unpack(?),
-                                            pc : ?,
-                                            instruction : ?,
-                                            inst_type : tagged None
-                                          `ifdef hypervisor
-                                            ,v : ?
-                                          `endif
-                                          };
+    let default_commitlog = CommitLogPacket { mode : unpack(?),
+                                              pc : ?,
+                                              instruction : ?,
+                                              inst_type : tagged None
+                                            `ifdef hypervisor
+                                              ,v : ?
+                                            `endif
+                                            };
 
     rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE);
+      let default_common = CUid { pc : ?,
+                                  rd : ?,
+                                  epochs: ?,
+                                  upper_instr: rx_fuid.u.first[1].upper_instr,
+                                  instpkt : tagged None
+                                `ifdef no_wawstalls 
+                                  ,id: ? 
+                                `endif
+                                `ifdef spfpu
+                                  ,rdtype : ?
+                                `endif } ;
+
       wr_commitlog[1] <= default_commitlog;
       wr_fuid[1] <= default_common;
     endrule
 
     rule rl_update_pipeline;
-      tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
+      Vector#(`num_issue, CUid) fuid;
+      `ifdef rtldump
+        Vector#(`num_issue, CommitLogPacket) commitlog;
+      `endif
+      for (Integer i=0; i<`num_issue; i=i+1) begin
+        fuid[i] = wr_fuid[i];
+        `ifdef rtldump
+          commitlog[i] = wr_commitlog[i];
+        `endif
+      end
+      // Drop upper instruction if lower instruction generates a trap.
+      if (!fuid[0].upper_instr &&& fuid[0].instpkt matches tagged TRAP .t) begin
+        fuid[1].epochs = ~fuid[1].epochs;
+        fuid[1].instpkt = tagged None;
+        `ifdef rtldump
+          commitlog[1] = default_commitlog;
+        `endif
+      end
+      //tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
+      tx_fuid.u.enq(fuid);
       rx_fuid.u.deq;
     `ifdef rtldump
-      tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
+      //tx_commitlog.u.enq(unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])}));
+      tx_commitlog.u.enq(commitlog);
       rx_commitlog.u.deq;
     `endif
     endrule

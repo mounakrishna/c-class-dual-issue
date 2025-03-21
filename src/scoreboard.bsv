@@ -76,7 +76,7 @@ package scoreboard ;
         if (index[1] != 0)
           rg_rf_board[index[1]][0] <= entry[1];
       end
-      rg_renameid <= rg_renameid + 1; //`num_issue;
+      rg_renameid <= rg_renameid + `num_issue;
     `ifdef no_wawstalls
       return id;
     `else

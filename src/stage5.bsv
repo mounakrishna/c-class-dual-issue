@@ -88,6 +88,7 @@ endfunction
 (*preempts = "rl_writeback_trap, rl_no_op"*)
 (*preempts = "rl_writeback_system, rl_no_op"*)
 (*preempts = "rl_writeback_baseout, rl_no_op"*)
+(*preempts = "rl_writeback_baseout_1, rl_no_op"*)
 `endif
 (*conflict_free="rl_writeback_system, rl_set_fflags"*)
 module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
@@ -135,6 +136,10 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   /*doc:wire: this wire holds the epoch value of the IO memory store/atomic operation that is
    * waiting to be committed/dropped. Writing a value to this wire triggers an IO operation*/
   Wire#(Bit#(1)) wr_commit_ioop <- mkWire();
+
+  /*doc:wire: Wire to indicate to drop the result stored in ISB1 if ISB0 is a later instruction 
+   *and has generated a TRAP.*/
+  Wire#(Bool) wr_drop_instr1 <- mkDWire(False);
 
 `ifdef dcache
   /*doc:wire: this wire holds the epoch value of the cached memory store/atomic operation that is
@@ -447,6 +452,8 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         else if (wr_ioop_response matches tagged Valid .ioresp) begin
           rg_ioop_init <= False;
           if (ioresp.trap) begin
+            if (rx_fuid.u.first[0].upper_instr)
+              wr_drop_instr1 <= True;
             let tvec <- csr.mav_upd_on_trap(ioresp.cause, fuid[0].pc, ioresp.word 
             `ifdef hypervisor , ? `endif 
             );
@@ -536,7 +543,10 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   rule rl_deq(wr_commit[0].wget matches tagged Valid .w1 &&& wr_commit[1].wget matches tagged Valid .w2);
     rx_fuid.u.deq;
     `ifdef rtldump
-      rg_commitlog <= unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])});
+      if (rx_fuid.u.first[0].upper_instr)
+        rg_commitlog <= unpack({pack(wr_commitlog[0]), pack(wr_commitlog[1])});
+      else
+        rg_commitlog <= unpack({pack(wr_commitlog[1]), pack(wr_commitlog[0])});
       rx_commitlog.u.deq;
     `endif
   endrule
@@ -597,7 +607,19 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 `endif
   
   interface common = interface Ifc_s5_common
-    method mv_commit_rd = readVRWire(wr_commit);
+    method Vector#(`num_issue, CommitData) mv_commit_rd;
+      let commit_data = readVRWire(wr_commit);
+      let fuid = rx_fuid.u.first;
+      if (wr_drop_instr1) begin
+        commit_data[1] = CommitData{addr: fuid[1].rd, data: ?, unlock_only:True
+                               `ifdef no_wawstalls , id: fuid[1].id `endif
+                               `ifdef spfpu ,rdtype: fuid[1].rdtype `endif };
+      end
+      if (fuid[0].upper_instr)
+        commit_data = reverse(commit_data);
+
+      return commit_data;
+    endmethod
     method mv_flush = wr_flush;
   `ifdef rtldump
     method mv_commit_log = rg_commitlog;
