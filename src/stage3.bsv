@@ -1219,10 +1219,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     Vector#(`num_issue, SBDUpd) lock;
     for (Integer i=0; i<`num_issue; i=i+1)
       lock[i] = wr_lock[i];
-    if (!meta[0].upper_instr && (wr_fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
-      `logLevel( stage3, 0, $format("[%2d]STAGE3: Removing SBoard Lock lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
-      lock[1] = SBDUpd {rd: 0 `ifdef spfpu ,rdtype: IRF `endif };
-    end
+    //if (!meta[0].upper_instr && (wr_fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
+    //  `logLevel( stage3, 0, $format("[%2d]STAGE3: Removing SBoard Lock lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
+    //  lock[1] = SBDUpd {rd: 0 `ifdef spfpu ,rdtype: IRF `endif };
+    //end
 
     if (meta[0].upper_instr)
       lock = reverse(lock);
@@ -1259,14 +1259,14 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     // Drop upper instruction if lower instruction generates a trap.
     if (!meta[0].upper_instr && (fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Dropping upper instruction as lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
-      fuid[1].epochs = ~fuid[1].epochs;
+      //fuid[1].epochs = ~fuid[1].epochs;
       fuid[1].insttype = NONE;
       fuid[1].instpkt = tagged None;
-      fuid[1].rd = 0;
-      fuid[1].pc = ?;
-      `ifdef spfpu
-        fuid[1].rdtype = IRF;
-      `endif
+      //fuid[1].rd = 0;
+      //fuid[1].pc = ?;
+      //`ifdef spfpu
+      //  fuid[1].rdtype = IRF;
+      //`endif
       `ifdef rtldump
         commitlog[1] = default_commitlog;
       `endif

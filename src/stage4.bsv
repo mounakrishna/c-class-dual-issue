@@ -432,16 +432,16 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                             };
 
     rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE);
-      let default_common = CUid { pc : ?,
-                                  rd : ?,
-                                  epochs: ?,
+      let default_common = CUid { pc : rx_fuid.u.first[1].pc,
+                                  rd : rx_fuid.u.first[1].rd,
+                                  epochs: rx_fuid.u.first[1].epochs,
                                   upper_instr: rx_fuid.u.first[1].upper_instr,
                                   instpkt : tagged None
                                 `ifdef no_wawstalls 
-                                  ,id: ? 
+                                  ,id: rx_fuid.u.first[1].id
                                 `endif
                                 `ifdef spfpu
-                                  ,rdtype : ?
+                                  ,rdtype : rx_fuid.u.first[1].rdtype
                                 `endif } ;
 
       wr_commitlog[1] <= default_commitlog;
