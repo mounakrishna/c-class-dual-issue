@@ -268,7 +268,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     every time a retirement to the same register occurs.*/
   Reg#(FwdType) rg_op3[2] <- mkCReg(2, unpack(0));
 
+`ifdef perfmonitors
   Wire#(Bit#(1)) wr_dual_issued <- mkDWire(0);
+  Wire#(Bit#(1)) wr_raw_hazard <- mkDWire(0);
+  /*doc: wire: Indicates that only one instruction is present in the instruction queue.*/
+  Wire#(Bit#(1)) wr_one_instr <- mkDWire(0);
+`endif
 `ifdef simulate
   Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
 `endif
@@ -438,8 +443,10 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       if (!(dest_addr[0] == 0) &&
           (dest_addr[0] == src1_addr[1] ||
           dest_addr[0] == src2_addr[1]
-          `ifdef spfpu || dest_addr[0] == src3_addr[1] `endif ))
+          `ifdef spfpu || dest_addr[0] == src3_addr[1] `endif )) begin
         issue_two_inst = False;
+        wr_raw_hazard <= 1;
+      end
     `ifndef no_wawstalls
       // WAR Hazard
       else if (dest_addr[1] == src1_addr[0] ||
@@ -761,6 +768,11 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       `endif
       end
     end
+
+    `ifdef perfmonitors
+      if (!rx_pipe1.u.deqReady_2())
+        wr_one_instr <= 1;
+    `endif
   endrule
 
   /*doc:rule: */
@@ -936,6 +948,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
   interface perf = interface Ifc_s2_perfmonitors
     method mv_instr_queue_empty = pack(!rx_pipe1.u.deqReady_1);
     method mv_dual_issued = wr_dual_issued;
+    method mv_raw_hazard = wr_raw_hazard;
+    method mv_one_instr = wr_one_instr;
   endinterface;
 `endif
 

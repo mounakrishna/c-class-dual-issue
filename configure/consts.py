@@ -53,7 +53,7 @@ include depends.mk
 dependency_yaml='''
 application-benchmarks:
   url: git@github.com:mounakrishna/application-benchmarks.git
-  checkout: master
+  checkout: bitnet
 common_bsv:
   url: git@github.com:mounakrishna/common_bsv.git
   checkout: master

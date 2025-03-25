@@ -375,6 +375,10 @@ interface Ifc_s2_perfmonitors;
   method Bit#(1) mv_instr_queue_empty; 
   (*always_enabled, always_ready*)
   method Bit#(1) mv_dual_issued;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_raw_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_one_instr;
 endinterface
 `endif
 // -----------------------------------------------------------------------------------------------

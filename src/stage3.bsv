@@ -383,7 +383,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will only fire when there is a pending instruction to be executed by the
   * corresponding unit rule is unable to fire due to structural hazards (cache not available,
   * downstream ISB is full, mul-div unit is busy, etc.*/
-  rule rl_structural_stalls(rx_meta.u.notEmpty);
+  rule rl_structural_stalls(rx_meta.u.notEmpty && wr_ops_avail);
   `ifdef perfmonitors
     wr_count_exestalls <= 1;
   `endif

@@ -187,6 +187,8 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_instr_queue_full       = stage1.perf.mv_instr_queue_full;
     Bit#(1) lv_count_instr_queue_empty      = stage2.perf.mv_instr_queue_empty;
     Bit#(1) lv_dual_issued                  = stage2.perf.mv_dual_issued;
+    Bit#(1) lv_raw_hazard                   = stage2.perf.mv_raw_hazard;
+    Bit#(1) lv_one_instr                    = stage2.perf.mv_one_instr;
     Bit#(1) lv_count_isb3_isb4_full         = stage3.perfmonitors.mv_count_isb3_isb4_full;
     Bit#(1) lv_count_isb3_isb4_empty        = stage4.perf.mv_count_isb3_isb4_empty;
     Bit#(1) lv_count_isb4_isb5_full         = stage4.perf.mv_count_isb4_isb5_full;
@@ -202,7 +204,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       lv_count_dcache_atomic_miss		, lv_count_dcache_read_fb_hits		,
       lv_count_dcache_write_fb_hits		, lv_count_dcache_atomic_fb_hits		,
       lv_count_dcache_fb_releases		, lv_count_dcache_line_evictions		, lv_count_itlb_misses,
-      lv_count_dtlb_misses, lv_count_instr_queue_full, lv_count_instr_queue_empty, lv_dual_issued,
+      lv_count_dtlb_misses, lv_count_instr_queue_full, lv_count_instr_queue_empty, lv_dual_issued, lv_raw_hazard, lv_one_instr,
       lv_count_isb3_isb4_full,
       lv_count_isb3_isb4_empty,
       lv_count_isb4_isb5_full, 
