@@ -707,6 +707,12 @@ bsc_compile_options:
       type: boolean
     trace_dump:
       type: boolean
+    log_start_time:
+      type: integer
+      default: 0
+    log_end_time:
+      type: integer
+      default: 0
     compile_target:
       type: string
       allowed: ['sim', 'asic', 'fpga']
@@ -740,6 +746,8 @@ bsc_compile_options:
     test_memory_size: 33554432
     assertions: True
     trace_dump: True
+    log_start_time: 0
+    log_end_time: 0
     ovl_assertions: False
     ovl_path: ''
     sva_assertions: False

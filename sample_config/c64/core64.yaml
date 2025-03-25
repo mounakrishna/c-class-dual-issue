@@ -11,7 +11,7 @@ merged_rf: False
 s_extension:
   itlb_size: 4
   dtlb_size: 4
-total_events : 39
+total_events : 40
 iepoch_size: 2
 m_extension:
   mul_stages_in : 1
@@ -67,6 +67,8 @@ bsc_compile_options:
   top_dir: test_soc
   open_ocd: False
   cocotb_sim: False
+  log_start_time: 12710770
+  log_end_time: 12745970
 verilator_configuration:
   coverage: none
   trace: true

@@ -200,6 +200,8 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
         macros += ' ASSERT'
     if foo['bsc_compile_options']['trace_dump']:
         macros += ' rtldump'
+    macros += ' LOG_START=' + str(foo['bsc_compile_options']['log_start_time'])
+    macros += ' LOG_END=' + str(foo['bsc_compile_options']['log_end_time'])
     if foo['bsc_compile_options']['ovl_assertions']:
         macros += ' ovl_assert'
     if foo['bsc_compile_options']['sva_assertions']:

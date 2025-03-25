@@ -175,7 +175,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 
 `ifdef simulate
   rule rl_no_op;
-    `logLevel( stage5, 0, $format("[%2d]STAGE5: No Instr to commit", hartid), simulate_log_start)
+    `logLevel( stage5, 4, $format("[%2d]STAGE5: No Instr to commit", hartid), simulate_log_start)
   endrule: rl_no_op
 `endif
 
@@ -188,7 +188,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   rule rl_writeback_trap(rx_fuid.u.first[0].instpkt matches tagged TRAP .trapout);
     let fuid = rx_fuid.u.first;
     `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid[0].pc), simulate_log_start)
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : Trap: ",hartid, fshow(trapout)), simulate_log_start)
+    `logLevel( stage5, 1, $format("[%2d]STAGE5 : Trap: ",hartid, fshow(trapout)), simulate_log_start)
   `ifdef rtldump
     wr_commitlog[0] <= tagged Invalid;
   `endif
@@ -208,7 +208,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
           wr_flush <= WBFlush{flush: True, newpc : fuid[0].pc , fencei: _fencei 
               `ifdef supervisor , sfence: _sfence `endif 
               `ifdef hypervisor , hfence: _hfence `endif };
-          `logLevel( stage5, 0, $format("[%2d]STAGE5 : Redirect PC:%h",hartid, fuid[0].pc), simulate_log_start)
+          `logLevel( stage5, 1, $format("[%2d]STAGE5 : Redirect PC:%h",hartid, fuid[0].pc), simulate_log_start)
         `ifdef perfmonitors
           wr_count_microtrap <= 1;
         `endif
@@ -230,7 +230,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
         else
           wr_count_exceptions <= 1;
       `endif
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Going to *TVEC:%h",hartid, tvec), simulate_log_start)
+        `logLevel( stage5, 1, $format("[%2d]STAGE5 : Going to *TVEC:%h",hartid, tvec), simulate_log_start)
       end
         //rx_trapout.u.deq;
         //rx_fuid.u.deq;
@@ -240,7 +240,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       //`endif
     end
     else begin
-      `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
+      `logLevel( stage5, 1, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
       //rx_trapout.u.deq;
       //rx_fuid.u.deq;
     //`ifdef rtldump
@@ -257,7 +257,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     //let systemout = rx_systemout.u.first;
     let fuid = rx_fuid.u.first;
     `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC:%h",hartid,fuid[0].pc), simulate_log_start)
-    `logLevel( stage5, 0, $format("[%2d]STAGE5 : ",hartid, fshow(systemout)), simulate_log_start)
+    `logLevel( stage5, 1, $format("[%2d]STAGE5 : ",hartid, fshow(systemout)), simulate_log_start)
     Bool exit = False;
     if (epochs_match) begin
       if (systemout.funct3 == 0 ) begin // URET, SRET, MRET
@@ -280,7 +280,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       end
       else begin
         rg_csr_wait <= True;
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Waiting for CSR-response",hartid), simulate_log_start)
+        `logLevel( stage5, 1, $format("[%2d]STAGE5 : Waiting for CSR-response",hartid), simulate_log_start)
       end
   
       if (exit) begin
@@ -315,7 +315,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       end
     end
     else begin
-      `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
+      `logLevel( stage5, 1, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
     `ifdef rtldump
       wr_commitlog[0] <= tagged Invalid;
     `endif
@@ -350,7 +350,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       //let baseout = rx_baseout.u.first;
       `logLevel( stage5, 0, $format("[%2d]STAGE5 : PC%d:%h",hartid,i,fuid[i].pc), simulate_log_start)
       //`logLevel( stage5, 0, $format("[%2d]STAGE5 : PC1:%h",hartid,fuid[1].pc), simulate_log_start)
-      `logLevel( stage5, 0, $format("[%2d]STAGE5 : Base Op ",hartid, fshow(baseout)), simulate_log_start)
+      `logLevel( stage5, 1, $format("[%2d]STAGE5 : Base Op ",hartid, fshow(baseout)), simulate_log_start)
       //`logLevel( stage5, 0, $format("[%2d]STAGE5 : Base Op1 ",hartid, fshow(baseout)), simulate_log_start)
       if (epochs_match) begin
         wr_increment_minstret[i] <= True;
@@ -371,7 +371,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       `endif
       end
       else begin
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
+        `logLevel( stage5, 1, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
         wr_commit[i].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                    `ifdef no_wawstalls , id: fuid[0].id `endif
                                    `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
@@ -409,7 +409,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     if (epochs_match) begin
     `ifdef dcache
       if (!memop.io) begin // cacheable store/atomic op
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Cached Store Op ",hartid, fshow(memop)), simulate_log_start)
+        `logLevel( stage5, 1, $format("[%2d]STAGE5 : Cached Store Op ",hartid, fshow(memop)), simulate_log_start)
         wr_commit_cacheop <= tuple2(rg_epoch, memop.sb_id);
         wr_increment_minstret[0] <= True;
         //rx_fuid.u.deq;
@@ -444,7 +444,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       else 
     `endif
       begin 
-        `logLevel( stage5, 0, $format("[%2d]STAGE5 : Non-Cached Memory Op ",hartid, fshow(memop)), simulate_log_start)
+        `logLevel( stage5, 1, $format("[%2d]STAGE5 : Non-Cached Memory Op ",hartid, fshow(memop)), simulate_log_start)
         if (!rg_ioop_init) begin
           rg_ioop_init <= True;
           wr_commit_ioop <= rg_epoch;
@@ -493,12 +493,12 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
           end
         end
         else begin
-          `logLevel( stage5, 0, $format("[%2d]STAGE5: Waiting for IO response",hartid), simulate_log_start)
+          `logLevel( stage5, 1, $format("[%2d]STAGE5: Waiting for IO response",hartid), simulate_log_start)
         end
       end
     end
     else begin
-      `logLevel( stage5, 0, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
+      `logLevel( stage5, 1, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
       wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
                                       `ifdef no_wawstalls , id: fuid[0].id `endif
                                       `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
@@ -553,8 +553,8 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 
 `ifdef rtldump
   rule rl_display_commit_packet;
-      `logLevel(stage5, 0, $format("STAGE5: CommitLogPacket0: ", fshow(wr_commitlog[0])), simulate_log_start)
-      `logLevel(stage5, 0, $format("STAGE5: CommitLogPacket1: ", fshow(wr_commitlog[1])), simulate_log_start)
+      `logLevel(stage5, 2, $format("STAGE5: CommitLogPacket0: ", fshow(wr_commitlog[0])), simulate_log_start)
+      `logLevel(stage5, 2, $format("STAGE5: CommitLogPacket1: ", fshow(wr_commitlog[1])), simulate_log_start)
   endrule
 `endif
 
