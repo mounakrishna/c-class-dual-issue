@@ -51,3 +51,5 @@ boot/config.c-class
 
 boot/shakti.dtb
 Benchmarks_analysis
+
+application-benchmarks/

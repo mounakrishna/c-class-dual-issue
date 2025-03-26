@@ -15,6 +15,34 @@
 num_harts: {type: integer, default: 1, min: 1, max: 1024}
 
 ###
+#num_issue
+#^^^^^^^^^
+#
+# **Description**: Describes the issue width of the pipeline
+#
+#  **Examples**:
+#
+#  .. code-block:: yaml
+#
+#     num_issue: 2
+
+num_issue: {type: integer, default: 1, min: 1, max: 1024}
+
+###
+#instr_queue
+#^^^^^^^^^
+#
+# **Description**: Depth of the instruction queue
+#
+#  **Examples**:
+#
+#  .. code-block:: yaml
+#
+#     instr_queue: 4
+
+instr_queue: {type: integer, default: 2, min: 1, max: 1024}
+
+###
 #
 #isb_sizes
 #^^^^^^^^^
@@ -679,6 +707,12 @@ bsc_compile_options:
       type: boolean
     trace_dump:
       type: boolean
+    log_start_time:
+      type: integer
+      default: 0
+    log_end_time:
+      type: integer
+      default: 0
     compile_target:
       type: string
       allowed: ['sim', 'asic', 'fpga']
@@ -712,6 +746,8 @@ bsc_compile_options:
     test_memory_size: 33554432
     assertions: True
     trace_dump: True
+    log_start_time: 0
+    log_end_time: 0
     ovl_assertions: False
     ovl_path: ''
     sva_assertions: False

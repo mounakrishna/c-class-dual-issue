@@ -12,6 +12,7 @@ package riscv;
   import Connectable  :: * ;
   import GetPut       :: * ;
   import DReg         :: * ;
+  import MIMO_MODIFY  :: * ;
   `include "Logger.bsv"
 
 `ifdef muldiv
@@ -104,8 +105,11 @@ package riscv;
     method Bit#(1) mv_stop_count;
   `endif
   `ifdef rtldump
-    method Maybe#(CommitLogPacket) commitlog;
+    method Vector#(`num_issue, Maybe#(CommitLogPacket)) commitlog;
     interface Sbread sbread;
+  `endif
+  `ifdef simulate
+    method Bit#(1) mv_simulate_log_start;
   `endif
   endinterface: Ifc_riscv
 
@@ -128,12 +132,16 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
      * have passed since the deassertion of the reset*/
     Reg#(Bit#(TAdd#(1,TLog#(`reset_cycles)))) rg_reset_cycle <- mkReg(0);
 
+  `ifdef simulate
+    Bit#(1) simulate_log_start = stage5.common.mv_simulate_log_start;
+  `endif
+
     let wbflush = stage5.common.mv_flush;
     let {exeflush, exepc} = stage3.common.mv_flush;
 
 `ifdef perfmonitors
     /*doc:wire: */
-    Wire#(Bit#(31)) wr_total_count <- mkDWire(0);
+    Reg#(Bit#(`mhpm_eventcount)) rg_total_count <- mkReg(0);
   `ifdef icache
     Wire#(Bit#(5)) wr_icache_counters <- mkDWire(0);
   `endif
@@ -155,12 +163,12 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_floats                 = `ifdef spfpu stage3.perfmonitors.mv_count_floats `else 0 `endif ;
     Bit#(1) lv_count_muldiv                 = `ifdef muldiv stage3.perfmonitors.mv_count_muldiv `else 0 `endif ;
     Bit#(1) lv_count_rawstalls              = stage3.perfmonitors.mv_count_rawstalls;
-    Bit#(1) lv_count_exetalls               = stage3.perfmonitors.mv_count_exestalls;
-    Bit#(1) lv_count_icache_access          = `ifdef icache wr_icache_counters[0] `else 0 `endif ;
-    Bit#(1) lv_count_icache_miss            = `ifdef icache wr_icache_counters[1] `else 0 `endif ;
-    Bit#(1) lv_count_icache_fbhit           = `ifdef icache wr_icache_counters[2] `else 0 `endif ;
+    Bit#(1) lv_count_exestalls               = stage3.perfmonitors.mv_count_exestalls;
+    Bit#(1) lv_count_icache_access          = `ifdef icache wr_icache_counters[4] `else 0 `endif ;
+    Bit#(1) lv_count_icache_miss            = `ifdef icache wr_icache_counters[2] `else 0 `endif ;
+    Bit#(1) lv_count_icache_fbhit           = `ifdef icache wr_icache_counters[0] `else 0 `endif ;
     Bit#(1) lv_count_icache_ncaccess        = `ifdef icache wr_icache_counters[3] `else 0 `endif ;
-    Bit#(1) lv_count_icache_fbrelease       = `ifdef icache wr_icache_counters[4] `else 0 `endif ;
+    Bit#(1) lv_count_icache_fbrelease       = `ifdef icache wr_icache_counters[1] `else 0 `endif ;
     Bit#(1) lv_count_dcache_read_access		  = `ifdef dcache wr_dcache_counters[12] `else 0 `endif ;
     Bit#(1) lv_count_dcache_write_access		= `ifdef dcache wr_dcache_counters[11] `else 0 `endif ;
     Bit#(1) lv_count_dcache_atomic_access		= `ifdef dcache wr_dcache_counters[10] `else 0 `endif ;
@@ -176,10 +184,19 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_dcache_line_evictions	= `ifdef dcache wr_dcache_counters[0] `else 0 `endif ;
     Bit#(1) lv_count_itlb_misses            = `ifdef supervisor wr_itlb_counters `else 0 `endif ;
     Bit#(1) lv_count_dtlb_misses            = `ifdef supervisor wr_dtlb_counters `else 0 `endif ;
+    Bit#(1) lv_count_instr_queue_full       = stage1.perf.mv_instr_queue_full;
+    Bit#(1) lv_count_instr_queue_empty      = stage2.perf.mv_instr_queue_empty;
+    Bit#(1) lv_dual_issued                  = stage2.perf.mv_dual_issued;
+    Bit#(1) lv_raw_hazard                   = stage2.perf.mv_raw_hazard;
+    Bit#(1) lv_one_instr                    = stage2.perf.mv_one_instr;
+    Bit#(1) lv_count_isb3_isb4_full         = stage3.perfmonitors.mv_count_isb3_isb4_full;
+    Bit#(1) lv_count_isb3_isb4_empty        = stage4.perf.mv_count_isb3_isb4_empty;
+    Bit#(1) lv_count_isb4_isb5_full         = stage4.perf.mv_count_isb4_isb5_full;
+    Bit#(1) lv_count_isb4_isb5_empty        = stage5.perf.mv_count_isb4_isb5_empty;
 
     let lv_total_count = reverseBits({lv_count_misprediction, lv_count_exceptions, lv_count_interrupts,
       lv_count_microtraps, lv_count_csrops, lv_count_jumps, lv_count_branches, lv_count_floats, lv_count_muldiv,
-      lv_count_rawstalls, lv_count_exetalls, lv_count_icache_access, lv_count_icache_miss,
+      lv_count_rawstalls, lv_count_exestalls, lv_count_icache_access, lv_count_icache_miss,
       lv_count_icache_fbhit, lv_count_icache_ncaccess, lv_count_icache_fbrelease,
       lv_count_dcache_read_access		, lv_count_dcache_write_access		,
       lv_count_dcache_atomic_access		, lv_count_dcache_nc_read_access		,
@@ -187,7 +204,11 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       lv_count_dcache_atomic_miss		, lv_count_dcache_read_fb_hits		,
       lv_count_dcache_write_fb_hits		, lv_count_dcache_atomic_fb_hits		,
       lv_count_dcache_fb_releases		, lv_count_dcache_line_evictions		, lv_count_itlb_misses,
-      lv_count_dtlb_misses});
+      lv_count_dtlb_misses, lv_count_instr_queue_full, lv_count_instr_queue_empty, lv_dual_issued, lv_raw_hazard, lv_one_instr,
+      lv_count_isb3_isb4_full,
+      lv_count_isb3_isb4_empty,
+      lv_count_isb4_isb5_full, 
+      lv_count_isb4_isb5_empty });
 `endif
 
   `ifdef muldiv
@@ -219,7 +240,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     lv_isb_empty[3] = !pipe_s3s4_notEmpty;
     lv_isb_empty[4] = !pipe_s4s5_notEmpty;
 
-    Vector#(`bypass_sources, FwdType) lv_bypass;
+    Vector#(`bypass_sources, Vector#(`num_issue, FwdType)) lv_bypass;
     lv_bypass[0] = lv_bypass_0;
     lv_bypass[1] = lv_bypass_1;
 
@@ -241,7 +262,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     mkConnection(stage3.common.ma_hstatus, stage5.csrs.mv_csr_hstatus);
   `endif
   `ifdef bpu
-    mkConnection(stage3.bpu.ma_next_pc, pipe1.first.program_counter);
+    mkConnection(stage3.bpu.ma_next_pc, pipe1.first[0].program_counter);
     mkConnection(stage0.s0_bpu.ma_train_bpu, stage3.bpu.mv_train_bpu);
   `ifdef gshare
     mkConnection(stage0.s0_bpu.ma_mispredict, stage3.bpu.mv_mispredict);
@@ -278,14 +299,25 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       stage0.s0_bpu.ma_bpu_enable(unpack(stage5.csrs.mv_cacheenable[2]));
     endrule:rl_connect_bpu_enable
   `endif
+  `ifdef simulate
+    rule rl_upd_log_start;
+      fbox.ma_simulate_log_start(simulate_log_start);
+      mbox.ma_simulate_log_start(simulate_log_start);
+      stage0.common.ma_simulate_log_start(simulate_log_start);
+      stage1.common.ma_simulate_log_start(simulate_log_start);
+      stage2.common.ma_simulate_log_start(simulate_log_start);
+      stage3.common.ma_simulate_log_start(simulate_log_start);
+      stage4.rx.ma_simulate_log_start(simulate_log_start);
+    endrule
+  `endif
   `ifdef perfmonitors
     
     rule rl_connect_events;
-      wr_total_count <= lv_total_count;
+      rg_total_count <= lv_total_count;
     endrule:rl_connect_events
 
     rule rl_connect_events1;
-      stage5.perf.ma_events(wr_total_count);
+      stage5.perf.ma_events(rg_total_count);
     endrule
   `endif
     
@@ -307,7 +339,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
         rg_reset_done <= 1;
         rg_reset_event <= 1;
         rg_reset_cycle <= rg_reset_cycle + 1;
-        `logLevel( riscv, 0, $format("[%2d]RISCV: Hart is out of reset sequence",hartid))
+        `logLevel( riscv, 0, $format("[%2d]RISCV: Hart is out of reset sequence",hartid), simulate_log_start)
       end                                                                       
       else if (rg_reset_cycle < `reset_cycles) 
         rg_reset_cycle <= rg_reset_cycle + 1;
@@ -389,6 +421,9 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
   `ifdef rtldump
     method commitlog = stage5.common.mv_commit_log;
     interface sbread = stage5.csrs.sbread;
+  `endif
+  `ifdef simulate
+    method mv_simulate_log_start = simulate_log_start;
   `endif
   `ifdef perfmonitors
     interface perfmonitors = interface Ifc_riscv_perfmonitors

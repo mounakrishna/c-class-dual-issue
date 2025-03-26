@@ -11,6 +11,28 @@ MOREDEFINES=$(addprefix -D , $(BSC_DEFINES))
 
 .PHONY: generate_verilog
 generate_verilog: $(BSVBUILDDIR)/$(TOP_BIN)
+	@cp ${BS_VERILOG_LIB}/../Verilog/RegFile.v ${VERILOGDIR}  
+	@cp ${BS_VERILOG_LIB}/FIFO2.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/FIFO1.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/FIFO10.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/FIFOL1.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/Counter.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/SizedFIFO.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/ResetEither.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/MakeReset0.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/SyncReset0.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/ClockInverter.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/RevertReg.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/SyncBit1.v ${VERILOGDIR}
+	@cp ./common_verilog/bram_1rw.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/FIFO20.v ${VERILOGDIR}
+	@cp common_verilog/signedmul.v ${VERILOGDIR}
+	@cp common_verilog/RegFile5r2w.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/SyncRegister.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/MakeClock.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/SyncHandshake.v ${VERILOGDIR}
+	@cp ${BS_VERILOG_LIB}/BRAM2.v ${VERILOGDIR}
+	@echo Compilation finished
 
 
 .PHONY: link_verilator
@@ -55,7 +77,7 @@ update_xlen:
 .PHONY: simulate
 simulate: ## Simulate the 'out' executable
 	@echo Simulation...
-	@exec ./$(BSVOUTDIR)/out > log
+	@exec ./$(BSVOUTDIR)/out
 	@echo Simulation finished
 
 .PHONY: link_vcs

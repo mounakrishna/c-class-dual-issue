@@ -79,7 +79,7 @@ endfunction
 /*doc:enum: This enum is used to identify the type of instruction. This is consumed by the EXE
  * stage to figue out which Functional unit will be used for execution. 
  * min size: 3 bits. max_size: 4*/
-typedef enum {ALU, MEMORY, BRANCH, JAL, JALR, SYSTEM_INSTR, TRAP, WFI 
+typedef enum {NONE, ALU, MEMORY, BRANCH, JAL, JALR, SYSTEM_INSTR, TRAP, WFI 
               `ifdef spfpu, FLOAT `endif
               `ifdef muldiv, MULDIV `endif } Instruction_type deriving(Bits, Eq, FShow);
 
@@ -107,11 +107,6 @@ typedef enum {FRF = 1, IRF = 0} RFType deriving(Bits, Eq, FShow);
 
 typedef TMax#(XLEN, FLEN) ELEN;
 
-/*doc:enum: This indicate which ISB after EXE should the result be captured in
- * min size: 2 max size: 3 */
-typedef enum {BASE, SYSTEM, TRAP, MEMORY 
-    `ifdef muldiv , MULDIV `endif
-    `ifdef spfpu  , FLOAT  `endif } EXEType deriving (Bits, FShow, Eq);
 
 /*doc:enum this indicates which ISB after MEM should the next instruction commit happen from
  * min size: 2 max size: 2 */
@@ -379,6 +374,7 @@ typedef struct{
 } Stage0PC#(numeric type addr) deriving(Bits, Eq, FShow);
 
 // -- structure of the first pipeline stage -----------------//
+
 typedef struct{
 `ifdef compressed
   Bool upper_err;
@@ -388,11 +384,28 @@ typedef struct{
   BTBResponse btbresponse;
 `endif
 	Bit#(`vaddr) program_counter;
-	Bit#(32) instruction;
+	//Vector#(`num_issue, Maybe#(Bit#(32))) instruction;
+  Bit#(32) instruction;
 	Bit#(`iesize) epochs;
   Bool trap ;
   Bit#(`causesize) cause;
 }PIPE1 deriving (Bits, Eq, FShow);
+
+typedef struct {
+  //DecodeOut decoded_inst;
+  Bit#(`vaddr) pc;
+  Bit#(32) instruction;
+  Bit#(`iesize) epochs;
+  Bool trap;
+  Bit#(`causesize) cause;
+`ifdef compressed
+  Bool upper_err;
+  Bool compressed;
+`endif
+`ifdef bpu
+  BTBResponse btbresponse;
+`endif
+} InstructionQueue deriving(Bits, Eq, FShow);
 
 typedef struct{
 `ifdef hypervisor
@@ -419,6 +432,7 @@ typedef struct{
   Bit#(`vaddr) pc;
   Bit#(2) epochs;
   Bit#(5) rd;
+  Bool upper_instr;
 } Stage3Meta deriving(Bits, Eq);
 
 instance FShow#(Stage3Meta);
@@ -443,6 +457,10 @@ typedef struct {
   Op2type rs2type;
   Bit#(5) rs1addr;
   Bit#(5) rs2addr;
+  Op1type rs4type;
+  Op2type rs5type;
+  Bit#(5) rs4addr;
+  Bit#(5) rs5addr;
 } OpMeta deriving(Bits, FShow, Eq);
 
 // ----------------- structures of operand fetch from decode stage ------------------------------
@@ -470,9 +488,6 @@ typedef struct{
 
 // ---------------------------------------Output types from stage3 --------------------------
 typedef struct{
-`ifdef no_wawstalls
-  Bit#(`wawid) id;
-`endif
 `ifdef spfpu
   Bit#(5)       fflags;
   RFType        rdtype;
@@ -487,9 +502,6 @@ instance FShow#(BaseOut);
     Fmt result = $format("rd:%2d rdval:%h",value.rd, value.rdvalue);
   `ifdef spfpu
     result = result + $format(" rdtype: ",fshow(value.rdtype));
-  `endif
-  `ifdef no_wawstalls
-    result = result + $format(" id:%2d", value.id);
   `endif
     return result;
   endfunction
@@ -574,6 +586,52 @@ instance FShow#(MemoryOut);
     return result;
   endfunction
 endinstance
+
+/*doc:enum: This indicate which ISB after EXE should the result be captured in
+ * min size: 2 max size: 3 */
+typedef enum {NONE, BASE, SYSTEM, TRAP, MEMORY 
+    `ifdef muldiv , MULDIV `endif
+    `ifdef spfpu  , FLOAT  `endif } EXEType deriving (Bits, FShow, Eq);
+
+
+typedef union tagged {
+  void None;
+  BaseOut BASE;
+  TrapOut TRAP;
+  SystemOut SYSTEM;
+  MemoryOut MEMORY;
+} FUPacket deriving(Bits, Eq, FShow);
+
+
+typedef struct{
+`ifdef no_wawstalls
+  Bit#(`wawid) id;
+`endif
+`ifdef spfpu
+  RFType        rdtype;
+`endif
+  Bit#(`vaddr) pc;
+  Bit#(5)      rd;
+  Bit#(1)      epochs;
+  EXEType     insttype;
+  FUPacket    instpkt;
+  Bool upper_instr;
+} FUid deriving(Bits, Eq);
+
+instance FShow#(FUid);
+  /*doc:func: */
+  function Fmt fshow (FUid value);
+    Fmt result = $format("pc:%h rd:%2d inst:",value.pc, value.rd,fshow(value.insttype));
+  `ifdef spfpu
+    result = result + $format(" rdtype: ",fshow(value.rdtype));
+  `endif
+  `ifdef no_wawstalls
+    result = result + $format(" id:%2s",value.id);
+  `endif
+    return result;
+  endfunction
+endinstance
+
 // ------------------------------------------------------------------------------------------
 
 typedef struct{
@@ -608,32 +666,14 @@ instance DefaultValue #(WBFlush);
 endinstance
 
 
-typedef struct{
-`ifdef no_wawstalls
-  Bit#(`wawid) id;
-`endif
-`ifdef spfpu
-  RFType        rdtype;
-`endif
-  Bit#(`vaddr) pc;
-  Bit#(5)      rd;
-  Bit#(1)      epochs;
-  EXEType     insttype;
-} FUid deriving(Bits, Eq);
+typedef union tagged {
+  void None;
+  BaseOut BASE;
+  TrapOut TRAP;
+  SystemOut SYSTEM;
+  WBMemop MEMORY;
+} CUPacket deriving(Bits, Eq, FShow);
 
-instance FShow#(FUid);
-  /*doc:func: */
-  function Fmt fshow (FUid value);
-    Fmt result = $format("pc:%h rd:%2d inst:",value.pc, value.rd,fshow(value.insttype));
-  `ifdef spfpu
-    result = result + $format(" rdtype: ",fshow(value.rdtype));
-  `endif
-  `ifdef no_wawstalls
-    result = result + $format(" id:%2s",value.id);
-  `endif
-    return result;
-  endfunction
-endinstance
 
 typedef struct{
 `ifdef no_wawstalls
@@ -645,13 +685,14 @@ typedef struct{
   Bit#(`vaddr) pc;
   Bit#(5)      rd;
   Bit#(1)      epochs;
-  CommitType   insttype;
+  CUPacket     instpkt;
+  Bool upper_instr;
 } CUid deriving(Bits, Eq);
 
 instance FShow#(CUid);
   /*doc:func: */
   function Fmt fshow (CUid value);
-    Fmt result = $format("pc:%h rd:%2d inst:",value.pc, value.rd,fshow(value.insttype));
+    Fmt result = $format("pc:%h rd:%2d inst:",value.pc, value.rd,fshow(value.instpkt));
   `ifdef spfpu
     result = result + $format(" rdtype: ",fshow(value.rdtype));
   `endif
@@ -662,18 +703,19 @@ instance FShow#(CUid);
   endfunction
 endinstance
 
-function CUid fn_fu2cu(FUid f);
-  let c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, insttype : ?
+
+function CUid fn_fu2cu(FUid f, WBMemop mem);
+  CUid c;
+  c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, upper_instr: f.upper_instr, instpkt : ?
           `ifdef no_wawstalls ,id: f.id `endif 
           `ifdef spfpu ,rdtype: f.rdtype `endif };
-  c.insttype = case (f.insttype) matches
-    BASE: BASE;
-    SYSTEM: SYSTEM;
-    TRAP: TRAP;
-    MEMORY: MEMORY;
-  `ifdef muldiv MULDIV: BASE; `endif 
-  `ifdef spfpu FLOAT: BASE; `endif
-  endcase;
+  case (f.instpkt) matches
+    tagged BASE .baseout : c.instpkt = tagged BASE baseout;
+    tagged TRAP .trapout: c.instpkt = tagged TRAP trapout;
+    tagged SYSTEM .systemout: c.instpkt = tagged SYSTEM systemout;
+    tagged MEMORY .memoryout: c.instpkt = tagged MEMORY mem;
+    default: c.instpkt = tagged None;
+  endcase
   return c;
 endfunction:fn_fu2cu
 
@@ -871,6 +913,7 @@ typedef struct{
       Bit#(1) misprediction            ;
       Bit#(1) exceptions               ;
       Bit#(1) interrupts               ;
+      Bit#(1) micro_traps              ;
       Bit#(1) csrops                   ;
       Bit#(1) jumps                    ;
       Bit#(1) branches                 ;
@@ -898,6 +941,9 @@ typedef struct{
       Bit#(1) dcache_line_evictions		;
       Bit#(1) itlb_misses              ;
       Bit#(1) dtlb_misses              ;
+      Bit#(1) instr_queue_full         ;
+      Bit#(1) instr_queue_empty        ;
+      Bit#(1) dual_issued              ;
   	} Events deriving(Bits, Eq, FShow);
 	// types for events
 	`ifdef csr_grp4

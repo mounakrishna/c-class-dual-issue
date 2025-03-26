@@ -200,6 +200,8 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
         macros += ' ASSERT'
     if foo['bsc_compile_options']['trace_dump']:
         macros += ' rtldump'
+    macros += ' LOG_START=' + str(foo['bsc_compile_options']['log_start_time'])
+    macros += ' LOG_END=' + str(foo['bsc_compile_options']['log_end_time'])
     if foo['bsc_compile_options']['ovl_assertions']:
         macros += ' ovl_assert'
     if foo['bsc_compile_options']['sva_assertions']:
@@ -208,6 +210,7 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
     for isb,isb_val in foo['isb_sizes'].items():
         macros += ' {0}={1}'.format(isb,isb_val)
 
+    macros += ' instr_queue='+str(foo['instr_queue'])
     macros += ' RV'+str(xlen)+' ibuswidth='+str(xlen)
     macros += ' dbuswidth='+str(xlen)
     macros += ' resetpc='+str(foo['reset_pc'])
@@ -217,6 +220,7 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
     macros += ' iesize='+str(foo['iepoch_size'])
     macros += ' desize='+str(foo['depoch_size'])
     macros += ' num_harts='+str(foo['num_harts'])
+    macros += ' num_issue='+str(foo['num_issue'])
     macros += ' microtrap_support'
 
     wawid = foo['isb_sizes']['isb_s3s4']+foo['isb_sizes']['isb_s4s5']

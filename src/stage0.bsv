@@ -122,15 +122,25 @@ package stage0;
   `endif
 `endif
 
+`ifdef simulate
+  Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
+`endif
+
     // local variable to hold the next+4 pc value. Ensure only a single adder is used.
     let curr_epoch = {rg_eEpoch, rg_wEpoch};
+
+  `ifdef simulate
+    rule rl_upd_log_start;
+      bpu.ma_simulate_log_start(wr_simulate_log_start);
+    endrule
+  `endif
 
     /*doc:rule: This rule will fire only once immediately after reset is de-asserted. The rg_pc is
     initialized with the resetpc argument*/
     rule rl_initialize (rg_initialize && wr_reset_sequence_done);
       rg_initialize <= False;
       rg_pc[1] <= resetpc;
-      `logLevel( stage0, 0, $format("STAGE0: Setting PC:%h",resetpc))
+      `logLevel( stage0, 0, $format("STAGE0: Setting PC:%h",resetpc),wr_simulate_log_start)
     endrule
 
     /*doc:rule: This rule muxes between pc+4 and the prediction provided by the bpu.
@@ -163,7 +173,7 @@ package stage0;
       `endif
 
         let nextpc = (rg_pc[0] & signExtend(3'b100)) + 4;
-        `logLevel( stage0, 0, $format("STAGE0: nextpc: %h ",nextpc `ifdef ifence ," fencei:%b",rg_fence[0] `endif ))
+        `logLevel( stage0, 0, $format("STAGE0: nextpc: %h ",nextpc `ifdef ifence ," fencei:%b",rg_fence[0] `endif ),wr_simulate_log_start)
 
       `ifdef bpu
         // bpu is flushed in case of ifence and not for sfence
@@ -191,10 +201,10 @@ package stage0;
         `endif
 
           bpu_resp = bpuresp;
-          `logLevel( stage0, 0, $format("[%2d]STAGE0: BPU response:",hartid,fshow(bpu_resp)))
+          `logLevel( stage0, 0, $format("[%2d]STAGE0: BPU response:",hartid,fshow(bpu_resp)),wr_simulate_log_start)
         end
       `endif
-      `logLevel( stage0, 0, $format("STAGE0: nextpc1: %h ",nextpc))
+      `logLevel( stage0, 0, $format("STAGE0: nextpc1: %h ",nextpc),wr_simulate_log_start)
 
       // don't update the pc in case fence or sfence instruction
       if( `ifdef ifence !rg_fence[0] && `endif 
@@ -217,7 +227,7 @@ package stage0;
           rg_hfence[0] <= False;
       `endif
 
-        `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to I$. ",hartid, rg_pc[0] & signExtend(3'b100)))
+        `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to I$. ",hartid, rg_pc[0] & signExtend(3'b100)),wr_simulate_log_start)
         ff_to_cache.enq(IMem_core_request{address  : rg_pc[0] & signExtend(3'b100),
                                         epochs  : curr_epoch
                   `ifdef supervisor    ,sfence  : rg_sfence[0]    `endif
@@ -230,7 +240,7 @@ package stage0;
           tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(3'b100)
                     `ifdef compressed   ,discard     : rg_pc[0][1]==1        `endif
                     `ifdef bpu          ,btbresponse : bpu_resp.btbresponse `endif  });
-          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0]))
+          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0] & signExtend(3'b100)),wr_simulate_log_start)
         end
     endrule
 
@@ -254,8 +264,14 @@ package stage0;
         wr_reset_sequence_done <= _done;
       endmethod:ma_reset_done
 
+    `ifdef simulate
+      method Action ma_simulate_log_start(Bit#(1) start);
+        wr_simulate_log_start <= start;
+      endmethod
+    `endif
+
       method Action ma_flush (Stage0Flush fl) if(!rg_initialize && wr_reset_sequence_done);
-        `logLevel( stage0, 1, $format("[%2d]STAGE0: Recieved Flush:",hartid,fshow(fl)))
+        `logLevel( stage0, 1, $format("[%2d]STAGE0: Recieved Flush:",hartid,fshow(fl)),wr_simulate_log_start)
       `ifdef ifence
         rg_fence[1] <= fl.fence;
       `endif
