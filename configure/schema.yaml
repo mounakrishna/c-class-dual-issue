@@ -417,6 +417,9 @@ icache_configuration:
     replacement:
       type: string
       allowed: ["PLRU", "RR", "RANDOM"]
+    tag_type:
+      type: string
+      allowed: ["reg", "sram"]
     ecc_enable:
       type: boolean
     one_hot_select:
@@ -429,6 +432,7 @@ icache_configuration:
     ways: 4
     fb_size: 4
     replacement: "PLRU"
+    tag_type: "sram"
     ecc_enable: false
     one_hot_select: false
 
@@ -509,6 +513,9 @@ dcache_configuration:
     replacement:
       type: string
       allowed: ["PLRU", "RR", "Random"]
+    tag_type:
+      type: string
+      allowed: ["reg", "sram"]
     ecc_enable:
       type: boolean
     one_hot_select:
@@ -527,6 +534,7 @@ dcache_configuration:
     lb_size: 2
     ib_size: 2
     replacement: "PLRU"
+    tag_type: "sram"
     tag_banks: 1
     data_banks: 1
     ecc_enable: false

@@ -461,13 +461,13 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       end
       // Drop upper instruction if lower instruction generates a trap.
       if (!fuid[0].upper_instr &&& fuid[0].instpkt matches tagged TRAP .t) begin
-        fuid[1].epochs = ~fuid[1].epochs;
+        //fuid[1].epochs = ~fuid[1].epochs;
         fuid[1].instpkt = tagged None;
-        fuid[1].rd = 0;
-        fuid[1].pc = ?;
-        `ifdef spfpu
-          fuid[1].rdtype = IRF;
-        `endif
+        //fuid[1].rd = 0;
+        //fuid[1].pc = ?;
+        //`ifdef spfpu
+        //  fuid[1].rdtype = IRF;
+        //`endif
         `ifdef rtldump
           commitlog[1] = default_commitlog;
         `endif
