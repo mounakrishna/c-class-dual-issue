@@ -172,7 +172,7 @@ package stage0;
         PredictionResponse bpu_resp = ?;
       `endif
 
-        let nextpc = (rg_pc[0] & signExtend(3'b100)) + 4;
+        let nextpc = (rg_pc[0] & signExtend(4'b1000)) + 8;
         `logLevel( stage0, 0, $format("STAGE0: nextpc: %h ",nextpc `ifdef ifence ," fencei:%b",rg_fence[0] `endif ),wr_simulate_log_start)
 
       `ifdef bpu
@@ -227,8 +227,8 @@ package stage0;
           rg_hfence[0] <= False;
       `endif
 
-        `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to I$. ",hartid, rg_pc[0] & signExtend(3'b100)),wr_simulate_log_start)
-        ff_to_cache.enq(IMem_core_request{address  : rg_pc[0] & signExtend(3'b100),
+        `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to I$. ",hartid, rg_pc[0] & signExtend(4'b1000)),wr_simulate_log_start)
+        ff_to_cache.enq(IMem_core_request{address  : rg_pc[0] & signExtend(4'b1000),
                                         epochs  : curr_epoch
                   `ifdef supervisor    ,sfence  : rg_sfence[0]    `endif
                   `ifdef hypervisor    ,hfence  : rg_hfence[0]    `endif
@@ -237,10 +237,10 @@ package stage0;
         if( `ifdef ifence !rg_fence[0] && `endif 
             `ifdef supervisor !rg_sfence[0] && `endif 
             `ifdef hypervisor !rg_hfence[0] && `endif True) begin
-          tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(3'b100)
-                    `ifdef compressed   ,discard     : rg_pc[0][1]==1        `endif
+          tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(4'b1000)
+                    `ifdef compressed   ,discard     : rg_pc[0][2:1]        `endif
                     `ifdef bpu          ,btbresponse : bpu_resp.btbresponse `endif  });
-          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0] & signExtend(3'b100)),wr_simulate_log_start)
+          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0] & signExtend(4'b1000)),wr_simulate_log_start)
         end
     endrule
 

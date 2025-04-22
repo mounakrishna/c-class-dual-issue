@@ -35,6 +35,7 @@ icache_configuration:
   fb_size: 4
   ecc_enable: false
   one_hot_select: false
+  tag_type: 'sram'
 dcache_configuration:
   instantiate: true
   sets: 64
@@ -49,6 +50,7 @@ dcache_configuration:
   ecc_enable: false
   one_hot_select: false
   rwports: '1rw'
+  tag_type: 'sram'
 reset_pc: 4096
 bus_protocol: AXI4
 bsc_compile_options:

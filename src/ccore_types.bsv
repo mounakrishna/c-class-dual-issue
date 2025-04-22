@@ -365,7 +365,7 @@ typedef struct{
 // ---- structure of the zeroth pipeline stage ----------------//
 typedef struct{
 `ifdef compressed
-  Bool discard;
+  Bit#(2) discard;
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
