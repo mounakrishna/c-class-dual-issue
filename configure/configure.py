@@ -305,6 +305,8 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
         macros += ' irepl=1'
     if foo['icache_configuration']['replacement'] == "PLRU":
         macros += ' irepl=2'
+    if foo['icache_configuration']['tag_type'] == 'reg':
+        macros += ' tagreg'
     
     macros += ' dwords='+str(foo['dcache_configuration']['word_size'])
     macros += ' dblocks='+str(foo['dcache_configuration']['block_size'])
@@ -329,6 +331,8 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
         macros += ' drepl=1'
     if foo['dcache_configuration']['replacement'] == "PLRU":
         macros += ' drepl=2'
+    if foo['dcache_configuration']['tag_type'] == 'reg':
+        macros += ' tagreg'
 
     if foo['fpu_trap']:
         macros += ' arith_trap'

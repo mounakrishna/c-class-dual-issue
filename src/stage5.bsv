@@ -372,9 +372,9 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       end
       else begin
         `logLevel( stage5, 1, $format("[%2d]STAGE5 : Dropping instruction",hartid), simulate_log_start)
-        wr_commit[i].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
-                                   `ifdef no_wawstalls , id: fuid[0].id `endif
-                                   `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+        wr_commit[i].wset(CommitData{addr: fuid[i].rd, data: ?, unlock_only:True
+                                   `ifdef no_wawstalls , id: fuid[i].id `endif
+                                   `ifdef spfpu ,rdtype: fuid[i].rdtype `endif });
       `ifdef rtldump
         wr_commitlog[i] <= tagged Invalid;
       `endif
