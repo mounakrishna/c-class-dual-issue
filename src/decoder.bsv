@@ -759,7 +759,7 @@ package decoder;
                               ,hvm_loadstore : hvm_loadstore
                             `endif };
     return DecodeOut{op_addr:op_addr, op_type:op_type, meta:instr_meta
-                    `ifdef compressed , compressed:False `endif };
+                    `ifdef compressed , compressed:compressed `endif };
 
   endfunction
 

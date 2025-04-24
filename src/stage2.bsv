@@ -534,7 +534,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       inst = reverse(inst);
       pc = reverse(pc);
       epochs = reverse(epochs);
+    `ifdef bpu
       btbresponse = reverse(btbresponse);
+    `endif
       instr_data = reverse(instr_data);
       highbyte_err = reverse(highbyte_err);
       instrType = reverse(instrType);
@@ -597,10 +599,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
            `ifdef spfpu      ,rdtype : decoded_inst[i].op_type.rdtype `endif
            `ifdef RV64       ,word32 : word32[i]
            `elsif dpfpu      ,word32 : word32[i], `endif
-           `ifdef bpu        ,btbresponse:  btbresponse[i]
-             `ifdef compressed     , compressed : compressed[i] `endif
-           `endif 
-                  };
+           `ifdef compressed     , compressed : compressed[i] `endif
+           `ifdef bpu        ,btbresponse:  btbresponse[i] `endif 
+            };
     end
 
     //LUInt#(`num_issue) valid_instructions = 0;

@@ -420,10 +420,10 @@ typedef struct{
 `elsif dpfpu
   Bool word32;
 `endif
+`ifdef compressed
+  Bool compressed;
+`endif
 `ifdef bpu
-  `ifdef compressed
-    Bool compressed;
-  `endif
   BTBResponse btbresponse;
 `endif
   Bool is_microtrap;

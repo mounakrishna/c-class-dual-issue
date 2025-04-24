@@ -951,6 +951,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     Bit#(TMax#(`vaddr,`flen))  offset = wr_op3.data;
     
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op received: ",hartid,fshow(inst_type)), wr_simulate_log_start)
+    `logLevel( stage3, 0, $format("[%2d]STAGE3: Base meta : ", hartid, fshow(meta[0])), wr_simulate_log_start)
 
     Bit#(`vaddr) jump_address = (base + truncate(offset)) & {'1, ~(pack(inst_type==JALR))};
     Bit#(`xlen) incr = `ifdef compressed (meta[0].compressed)?2 : `endif 4;

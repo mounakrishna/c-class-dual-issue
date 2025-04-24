@@ -129,10 +129,12 @@ package stage0;
     // local variable to hold the next+4 pc value. Ensure only a single adder is used.
     let curr_epoch = {rg_eEpoch, rg_wEpoch};
 
-  `ifdef simulate
+  `ifdef bpu
+    `ifdef simulate
     rule rl_upd_log_start;
       bpu.ma_simulate_log_start(wr_simulate_log_start);
     endrule
+    `endif
   `endif
 
     /*doc:rule: This rule will fire only once immediately after reset is de-asserted. The rg_pc is
@@ -240,7 +242,7 @@ package stage0;
           tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(4'b1000)
                     `ifdef compressed   ,discard     : rg_pc[0][2:1]        `endif
                     `ifdef bpu          ,btbresponse : bpu_resp.btbresponse `endif  });
-          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0] & signExtend(4'b1000)),wr_simulate_log_start)
+          `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0]),wr_simulate_log_start)
         end
     endrule
 

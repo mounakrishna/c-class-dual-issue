@@ -109,7 +109,7 @@ endinterface:Ifc_s1_common
 
 interface Ifc_s1_icache;
   // instruction response from the memory subsytem or the memory bus
-  interface Put#(IMem_core_response#(32, `iesize)) inst_response;
+  interface Put#(IMem_core_response#(TMul#(`iwords, 8), `iesize)) inst_response;
 endinterface:Ifc_s1_icache
 
 `ifdef perfmonitors
