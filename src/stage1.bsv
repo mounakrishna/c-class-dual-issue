@@ -229,7 +229,7 @@ package stage1;
       let stage0pc = rx_fromstage0.u.first;
       `logLevel( stage1, 1, $format("[%2d]STAGE1 : Prediction: ",hartid, fshow(stage0pc)), wr_simulate_log_start)
     `ifdef bpu
-      Vector#(`num_issue, BTBResponse) btbresponse = replicate(stage0pc.btbresponse);
+      Vector#(`num_issue, BTBResponse) btbresponse;
       //if (btbresponse[0].hi) begin
       //  btbresponse[0].btbhit = False;
       //  btbresponse[0].prediction = 1;
@@ -276,22 +276,16 @@ package stage1;
     `ifdef compressed
       else if(rg_prev.mask == 2'b11 && rg_prev.epochs == curr_epoch)begin
         valid_instructions = 2;
-      `ifdef bpu
-        btbresponse[0] = rg_prev.btbresponse;
-        if(!btbresponse[1].hi) begin
-          btbresponse[1].btbhit = False;
-          btbresponse[1].prediction = 1;
-        end
-      `endif
         if (rg_prev.instruction[1:0] == 2'b11 && rg_prev.instruction[33:32] == 2'b11) begin // SS
           `logLevel( stage1, 1, $format("Case I - SS"), wr_simulate_log_start)
           final_instruction[0] = rg_prev.instruction[31:0];
           final_instruction[1] = {imem_resp.word[15:0], rg_prev.instruction[47:32]};
-          instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = rg_prev.pc + 4;
+          instr_pc[0] = rg_prev.pc | 2;
+          instr_pc[1] = rg_prev.pc | 6;
           compressed_instr = replicate(False);
+          btbresponse
           lv_prev.instruction = imem_resp.word[63:16];
-          lv_prev.pc = stage0pc.address | zeroExtend(2'b10);
+          lv_prev.pc = stage0pc.address;
         `ifdef bpu
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
@@ -305,8 +299,8 @@ package stage1;
           `logLevel( stage1, 1, $format("Case I - CS"), wr_simulate_log_start)
           final_instruction[0] = rg_prev.instruction[31:0];
           final_instruction[1] = zeroExtend(rg_prev.instruction[47:32]);
-          instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = rg_prev.pc + 4;
+          instr_pc[0] = rg_prev.pc | 2;
+          instr_pc[1] = rg_prev.pc | 6;
           compressed_instr[0] = False;
           compressed_instr[1] = True;
           lv_prev.mask = 2'b00;
@@ -317,15 +311,15 @@ package stage1;
           `logLevel( stage1, 1, $format("Case I - CC"), wr_simulate_log_start)
           final_instruction[0] = zeroExtend(rg_prev.instruction[15:0]);
           final_instruction[1] = zeroExtend(rg_prev.instruction[31:16]);
-          instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = rg_prev.pc + 2;
+          instr_pc[0] = rg_prev.pc | 2;
+          instr_pc[1] = rg_prev.pc | 4;
           compressed_instr = replicate(True);
           lv_prev.mask = 2'b01;
         `ifdef bpu
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(rg_prev.instruction[47:32]);
-          lv_prev.pc = rg_prev.pc + 4;
+          lv_prev.pc = rg_prev.pc | 6;
           trap = replicate(False);
           lv_deq_response = False;
         end
@@ -333,8 +327,8 @@ package stage1;
           `logLevel( stage1, 1, $format("Case I - SC"), wr_simulate_log_start)
           final_instruction[0] = zeroExtend(rg_prev.instruction[15:0]);
           final_instruction[1] = rg_prev.instruction[47:16];
-          instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = rg_prev.pc + 2;
+          instr_pc[0] = rg_prev.pc | 2;
+          instr_pc[1] = rg_prev.pc | 4;
           compressed_instr[0] = True;
           compressed_instr[1] = False;
           lv_prev.mask = 2'b00;
@@ -348,7 +342,7 @@ package stage1;
           `logLevel( stage1, 1, $format("Case II - SS"), wr_simulate_log_start)
           final_instruction[0] = rg_prev.instruction[31:0];
           final_instruction[1] = imem_resp.word[31:0];
-          instr_pc[0] = rg_prev.pc;
+          instr_pc[0] = rg_prev.pc | 4;
           instr_pc[1] = stage0pc.address;
           compressed_instr = replicate(False);
           lv_prev.mask = 2'b10;
@@ -356,7 +350,7 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
-          lv_prev.pc = stage0pc.address + 4;
+          lv_prev.pc = stage0pc.address;
           lv_deq_response = True;
           //deq_response();
           trap[0] = False;
@@ -366,7 +360,7 @@ package stage1;
           `logLevel( stage1, 1, $format("Case II - CS"), wr_simulate_log_start)
           final_instruction[0] = rg_prev.instruction[31:0];
           final_instruction[1] = zeroExtend(imem_resp.word[15:0]);
-          instr_pc[0] = rg_prev.pc;
+          instr_pc[0] = rg_prev.pc | 4;
           instr_pc[1] = stage0pc.address;
           compressed_instr[0] = False;
           compressed_instr[1] = True;
@@ -375,7 +369,7 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = imem_resp.word[63:16];
-          lv_prev.pc = stage0pc.address + 2;
+          lv_prev.pc = stage0pc.address;
           //deq_response();
           lv_deq_response = True;
           trap[0] = False;
@@ -385,8 +379,8 @@ package stage1;
           `logLevel( stage1, 1, $format("Case II - CC"), wr_simulate_log_start)
           final_instruction[0] = zeroExtend(rg_prev.instruction[15:0]);
           final_instruction[1] = zeroExtend(rg_prev.instruction[31:16]);
-          instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = rg_prev.pc + 2;
+          instr_pc[0] = rg_prev.pc | 4;
+          instr_pc[1] = rg_prev.pc | 6;
           compressed_instr[0] = True;
           compressed_instr[1] = True;
           lv_prev.mask = 2'b00;
@@ -397,8 +391,8 @@ package stage1;
           `logLevel( stage1, 1, $format("Case II - SC"), wr_simulate_log_start)
           final_instruction[0] = zeroExtend(rg_prev.instruction[15:0]);
           final_instruction[1] = {imem_resp.word[15:0], rg_prev.instruction[31:16]};
-          instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = rg_prev.pc + 2;
+          instr_pc[0] = rg_prev.pc | 4;
+          instr_pc[1] = rg_prev.pc | 6;
           compressed_instr[0] = True;
           compressed_instr[1] = False;
           lv_prev.mask = 2'b11;
@@ -406,7 +400,7 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = imem_resp.word[63:16];
-          lv_prev.pc = stage0pc.address | 2;
+          lv_prev.pc = stage0pc.address;
           //deq_response();
           lv_deq_response = True;
           trap[0] = False;
@@ -424,21 +418,21 @@ package stage1;
           final_instruction[0] = {imem_resp.word[15:0], rg_prev.instruction[15:0]};
           final_instruction[1] = imem_resp.word[47:16];
           instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = stage0pc.address + 2;
+          instr_pc[1] = stage0pc.address | 2;
           compressed_instr = replicate(False);
           lv_prev.mask = 2'b01;
         `ifdef bpu
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
-          lv_prev.pc = stage0pc.address + 6;
+          lv_prev.pc = stage0pc.address | 6;
         end
         else if (rg_prev.instruction[1:0] == 2'b11 && imem_resp.word[17:16] != 2'b11) begin
           `logLevel( stage1, 1, $format("Case III - CS"), wr_simulate_log_start)
           final_instruction[0] = {imem_resp.word[15:0], rg_prev.instruction[15:0]};
           final_instruction[1] = zeroExtend(imem_resp.word[32:16]);
           instr_pc[0] = rg_prev.pc;
-          instr_pc[1] = stage0pc.address + 2;
+          instr_pc[1] = stage0pc.address | 2;
           compressed_instr[0] = False;
           compressed_instr[1] = True;
           lv_prev.mask = 2'b10;
@@ -446,7 +440,7 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
-          lv_prev.pc = stage0pc.address | 4;
+          lv_prev.pc = stage0pc.address;
         end
         else if (rg_prev.instruction[1:0] != 2'b11 && imem_resp.word[1:0] != 2'b11) begin
           `logLevel( stage1, 1, $format("Case III - CC"), wr_simulate_log_start)
@@ -461,7 +455,7 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = imem_resp.word[63:16];
-          lv_prev.pc = stage0pc.address | 2;
+          lv_prev.pc = stage0pc.address;
         end
         else if (rg_prev.instruction[1:0] != 2'b11 && imem_resp.word[1:0] == 2'b11) begin
           `logLevel( stage1, 1, $format("Case III - SC"), wr_simulate_log_start)
@@ -476,7 +470,7 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
-          lv_prev.pc = stage0pc.address | 4;
+          lv_prev.pc = stage0pc.address;
         end
       end
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b00) begin
@@ -504,7 +498,7 @@ package stage1;
           compressed_instr[1] = True;
           lv_prev.mask = 2'b01;
         `ifdef bpu
-          lv_prev.btbresponse = stage0pc.btbresposne;
+          lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
           lv_prev.pc = stage0pc.address | 6;
@@ -519,10 +513,10 @@ package stage1;
           compressed_instr[1] = True;
           lv_prev.mask = 2'b10;
         `ifdef bpu
-          lv_prev.btbresponse = stage0pc.btbrespone;
+          lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
-          lv_prev.pc = stage0pc.address | 4;
+          lv_prev.pc = stage0pc.address;
         end
         else if (imem_resp.word[1:0] != 2'b11 && imem_resp.word[17:16] == 2'b11) begin
           `logLevel( stage1, 1, $format("Case IV - SC"), wr_simulate_log_start)
@@ -534,7 +528,7 @@ package stage1;
           compressed_instr[1] = False;
           lv_prev.mask = 2'b01;
         `ifdef bpu
-          lv_prev.btbresponse = stage0pc.btbrespone;
+          lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
           lv_prev.pc = stage0pc.address | 6;
