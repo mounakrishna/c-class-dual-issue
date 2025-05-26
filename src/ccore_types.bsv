@@ -369,9 +369,6 @@ typedef struct{
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
-  `ifdef compressed 
-    Bool edgecase;
-  `endif
 `endif
   Bit#(addr)  address;      // XLEN:0
 } Stage0PC#(numeric type addr) deriving(Bits, Eq, FShow);

@@ -242,9 +242,7 @@ package stage0;
             `ifdef hypervisor !rg_hfence[0] && `endif True) begin
           tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(4'b1000)
                     `ifdef compressed   ,discard     : rg_pc[0][2:1]        `endif
-                    `ifdef bpu          ,btbresponse : bpu_resp.btbresponse 
-                      `ifdef compressed ,edgecase : isValid(rg_delayed_redirect[0]) `endif
-                    `endif
+                    `ifdef bpu          ,btbresponse : bpu_resp.btbresponse `endif
                                         });
           `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0]),wr_simulate_log_start)
         end

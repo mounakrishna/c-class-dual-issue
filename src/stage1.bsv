@@ -258,9 +258,6 @@ package stage1;
       PrevMeta lv_prev = rg_prev;
       Bool lv_deq_response = False;
     `ifdef bpu
-      // A Local variable which tells whether the instructions to be enqued are
-      // taken from both rg_prev and the new icache response. Used for bpu stuff.
-      Bool lv_mix_instr = False;
       // A Local variable which indicates that the instrucions parsed are part of the
       // new response and not from the rg_prev.
       Vector#(`num_issue, Bool) lv_instr_new = replicate(False);
@@ -283,7 +280,6 @@ package stage1;
         lv_instr_new = replicate(False);
       `endif
         lv_deq_response = True;
-        //deq_response();
       end
     `ifdef compressed
       else if(rg_prev.mask == 2'b11 && rg_prev.epochs == curr_epoch)begin
@@ -301,17 +297,13 @@ package stage1;
           btbresponse = replicate(rg_prev.btbresponse);
           lv_instr_new = replicate(False);
           lv_prev.btbresponse = stage0pc.btbresponse;
-          if (stage0pc.edgecase)
-            lv_prev.mask = 2'b00;
-          else
         `endif
-            lv_prev.mask = 2'b11;
+          lv_prev.mask = 2'b11;
           lv_prev.instruction = imem_resp.word[63:16];
           lv_prev.pc = stage0pc.address;
           trap[0] = False;
           trap[1] = imem_resp.trap;
           lv_deq_response = True;
-          //deq_response();
         end
         else if (rg_prev.instruction[1:0] == 2'b11 && rg_prev.instruction[33:32] != 2'b11) begin // CS
           `logLevel( stage1, 1, $format("Case I - CS"), wr_simulate_log_start)
@@ -380,7 +372,6 @@ package stage1;
         `ifdef bpu
           btbresponse[0] = rg_prev.btbresponse;
           btbresponse[1] = stage0pc.btbresponse;
-          lv_mix_instr = True;
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
@@ -389,7 +380,6 @@ package stage1;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
           lv_prev.pc = stage0pc.address;
           lv_deq_response = True;
-          //deq_response();
           trap[0] = False;
           trap[1] = imem_resp.trap;
         end
@@ -405,7 +395,6 @@ package stage1;
         `ifdef bpu
           btbresponse[0] = rg_prev.btbresponse;
           btbresponse[1] = stage0pc.btbresponse;
-          lv_mix_instr = True;
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
@@ -413,7 +402,6 @@ package stage1;
           lv_prev.mask = 2'b11;
           lv_prev.instruction = imem_resp.word[63:16];
           lv_prev.pc = stage0pc.address;
-          //deq_response();
           lv_deq_response = True;
           trap[0] = False;
           trap[1] = imem_resp.trap;
@@ -450,14 +438,10 @@ package stage1;
           lv_prev.btbresponse = stage0pc.btbresponse;
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
-          if (stage0pc.edgecase)
-            lv_prev.mask = 2'b00;
-          else
         `endif
-            lv_prev.mask = 2'b11;
+          lv_prev.mask = 2'b11;
           lv_prev.instruction = imem_resp.word[63:16];
           lv_prev.pc = stage0pc.address;
-          //deq_response();
           lv_deq_response = True;
           trap[0] = False;
           trap[1] = imem_resp.trap;
@@ -465,10 +449,7 @@ package stage1;
       end
       else if(rg_prev.mask == 2'b01 && rg_prev.epochs == curr_epoch)begin
         valid_instructions = 2;
-        //deq_response();
         lv_deq_response = True;
-        //trap[0] = False;
-        //trap[1] = imem_resp.trap;
         if (rg_prev.instruction[1:0] == 2'b11 && imem_resp.word[17:16] == 2'b11) begin
           `logLevel( stage1, 1, $format("Case III - SS"), wr_simulate_log_start)
           final_instruction[0] = {imem_resp.word[15:0], rg_prev.instruction[15:0]};
@@ -483,13 +464,9 @@ package stage1;
           btbresponse[0] = rg_prev.btbresponse;
           btbresponse[1] = stage0pc.btbresponse;
           lv_instr_new = replicate(True);
-          lv_mix_instr = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
-          if (stage0pc.edgecase)
-            lv_prev.mask = 2'b00;
-          else
         `endif
-            lv_prev.mask = 2'b01;
+          lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
           lv_prev.pc = stage0pc.address | 6;
         end
@@ -508,13 +485,9 @@ package stage1;
           btbresponse[0] = rg_prev.btbresponse;
           btbresponse[1] = stage0pc.btbresponse;
           lv_instr_new = replicate(True);
-          lv_mix_instr = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
-          if (stage0pc.edgecase)
-            lv_prev.mask = 2'b00;
-          else
         `endif
-            lv_prev.mask = 2'b10;
+          lv_prev.mask = 2'b10;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
           lv_prev.pc = stage0pc.address;
         end
@@ -534,7 +507,6 @@ package stage1;
           btbresponse[1] = stage0pc.btbresponse;
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
-          lv_mix_instr = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.mask = 2'b11;
@@ -557,7 +529,6 @@ package stage1;
           btbresponse[1] = stage0pc.btbresponse;
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
-          lv_mix_instr = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.mask = 2'b10;
@@ -567,7 +538,6 @@ package stage1;
       end
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b00) begin
         valid_instructions = 2;
-        //deq_response();
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
         receiving_upper = replicate(False);
@@ -635,7 +605,6 @@ package stage1;
         end
       end
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b01) begin
-        //deq_response();
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
         if (imem_resp.word[17:16] == 2'b11 && imem_resp.word[49:48] == 2'b11) begin
@@ -701,7 +670,6 @@ package stage1;
         end
       end
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b10) begin
-        //deq_response();
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
         if (imem_resp.word[33:32] == 2'b11) begin
@@ -751,7 +719,6 @@ package stage1;
         end
       end
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b11) begin
-        //deq_response();
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
         if (imem_resp.word[49:48] == 2'b11) begin
@@ -852,8 +819,6 @@ package stage1;
     for (Integer i=0; i<`num_issue; i=i+1) begin
       instr_discard[i] = (btbresponse[i].ci_offset == instr_pc[i][2:1]) && (btbresponse[i].prediction > 1); 
     end
-    //if (stage0pc.edgecase && lv_mix_instr)
-    //  instr_discard[`num_issue - 1] = True;
   `endif
 
       if (valid_instructions == 2 && !tx_tostage2.u.enqReady_2()) begin
