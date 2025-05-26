@@ -341,6 +341,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   Wire#(Bit#(1)) wr_count_exestalls <- mkDWire(0);
   /*doc:wire: set to one when the ISB between stage3 and stage4 is FULL.*/
   Wire#(Bit#(1)) wr_isb3_isb4_full <- mkDWire(0);
+  Wire#(Bit#(1)) wr_st3_not_firing <- mkDWire(0);
 `endif
 `ifdef simulate
   Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
@@ -397,6 +398,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       wr_isb3_isb4_full <= 1;
     `endif
     `logLevel( stage3, stall, $format("[%2d]STAGE3: ISB3-4 is FULL", hartid), wr_simulate_log_start)
+  endrule
+
+  rule rl_stage3_not_firing(!rx_meta.u.notEmpty);
+    `ifdef perfmonitors
+      wr_st3_not_firing <= 1;
+    `endif
   endrule
 
 `ifdef simulate
@@ -1423,6 +1430,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     method mv_count_rawstalls = wr_count_rawstalls;
     method mv_count_exestalls = wr_count_exestalls;
     method mv_count_isb3_isb4_full = wr_isb3_isb4_full;
+    method mv_count_st3_not_firing = wr_st3_not_firing;
   endinterface;
 `endif
 `ifdef muldiv

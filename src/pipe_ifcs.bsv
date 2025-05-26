@@ -241,6 +241,8 @@ interface Ifc_s3_perfmonitors;
   method Bit#(1) mv_count_exestalls ;
   (*always_enabled, always_ready*)
   method Bit#(1) mv_count_isb3_isb4_full ;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_count_st3_not_firing;
 endinterface: Ifc_s3_perfmonitors
 `endif
 

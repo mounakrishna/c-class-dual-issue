@@ -195,6 +195,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_isb4_isb5_empty        = stage5.perf.mv_count_isb4_isb5_empty;
     Bit#(1) lv_count_exeflush               = pack(exeflush);
     Bit#(1) lv_count_wbflush                = pack(wbflush.flush);
+    Bit#(1) lv_count_st3_not_firing         = stage3.perfmonitors.mv_count_st3_not_firing;
 
     let lv_total_count = reverseBits({lv_count_misprediction, lv_count_exceptions, lv_count_interrupts,
       lv_count_microtraps, lv_count_csrops, lv_count_jumps, lv_count_branches, lv_count_floats, lv_count_muldiv,
@@ -212,7 +213,8 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       lv_count_isb4_isb5_full, 
       lv_count_isb4_isb5_empty,
       lv_count_exeflush,
-      lv_count_wbflush
+      lv_count_wbflush,
+      lv_count_st3_not_firing
     });
 `endif
 
