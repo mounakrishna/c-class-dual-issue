@@ -970,7 +970,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 	  	redirection = !trap;
   `else
     Bit#(`vaddr) nextpc;
-    if (instr_type[1] == NONE)
+    if (instr_type[1] == NONE) // Is this required? As the next pc is always available in 2nd buffer. I think so :)
       nextpc = fromMaybe(?,wr_next_pc);
     else
       nextpc = meta[1].pc;
@@ -978,10 +978,11 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     if(inst_type == BRANCH && btaken == 0)begin
       redirect_pc = nlogical_pc;
     end
-    if( (inst_type == BRANCH  && btaken != prediction[`statesize-1]) ||
-        ( (inst_type == JALR || inst_type == JAL ) && nextpc != jump_address) )begin
+    //if( (inst_type == BRANCH  && btaken != prediction[`statesize-1] && (btbresponse.ci_offset == meta[0].pc[2:1])) ||
+    //    ( (inst_type == JALR || inst_type == JAL ) && nextpc != jump_address) )begin
+    if (nextpc != redirect_pc)
 	    redirection = !trap;
-    end
+    //end
     let td = Training_data{pc : meta[0].pc,
                            target : jump_address,
                            state  : ?
@@ -989,7 +990,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            ,history   : btbresponse.history
                         `endif
                         `ifdef compressed
-                           ,instr16 : meta[0].compressed
+                           ,compressed : meta[0].compressed
                         `endif
                            ,ci         : ?
                            ,btbhit     : btbresponse.btbhit

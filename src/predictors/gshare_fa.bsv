@@ -25,22 +25,24 @@ package gshare_fa;
   import stack :: * ;
 `endif
 
-  `define ignore 2
+  `define ignore 3
 
   // the following macro describes the number of banks the bht array is split into
-  `ifdef compressed
-    `define bhtcols 2
-  `else
-    `define bhtcols 1
-  `endif
+  `define bhtcols 1
 
   /*doc:struct: This struct defines the fields of each entry in the Branch-Target-Buffer*/
   typedef struct{
     Bit#(`vaddr)  target;               // full target virtual address
     ControlInsn   ci;                   // indicate the type of entry. Branch, JAL, Call, Ret.
   `ifdef compressed
-    Bool instr16 ;                      // when true indicates a 32-bit Ci at non-4-byte address
-    Bool hi;                            // when true indicates higher 16-bit is a Ci
+    Bool compressed;                    // When True indicates that the Ci is a compressed instruction.
+    Bit#(2) ci_offset;                  // 0 - Prediction for instruction at offset pc+0;
+                                        // 1 - Prediction for instruction at offset pc+2;
+                                        // 2 - Prediction for instruction at offset pc+4;
+                                        // 3 - Prediction for instruction at offset pc+6;
+  `else
+    Bit#(1) ci_offset;                  // 0 - Prediction for instruction at offset pc+0;
+                                        // 1 - Prediction for instruciton at offset pc+4;
   `endif
   } BTBEntry deriving(Bits, Eq, FShow);
 
@@ -50,7 +52,7 @@ package gshare_fa;
   instructions we have provided a 'hi' field in BTBEntry, which when true indicates that the higher
   instruction within the 4-byte address is a hit/trained */
   typedef struct{
-    Bit#(TSub#(`vaddr, 2)) tag;
+    Bit#(TSub#(`vaddr, 3)) tag;
     Bool valid;
   } BTBTag deriving(Bits, Eq, FShow);
 
@@ -76,7 +78,7 @@ package gshare_fa;
     
     Bit#(TLog#(TDiv#(`bhtdepth,`bhtcols))) pc_hash = 
             truncate(pc >> `ignore) 
-          ^ zeroExtend((pc >> (`ignore + valueOf(TLog#(TDiv#(`bhtdepth,`bhtcols)))))[1:0]);
+          ^ zeroExtend((pc >> (`ignore + valueOf(TLog#(TDiv#(`bhtdepth,`bhtcols)))))[2:0]);
     Bit#(`histbits) _h = truncateLSB(history);
     Bit#(TLog#(TDiv#(`bhtdepth,`bhtcols))) hist_hash = zeroExtend(_h << (valueOf(TLog#(`bhtdepth)) - `histbits));
     return pc_hash ^ hist_hash;
@@ -122,7 +124,9 @@ package gshare_fa;
     to leverage the select function provided by bluespec*/
     Vector#(`btbdepth, Reg#(BTBEntry)) v_reg_btb_entry <-
                                                   replicateM(mkReg(BTBEntry{target: ?, ci : Branch
-                                           `ifdef compressed ,instr16: False, hi:False `endif }));
+                                                  ,ci_offset : 0
+                                                  `ifdef compressed ,compressed: False `endif }));
+                                           //`ifdef compressed ,instr16: False, hi:False `endif }));
 
     /*doc : vec : This vector holds the BTB tags and the respecitve valid bits. This has been split
     from the BTB entries for better hw of CAM look-ups and index retrieval */
@@ -251,7 +255,10 @@ package gshare_fa;
       Bit#(`histlen) lv_ghr = rg_ghr[0];
       Bool hi = False;
     `ifdef compressed
-      Bool instr16 = False;
+      Bit#(2) ci_offset = 0;
+      Bool compressed = False;
+    `else
+      Bit#(1) ci_offset = 0;
     `endif
 
       if(!r.fence && wr_bpu_enable) begin
@@ -269,21 +276,38 @@ package gshare_fa;
           `logLevel( bpu, 1, $format("[%2d]BPU : BTB Hit: ",hartid,fshow(hit_entry)), wr_simulate_log_start)
         end
 
+        ci_offset = hit_entry.ci_offset;
+
         `ifdef compressed
-          instr16 = hit_entry.instr16;
-          hi = hit_entry.hi;
+          compressed = hit_entry.compressed;
         `endif
 
         if(|match_ == 1) begin
         `ifdef bpu_ras
+          Bit#(`vaddr) ras_push_offset;
           `ifdef compressed
-            Bit#(`vaddr) ras_push_offset = hit_entry.hi? hit_entry.instr16? r.discard? 2: 4
-                                                                          : r.discard? 4: 6
-                                                       : hit_entry.instr16? 2: 4;
+            case (ci_offset)
+              'b00: ras_push_offset = compressed ? 2 : 4;
+              'b01: ras_push_offset = compressed ? 4 : 6;
+              'b10: ras_push_offset = compressed ? 6 : 8;
+              'b11: ras_push_offset = compressed ? 8 : 12;
+              default: ras_push_offset = 0;
+            endcase
           `else
-            Bit#(`vaddr) ras_push_offset = 4;
+            case (ci_offset)
+              'b00: ras_push_offset = 4;
+              'b10: ras_push_offset = 8;
+              default: ras_push_offset = 0;
+            endcase
           `endif
-        if(True `ifdef compressed && ( hit_entry.hi || !r.discard ) `endif ) begin
+          //`ifdef compressed
+          //  Bit#(`vaddr) ras_push_offset = hit_entry.hi? hit_entry.instr16? r.discard? 2: 4
+          //                                                                : r.discard? 4: 6
+          //                                             : hit_entry.instr16? 2: 4;
+          //`else
+          //  Bit#(`vaddr) ras_push_offset = 4;
+          //`endif
+        if(hit_entry.ci_offset >= r.discard) begin
           if(hit_entry.ci == Call)begin // push to ras in case of Call instructions
             Bit#(`vaddr) push_pc = r.pc + ras_push_offset;
             `logLevel( bpu, 1, $format("[%2d]BPU: Pushing1 to RAS:%h",hartid,(push_pc)), wr_simulate_log_start)
@@ -304,7 +328,7 @@ package gshare_fa;
                prediction_ = 3;
 
             if(hit_entry.ci == Branch) begin
-              prediction_ = branch_state_[pack(hi)];
+              prediction_ = branch_state_[0];
               lv_ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
               `logLevel( bpu, 0, $format("[%2d]BPU : New GHR:%h",hartid, lv_ghr), wr_simulate_log_start)
             end
@@ -322,12 +346,11 @@ package gshare_fa;
         `endif
       end
 
-      let btbresponse = BTBResponse{prediction: prediction_, btbhit: hit
-                        `ifdef compressed , hi: hi `endif
-                        `ifdef gshare , history : lv_ghr`endif };
+      let btbresponse = BTBResponse{prediction: prediction_, btbhit: hit, ci_offset : ci_offset
+                        `ifdef gshare , history : lv_ghr `endif };
 
       return PredictionResponse{ nextpc : target_, btbresponse: btbresponse
-                                `ifdef compressed ,instr16 : instr16 `endif };
+              `ifdef compressed  ,compressed: compressed `endif };
     endmethod
 
     /*doc:method: This method is called for all unconditional and conditional jumps.
@@ -360,13 +383,17 @@ package gshare_fa;
 
       if(hit_index_ matches tagged Valid .h) begin
         v_reg_btb_entry[h] <= BTBEntry{ target : d.target, ci : d.ci
-                            `ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
+                            ,ci_offset : d.pc[2:1]
+                            `ifdef compressed ,compressed : d.compressed `endif };
+                            //`ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
         `logLevel( bpu, 4, $format("[%2d]BPU : Training existing Entry index: %d",hartid,h), wr_simulate_log_start)
       end
       else begin
         `logLevel( bpu, 4, $format("[%2d]BPU : Allocating new index: %d",hartid,rg_allocate), wr_simulate_log_start)
         v_reg_btb_entry[rg_allocate] <= BTBEntry{ target : d.target, ci : d.ci
-                            `ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
+                            ,ci_offset : d.pc[2:1]
+                            `ifdef compressed ,compressed : d.compressed `endif };
+                            //`ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
         v_reg_btb_tag[rg_allocate] <= BTBTag{tag: truncateLSB(d.pc), valid: True};
         rg_allocate <= rg_allocate + 1;
         if(v_reg_btb_tag[rg_allocate].valid)

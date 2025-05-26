@@ -183,10 +183,11 @@ package stage0;
             `ifdef hypervisor !rg_hfence[0] && `endif True) begin
           let bpuresp <- bpu.mav_prediction_response(PredictionRequest{pc: rg_pc[0]
                                     `ifdef ifence     ,fence: rg_fence[0] `endif
-                                    `ifdef compressed , discard: (rg_pc[0][1]==1) `endif });
+                                    `ifdef compressed , discard: rg_pc[0][2:1] `endif });
         `ifdef compressed
           // check for edge case
-          Bool edgecase = bpuresp.btbresponse.hi && !bpuresp.instr16;
+          //Bool edgecase = bpuresp.btbresponse.hi && !bpuresp.instr16;
+          Bool edgecase = !bpuresp.compressed && (bpuresp.btbresponse.ci_offset == 3);
         `endif
           if (bpuresp.btbresponse.prediction[`statesize - 1] == 1 && bpuresp.btbresponse.btbhit 
                                     `ifdef compressed && !edgecase `endif )
@@ -241,7 +242,10 @@ package stage0;
             `ifdef hypervisor !rg_hfence[0] && `endif True) begin
           tx_tostage1.u.enq(Stage0PC{   address      : rg_pc[0] & signExtend(4'b1000)
                     `ifdef compressed   ,discard     : rg_pc[0][2:1]        `endif
-                    `ifdef bpu          ,btbresponse : bpu_resp.btbresponse `endif  });
+                    `ifdef bpu          ,btbresponse : bpu_resp.btbresponse 
+                      `ifdef compressed ,edgecase : isValid(rg_delayed_redirect[0]) `endif
+                    `endif
+                                        });
           `logLevel( stage0, 0, $format("[%2d]STAGE0: Sending PC:%h to Stage1",hartid, rg_pc[0]),wr_simulate_log_start)
         end
     endrule

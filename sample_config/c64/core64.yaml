@@ -11,14 +11,14 @@ merged_rf: False
 s_extension:
   itlb_size: 4
   dtlb_size: 4
-total_events : 40
+total_events : 42
 iepoch_size: 2
 m_extension:
   mul_stages_in : 1
   mul_stages_out: 1
   div_stages : 32
 branch_predictor:
-  instantiate: True
+  instantiate: true
   predictor: gshare
   btb_depth: 32
   bht_depth: 512
@@ -28,8 +28,8 @@ branch_predictor:
 icache_configuration:
   instantiate: true
   sets: 64
-  word_size: 4
-  block_size: 16
+  word_size: 8
+  block_size: 8
   ways: 4
   replacement: RANDOM
   fb_size: 4
@@ -59,21 +59,21 @@ bsc_compile_options:
   ovl_assertions: False
   sva_assertions: False
   ovl_path: ""
-  trace_dump: false
-  compile_target: 'asic'
+  trace_dump: true
+  compile_target: 'sim'
   suppress_warnings: ["G0020"]
   verilog_dir: build/hw/verilog
   build_dir: build/hw/intermediate
-  top_module: mkccore_axi4
-  top_file: ccore.bsv
-  top_dir: src
+  top_module: mkTbSoc
+  top_file: TbSoc.bsv
+  top_dir: test_soc
   open_ocd: False
   cocotb_sim: False
   log_start_time: 12710770
   log_end_time: 12745970
 verilator_configuration:
   coverage: none
-  trace: false
+  trace: true
   threads: 1
   verbosity: true
   opt_fast: "-O3"

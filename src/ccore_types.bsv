@@ -369,6 +369,9 @@ typedef struct{
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
+  `ifdef compressed 
+    Bool edgecase;
+  `endif
 `endif
   Bit#(addr)  address;      // XLEN:0
 } Stage0PC#(numeric type addr) deriving(Bits, Eq, FShow);
@@ -865,9 +868,7 @@ typedef struct{
   typedef enum {Branch = 0, JAL = 1, Call = 2, Ret = 3} ControlInsn deriving(Bits, Eq, FShow);
 
   typedef struct{
-  `ifdef compressed
-    Bool hi;                          // bits [histlen+statesize+1]
-  `endif
+    Bit#(2) ci_offset;
   `ifdef gshare
     Bit#(`histlen) history;           // bits [histlen+statesize: statesize+1]
   `endif
@@ -876,8 +877,11 @@ typedef struct{
   } BTBResponse deriving(Bits, Eq, FShow);
 
   typedef struct {
+  //`ifdef compressed
+  //  Bool instr16;
+  //`endif
   `ifdef compressed
-    Bool instr16;
+    Bool compressed;
   `endif
     Bit#(`vaddr) nextpc;
     BTBResponse btbresponse;
@@ -885,7 +889,7 @@ typedef struct{
 
   typedef struct {
   `ifdef compressed
-    Bool          instr16;
+    Bool          compressed;
   `endif
   `ifdef gshare
     Bit#(`histlen) history;
@@ -901,9 +905,7 @@ typedef struct{
   `ifdef ifence
     Bool         fence;
   `endif
-  `ifdef compressed
-    Bool         discard;
-  `endif
+    Bit#(2)         discard;
     Bit#(`vaddr) pc;
   } PredictionRequest deriving(Bits, Eq, FShow);
   // --------------------------------------------------------------------------------------------//
