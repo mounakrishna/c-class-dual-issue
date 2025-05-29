@@ -407,7 +407,7 @@ def generate_makefile(foo, logging=False):
     verilator_threads = foo['verilator_configuration']['threads']
 
     if foo['verilator_configuration']['trace']:
-        verilator_trace = '--trace'
+        verilator_trace = '--trace-fst'
     else:
         verilator_trace = ''
     if "none" in foo['verilator_configuration']['coverage']:

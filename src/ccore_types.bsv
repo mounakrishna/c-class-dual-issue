@@ -426,6 +426,7 @@ typedef struct{
 `ifdef bpu
   BTBResponse btbresponse;
 `endif
+  Bool instr_reversed;
   Bool is_microtrap;
   Bit#(TMax#(`causesize, 7)) funct;
   Access_type memaccess;

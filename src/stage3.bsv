@@ -977,7 +977,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 	  	redirection = !trap;
   `else
     Bit#(`vaddr) nextpc;
-    if (instr_type[1] == NONE) // Is this required? As the next pc is always available in 2nd buffer. I think so :)
+    if (instr_type[1] == NONE || meta[0].instr_reversed)
       nextpc = fromMaybe(?,wr_next_pc);
     else
       nextpc = meta[1].pc;

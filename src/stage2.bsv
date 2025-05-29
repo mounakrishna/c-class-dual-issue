@@ -304,8 +304,11 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
 `ifdef simulate
   rule rl_polling_check(!tx_instrtype.u.notFull || rg_stall || rg_wfi);
-    `logLevel( stage2, 0, $format("[%2d]STAGE2: Waiting for response from stage1", hartid), wr_simulate_log_start)
     `logLevel( stage2, 0, $format("[%2d]STAGE2: rg_stall: %d, rg_wfi: %d, instrNotFull: %d", hartid, rg_stall, rg_wfi, tx_instrtype.u.notFull), wr_simulate_log_start)
+  endrule
+
+  rule rl_waiting_print (!rx_pipe1.u.deqReady_1);
+    `logLevel( stage2, 0, $format("[%2d]STAGE2: Waiting for response from stage1", hartid), wr_simulate_log_start)
   endrule
 
   rule rl_upd_log_start;
@@ -523,6 +526,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     clogpkt = rx_commitlog.u.first;
   `endif
 
+    Bool instr_reversed = False;
+
     if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY ||
                             instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) begin
       decoded_inst = reverse(decoded_inst);
@@ -541,6 +546,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       highbyte_err = reverse(highbyte_err);
       instrType = reverse(instrType);
       upper_instr = reverse(upper_instr);
+      instr_reversed = True;
       `ifdef rtldump
         clogpkt = reverse(clogpkt);
       `endif
@@ -592,7 +598,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                               epochs : epochs[i],
                               rd: decoded_inst[i].op_addr.rd,
                               is_microtrap: rg_microtrap,
-                              upper_instr: upper_instr[i]
+                              upper_instr: upper_instr[i],
+                              instr_reversed: instr_reversed
            `ifdef hypervisor ,hlvx : decoded_inst[i].meta.hlvx
                              ,hvm_loadstore : decoded_inst[i].meta.hvm_loadstore
            `endif

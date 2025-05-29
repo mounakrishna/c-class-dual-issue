@@ -1,12 +1,19 @@
 // Top-level driver for "verilated" objects (Verilog compiled with verilator)
 
 #include <verilated.h>
+#include <csignal>
 
 //#include "Vmkicache_tb.h"
 
 #include <verilated_vcd_c.h>
+#include <verilated_fst_c.h>
+
 
 #include "sim_main.h"
+
+#if VM_TRACE
+VerilatedFstC* tfp = NULL;
+#endif
 
 vluint64_t main_time = 0;    // Current simulation time
 
@@ -14,7 +21,14 @@ double sc_time_stamp () {    // Called by $time in Verilog
     return main_time;
 }
 
+void signal_handler(int signal) {
+  tfp->close();
+  exit(signal);
+}
+
 int main (int argc, char **argv, char **env) {
+
+    signal(SIGINT, signal_handler);
     
     // Prevent unused variable warnings
     if (0 && argc && argv && env) {}
@@ -33,15 +47,14 @@ int main (int argc, char **argv, char **env) {
 #if VM_TRACE
     // If verilator was invoked with --trace argument,
     // and if at run time passed the +trace argument, turn on tracing
-    VerilatedVcdC* tfp = NULL;
     const char* flag = Verilated::commandArgsPlusMatch("trace");
     if (flag && 0==strcmp(flag, "+trace")) {
         Verilated::traceEverOn(true);  // Verilator must compute traced signals
-        VL_PRINTF("Enabling waves into logs/vlt_dump.vcd...\n");
-        tfp = new VerilatedVcdC;
+        VL_PRINTF("Enabling waves into logs/dump.fst...\n");
+        tfp = new VerilatedFstC;
         mkTbSoC->trace(tfp, 99);  // Trace 99 levels of hierarchy
         Verilated::mkdir("logs");
-        tfp->open("logs/vlt_dump.vcd");  // Open the dump file
+        tfp->open("logs/dump.fst");  // Open the dump file
     }
 #endif
 
