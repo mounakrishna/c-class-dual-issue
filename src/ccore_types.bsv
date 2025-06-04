@@ -863,7 +863,7 @@ typedef struct{
 `endif
 
   // ------------------------------ types for predictor ------------------------------------------//
-  typedef enum {Branch = 0, JAL = 1, Call = 2, Ret = 3} ControlInsn deriving(Bits, Eq, FShow);
+  typedef enum {Branch = 0, JAL = 1, Call = 2, Ret = 3, None = 4} ControlInsn deriving(Bits, Eq, FShow);
 
   typedef struct{
     Bit#(2) ci_offset;

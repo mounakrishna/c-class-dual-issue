@@ -819,7 +819,7 @@ package stage1;
   `ifdef bpu
     Vector#(`num_issue, Bool) instr_discard;
     for (Integer i=0; i<`num_issue; i=i+1) begin
-      instr_discard[i] = (btbresponse[i].ci_offset == instr_pc[i][2:1]) && (btbresponse[i].prediction > 1); 
+      instr_discard[i] = (btbresponse[i].ci_offset == instr_pc[i][2:1]) && (btbresponse[i].prediction[`statesize - 1] == 1); 
     end
   `endif
 
