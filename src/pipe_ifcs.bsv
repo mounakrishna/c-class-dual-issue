@@ -381,6 +381,26 @@ interface Ifc_s2_perfmonitors;
   method Bit#(1) mv_raw_hazard;
   (*always_enabled, always_ready*)
   method Bit#(1) mv_one_instr;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_branch_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_mem_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_float_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_mul_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mem_mem_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mem_branch_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mem_float_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_float_branch_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_float_float_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_branch_branch_hazard;
 endinterface
 `endif
 // -----------------------------------------------------------------------------------------------
