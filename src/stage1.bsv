@@ -778,11 +778,11 @@ package stage1;
       inst[0] = final_instruction[0];
       inst[1] = final_instruction[1];
 
-      if (compressed_instr[0])
-        final_instruction[0] = fn_decompress(truncate(final_instruction[0]));
+      //if (compressed_instr[0])
+      //  final_instruction[0] = fn_decompress(truncate(final_instruction[0]));
 
-      if (compressed_instr[1])
-        final_instruction[1] = fn_decompress(truncate(final_instruction[1]));
+      //if (compressed_instr[1])
+      //  final_instruction[1] = fn_decompress(truncate(final_instruction[1]));
 
       Vector#(`num_issue, PIPE1) pipedata;
       for (Integer i=0; i<`num_issue; i=i+1) begin
