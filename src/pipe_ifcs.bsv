@@ -109,7 +109,7 @@ endinterface:Ifc_s1_common
 
 interface Ifc_s1_icache;
   // instruction response from the memory subsytem or the memory bus
-  interface Put#(IMem_core_response#(32, `iesize)) inst_response;
+  interface Put#(IMem_core_response#(TMul#(`iwords, 8), `iesize)) inst_response;
 endinterface:Ifc_s1_icache
 
 `ifdef perfmonitors
@@ -241,6 +241,8 @@ interface Ifc_s3_perfmonitors;
   method Bit#(1) mv_count_exestalls ;
   (*always_enabled, always_ready*)
   method Bit#(1) mv_count_isb3_isb4_full ;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_count_st3_not_firing;
 endinterface: Ifc_s3_perfmonitors
 `endif
 
@@ -379,6 +381,26 @@ interface Ifc_s2_perfmonitors;
   method Bit#(1) mv_raw_hazard;
   (*always_enabled, always_ready*)
   method Bit#(1) mv_one_instr;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_branch_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_mem_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_float_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mul_mul_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mem_mem_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mem_branch_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_mem_float_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_float_branch_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_float_float_hazard;
+  (*always_enabled, always_ready*)
+  method Bit#(1) mv_branch_branch_hazard;
 endinterface
 `endif
 // -----------------------------------------------------------------------------------------------
@@ -566,22 +588,10 @@ endinterface:Ifc_s5_perfmonitors
     MIMO_MODIFY#(2, 2, `instr_queue, CommitLogPacket) ff_commitlog <- mkMIMO_MODIFY(cfg);
   `endif
     Empty s1_pipe1 <- mkConnection(s1.tx_to_stage2, ff_pipe1);
-    //rule connect_ena_data_tx (s1.tx_to_stage2.enq_ena);
-    //  ff_pipe1.enq(s1.tx_to_stage2.enq_count, s1.tx_to_stage2.enq_data);
-    //endrule
-    //rule compute_enqReady_tx;
-    //  s1.tx_to_stage2.enqReady(ff_pipe1.enqReadyN(s1.tx_to_stage2.enqReady_count));
-    //endrule
     Empty s2_pipe1 <- mkConnection(ff_pipe1, s2.rx_from_stage1);
-    //rule connect_first_rx;
-    //  s2.rx_from_stage1(ff_pipe1.first);
-    //endrule
-    //rule connect_deqReady_rx;
-    //  s2.rx_from_stage1(ff_pipe1.deqReadyN(s2.rx_from_stage1.deqReady_count));
-    //endrule
-    //rule connect_ena_rx;
-    //  ff_pipe1.deq(s2.rx_from_stage1.deq_count);
-    //endrule
+    rule rl_print_no_of_elements_in_instr_queue;
+      `logLevel( riscv, 0, $format("[ 0]RISCV: Number of elements in Instruction queue: %d", ff_pipe1.count), 1)
+    endrule
   `ifdef rtldump
     mkConnection(s1.tx_commitlog, ff_commitlog);
     mkConnection(ff_commitlog, s2.rx_commitlog);

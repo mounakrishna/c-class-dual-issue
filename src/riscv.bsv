@@ -189,10 +189,23 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_dual_issued                  = stage2.perf.mv_dual_issued;
     Bit#(1) lv_raw_hazard                   = stage2.perf.mv_raw_hazard;
     Bit#(1) lv_one_instr                    = stage2.perf.mv_one_instr;
+    Bit#(1) lv_mul_branch_hazard            = stage2.perf.mv_mul_branch_hazard;
+    Bit#(1) lv_mul_mem_hazard               = stage2.perf.mv_mul_mem_hazard;
+    Bit#(1) lv_mul_float_hazard             = stage2.perf.mv_mul_float_hazard;
+    Bit#(1) lv_mul_mul_hazard               = stage2.perf.mv_mul_mul_hazard;
+    Bit#(1) lv_mem_mem_hazard               = stage2.perf.mv_mem_mem_hazard;
+    Bit#(1) lv_mem_branch_hazard            = stage2.perf.mv_mem_branch_hazard;
+    Bit#(1) lv_mem_float_hazard             = stage2.perf.mv_mem_float_hazard;
+    Bit#(1) lv_float_branch_hazard          = stage2.perf.mv_float_branch_hazard;
+    Bit#(1) lv_float_float_hazard           = stage2.perf.mv_float_float_hazard;
+    Bit#(1) lv_branch_branch_hazard         = stage2.perf.mv_branch_branch_hazard;
     Bit#(1) lv_count_isb3_isb4_full         = stage3.perfmonitors.mv_count_isb3_isb4_full;
     Bit#(1) lv_count_isb3_isb4_empty        = stage4.perf.mv_count_isb3_isb4_empty;
     Bit#(1) lv_count_isb4_isb5_full         = stage4.perf.mv_count_isb4_isb5_full;
     Bit#(1) lv_count_isb4_isb5_empty        = stage5.perf.mv_count_isb4_isb5_empty;
+    Bit#(1) lv_count_exeflush               = pack(exeflush);
+    Bit#(1) lv_count_wbflush                = pack(wbflush.flush);
+    Bit#(1) lv_count_st3_not_firing         = stage3.perfmonitors.mv_count_st3_not_firing;
 
     let lv_total_count = reverseBits({lv_count_misprediction, lv_count_exceptions, lv_count_interrupts,
       lv_count_microtraps, lv_count_csrops, lv_count_jumps, lv_count_branches, lv_count_floats, lv_count_muldiv,
@@ -208,7 +221,21 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       lv_count_isb3_isb4_full,
       lv_count_isb3_isb4_empty,
       lv_count_isb4_isb5_full, 
-      lv_count_isb4_isb5_empty });
+      lv_count_isb4_isb5_empty,
+      lv_count_exeflush,
+      lv_count_wbflush,
+      lv_count_st3_not_firing,
+      lv_mul_branch_hazard,
+      lv_mul_mem_hazard,
+      lv_mul_float_hazard,
+      lv_mul_mul_hazard,      
+      lv_mem_mem_hazard,
+      lv_mem_branch_hazard,
+      lv_mem_float_hazard,
+      lv_float_branch_hazard,
+      lv_float_float_hazard,
+      lv_branch_branch_hazard
+    });
 `endif
 
   `ifdef muldiv

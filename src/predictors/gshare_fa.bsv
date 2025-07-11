@@ -25,23 +25,21 @@ package gshare_fa;
   import stack :: * ;
 `endif
 
-  `define ignore 2
+  `define ignore 3
 
   // the following macro describes the number of banks the bht array is split into
-  `ifdef compressed
-    `define bhtcols 2
-  `else
-    `define bhtcols 1
-  `endif
+  `define bhtcols 2
 
   /*doc:struct: This struct defines the fields of each entry in the Branch-Target-Buffer*/
   typedef struct{
     Bit#(`vaddr)  target;               // full target virtual address
     ControlInsn   ci;                   // indicate the type of entry. Branch, JAL, Call, Ret.
-  `ifdef compressed
-    Bool instr16 ;                      // when true indicates a 32-bit Ci at non-4-byte address
-    Bool hi;                            // when true indicates higher 16-bit is a Ci
-  `endif
+    Bool compressed;                    // When True indicates that the Ci is a compressed instruction.
+    Bit#(1) ci_offset;                  // The below number is formed by combining ci_offset of two entries of the same tag 
+                                        // 0 - Prediction for instruction at offset pc+0;
+                                        // 1 - Prediction for instruction at offset pc+2;
+                                        // 2 - Prediction for instruction at offset pc+4;
+                                        // 3 - Prediction for instruction at offset pc+6;
   } BTBEntry deriving(Bits, Eq, FShow);
 
   /*doc:struct: This struct holds the tag and valid bit of each BTB entry.
@@ -50,7 +48,7 @@ package gshare_fa;
   instructions we have provided a 'hi' field in BTBEntry, which when true indicates that the higher
   instruction within the 4-byte address is a hit/trained */
   typedef struct{
-    Bit#(TSub#(`vaddr, 2)) tag;
+    Bit#(TSub#(`vaddr, `ignore)) tag;
     Bool valid;
   } BTBTag deriving(Bits, Eq, FShow);
 
@@ -76,7 +74,7 @@ package gshare_fa;
     
     Bit#(TLog#(TDiv#(`bhtdepth,`bhtcols))) pc_hash = 
             truncate(pc >> `ignore) 
-          ^ zeroExtend((pc >> (`ignore + valueOf(TLog#(TDiv#(`bhtdepth,`bhtcols)))))[1:0]);
+          ^ zeroExtend((pc >> (`ignore + valueOf(TLog#(TDiv#(`bhtdepth,`bhtcols)))))[2:0]);
     Bit#(`histbits) _h = truncateLSB(history);
     Bit#(TLog#(TDiv#(`bhtdepth,`bhtcols))) hist_hash = zeroExtend(_h << (valueOf(TLog#(`bhtdepth)) - `histbits));
     return pc_hash ^ hist_hash;
@@ -120,9 +118,11 @@ package gshare_fa;
 
     /*doc : vec : This vector of register holds the BTB entries. We use vector instead of array
     to leverage the select function provided by bluespec*/
-    Vector#(`btbdepth, Reg#(BTBEntry)) v_reg_btb_entry <-
-                                                  replicateM(mkReg(BTBEntry{target: ?, ci : Branch
-                                           `ifdef compressed ,instr16: False, hi:False `endif }));
+    Vector#(`btbdepth, Reg#(Vector#(2, BTBEntry))) v_reg_btb_entry <-
+                                                  replicateM(mkReg(replicate(BTBEntry{target: ?, ci : None
+                                                  ,ci_offset : 0
+                                                  `ifdef compressed ,compressed: False `endif })));
+                                           //`ifdef compressed ,instr16: False, hi:False `endif }));
 
     /*doc : vec : This vector holds the BTB tags and the respecitve valid bits. This has been split
     from the BTB entries for better hw of CAM look-ups and index retrieval */
@@ -234,8 +234,7 @@ package gshare_fa;
     */
     method ActionValue#(PredictionResponse) mav_prediction_response (PredictionRequest r)
                                                          `ifdef ifence if(!rg_initialize) `endif ;
-      `logLevel( bpu, 0, $format("[%2d]BPU : Received Request: ",hartid, fshow(r),
-                                 " ghr:%h",hartid,rg_ghr[0]), wr_simulate_log_start)
+      `logLevel( bpu, 0, $format("[%2d]BPU : Received Request: ",hartid, fshow(r), " ghr:%h",rg_ghr[0]), wr_simulate_log_start)
     `ifdef ifence
       if( r.fence && wr_bpu_enable)
         rg_initialize <= True;
@@ -248,71 +247,117 @@ package gshare_fa;
       Bit#(`statesize) prediction_ = 1;
       Bit#(`vaddr) target_ = r.pc;
       Bool hit = False;
-      Bit#(`histlen) lv_ghr = rg_ghr[0];
-      Bool hi = False;
-    `ifdef compressed
-      Bool instr16 = False;
-    `endif
+      Bit#(`histlen) ghr = rg_ghr[0];
+      Bool compressed = False;
+      Bit#(2) ci_off;
 
       if(!r.fence && wr_bpu_enable) begin
-        // a one - hot vector to store the hits of the btb
         Bit#(`btbdepth) match_;
+        // a one - hot vector to store the hits of the btb
         for(Integer i = 0; i < `btbdepth; i =  i + 1)
           match_[i] = pack(v_reg_btb_tag[i].tag == truncateLSB(r.pc) && v_reg_btb_tag[i].valid);
 
         `logLevel( bpu, 1, $format("[%2d]BPU : Match:%h",hartid, match_), wr_simulate_log_start)
 
         hit = unpack(|match_);
-        let hit_entry = select(readVReg(v_reg_btb_entry), unpack(match_));
+        let v_hit_entry = select(readVReg(v_reg_btb_entry), unpack(match_));
 
-        if(|match_ == 1) begin
-          `logLevel( bpu, 1, $format("[%2d]BPU : BTB Hit: ",hartid,fshow(hit_entry)), wr_simulate_log_start)
+        if(hit) begin
+          for (Integer i=0; i<2; i=i+1)
+            `logLevel( bpu, 1, $format("[%2d]BPU : BTB Hit: ",hartid,fshow(v_hit_entry[i])), wr_simulate_log_start)
         end
 
-        `ifdef compressed
-          instr16 = hit_entry.instr16;
-          hi = hit_entry.hi;
-        `endif
 
-        if(|match_ == 1) begin
-        `ifdef bpu_ras
-          `ifdef compressed
-            Bit#(`vaddr) ras_push_offset = hit_entry.hi? hit_entry.instr16? r.discard? 2: 4
-                                                                          : r.discard? 4: 6
-                                                       : hit_entry.instr16? 2: 4;
-          `else
-            Bit#(`vaddr) ras_push_offset = 4;
-          `endif
-        if(True `ifdef compressed && ( hit_entry.hi || !r.discard ) `endif ) begin
-          if(hit_entry.ci == Call)begin // push to ras in case of Call instructions
-            Bit#(`vaddr) push_pc = r.pc + ras_push_offset;
-            `logLevel( bpu, 1, $format("[%2d]BPU: Pushing1 to RAS:%h",hartid,(push_pc)), wr_simulate_log_start)
-            ras_stack.push(push_pc);
+        // A local variable to indicate which entry in the BTB is giving the prediction.
+        if (hit) begin
+          if (v_hit_entry[0].ci == Call && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+            Bit#(`vaddr) ras_push_offset;
+            case (v_hit_entry[0].ci_offset) //TODO: Didnt include support when compressed is OFF.
+              'b0: ras_push_offset = v_hit_entry[0].compressed ? 2 : 4;
+              'b1: ras_push_offset = v_hit_entry[0].compressed ? 4 : 6;
+              default: ras_push_offset = 0;
+            endcase
+            let push_pc = r.pc + ras_push_offset;
+            ras_stack.push(r.pc);
+            prediction_ = 3;
+            target_ = target_;
+            ci_off = {1'b0, v_hit_entry[0].ci_offset};
+            compressed = v_hit_entry[0].compressed;
+            `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS: %h", hartid, push_pc), wr_simulate_log_start)
           end
-
-          if(hit_entry.ci == Ret) begin // pop from ras in case of Ret instructions
+          else if (v_hit_entry[0].ci == Ret && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
             target_ = ras_stack.top;
             ras_stack.pop;
+            ci_off = {1'b0, v_hit_entry[0].ci_offset};
+            compressed = v_hit_entry[0].compressed;
             `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
+            prediction_ = 3;
           end
-          else
-        `endif
-          target_ = hit_entry.target;
-
-          // update only if hi is True or if discard is false. No point in predicting dicarded inst.
-            if(hit_entry.ci == Ret ||  hit_entry.ci == Call || hit_entry.ci == JAL )
-               prediction_ = 3;
-
-            if(hit_entry.ci == Branch) begin
-              prediction_ = branch_state_[pack(hi)];
-              lv_ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
-              `logLevel( bpu, 0, $format("[%2d]BPU : New GHR:%h",hartid, lv_ghr), wr_simulate_log_start)
-            end
+          else if (v_hit_entry[0].ci == JAL && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+            prediction_ = 3;
+            target_ = v_hit_entry[0].target;
+            ci_off = {1'b0, v_hit_entry[0].ci_offset};
+            compressed = v_hit_entry[0].compressed;
           end
-
+          else if (v_hit_entry[0].ci == Branch  && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+            prediction_ = branch_state_[0];
+            target_ = v_hit_entry[0].target;
+            ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
+            ci_off = {1'b0, v_hit_entry[0].ci_offset};
+            compressed = v_hit_entry[0].compressed;
+          end
+          else if (v_hit_entry[1].ci == Call && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+            Bit#(`vaddr) ras_push_offset;
+            case (v_hit_entry[1].ci_offset) //TODO: Didnt include support when compressed is OFF.
+              'b0: ras_push_offset = v_hit_entry[0].compressed ? 6 : 8;
+              'b1: ras_push_offset = v_hit_entry[0].compressed ? 8 : 12;
+              default: ras_push_offset = 0;
+            endcase
+            let push_pc = r.pc + ras_push_offset;
+            ras_stack.push(r.pc);
+            prediction_ = 3;
+            target_ = target_;
+            ci_off = {1'b1, v_hit_entry[1].ci_offset};
+            compressed = v_hit_entry[1].compressed;
+            `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS: %h", hartid, push_pc), wr_simulate_log_start)
+          end
+          else if (v_hit_entry[1].ci == Ret && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+            target_ = ras_stack.top;
+            ras_stack.pop;
+            ci_off = {1'b1, v_hit_entry[1].ci_offset};
+            compressed = v_hit_entry[1].compressed;
+            `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
+            prediction_ = 3;
+          end
+          else if (v_hit_entry[1].ci == JAL && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+            prediction_ = 3;
+            target_ = v_hit_entry[1].target;
+            ci_off = {1'b1, v_hit_entry[1].ci_offset};
+            compressed = v_hit_entry[1].compressed;
+          end
+          else if (v_hit_entry[1].ci == Branch  && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+            prediction_ = branch_state_[1];
+            target_ = v_hit_entry[1].target;
+            ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
+            ci_off = {1'b1, v_hit_entry[1].ci_offset};
+            compressed = v_hit_entry[1].compressed;
+          end
+          else begin
+            ci_off = 0;
+            compressed = False;
+            prediction_ = 1;
+            target_ = target_;
+          end
         end
+        else begin
+          ci_off = 0;
+          compressed = False;
+          prediction_ = 1;
+          target_ = target_;
+        end
+
       `ifdef ifence if(!r.fence) `endif
-          rg_ghr[0] <= lv_ghr;
+          rg_ghr[0] <= ghr;
 
         `logLevel( bpu, 0, $format("[%2d]BPU : BHTindex_:%d Target:%h Pred:%d",hartid,
                                                   bht_index_, target_, prediction_), wr_simulate_log_start)
@@ -321,13 +366,18 @@ package gshare_fa;
           dynamicAssert(countOnes(match_) < 2, "Multiple Matches in BTB");
         `endif
       end
+      else begin
+        ci_off = 0;
+        compressed = False;
+        prediction_ = 1;
+        target_ = target_;
+      end
 
-      let btbresponse = BTBResponse{prediction: prediction_, btbhit: hit
-                        `ifdef compressed , hi: hi `endif
-                        `ifdef gshare , history : lv_ghr`endif };
+      let btbresponse = BTBResponse{prediction: prediction_, btbhit: hit, ci_offset : ci_off
+                        `ifdef gshare , history : ghr `endif };
 
       return PredictionResponse{ nextpc : target_, btbresponse: btbresponse
-                                `ifdef compressed ,instr16 : instr16 `endif };
+              `ifdef compressed  ,compressed: compressed `endif };
     endmethod
 
     /*doc:method: This method is called for all unconditional and conditional jumps.
@@ -359,24 +409,39 @@ package gshare_fa;
       let hit_index_ = findIndex(fn_tag_match, readVReg(v_reg_btb_tag));
 
       if(hit_index_ matches tagged Valid .h) begin
-        v_reg_btb_entry[h] <= BTBEntry{ target : d.target, ci : d.ci
-                            `ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
+        v_reg_btb_entry[h][d.pc[2]] <= BTBEntry{ target : d.target, ci : d.ci
+                            ,ci_offset : d.pc[1]
+                            `ifdef compressed ,compressed : d.compressed `endif };
+                            //`ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
         `logLevel( bpu, 4, $format("[%2d]BPU : Training existing Entry index: %d",hartid,h), wr_simulate_log_start)
       end
       else begin
         `logLevel( bpu, 4, $format("[%2d]BPU : Allocating new index: %d",hartid,rg_allocate), wr_simulate_log_start)
-        v_reg_btb_entry[rg_allocate] <= BTBEntry{ target : d.target, ci : d.ci
-                            `ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
+        Vector#(2, BTBEntry) btb_entry = replicate(unpack(0));
+        //v_reg_btb_entry[rg_allocate][d.pc[2]] <= BTBEntry{ target : d.target, ci : d.ci
+        btb_entry[d.pc[2]] = BTBEntry{ target : d.target, ci : d.ci
+                            ,ci_offset : d.pc[1]
+                            `ifdef compressed ,compressed : d.compressed `endif };
+        if(v_reg_btb_tag[rg_allocate].valid) begin
+          btb_entry[~d.pc[2]] = BTBEntry{ target: ?, ci: None,
+                                           ci_offset : ?
+                                           `ifdef compressed ,compressed : ? `endif };
+          `logLevel( bpu, 4, $format("[%2d]BPU : Conflict Detected",hartid), wr_simulate_log_start)
+        end
+        else begin
+          btb_entry[~d.pc[2]] = v_reg_btb_entry[rg_allocate][~d.pc[2]];
+        end
+
+        v_reg_btb_entry[rg_allocate] <= btb_entry;
         v_reg_btb_tag[rg_allocate] <= BTBTag{tag: truncateLSB(d.pc), valid: True};
         rg_allocate <= rg_allocate + 1;
-        if(v_reg_btb_tag[rg_allocate].valid)
-          `logLevel( bpu, 4, $format("[%2d]BPU : Conflict Detected",hartid), wr_simulate_log_start)
       end
 
       // we use the ghr version before the prediction to train the BHT
+      `logLevel( bpu, 4, $format("[%2d]BPU : BHT Hash inputs during training : ghr : %h, pc : %h", hartid, d.history << 1, d.pc), wr_simulate_log_start)
       let bht_index_ = fn_hash(d.history<<1, d.pc);
       if(d.ci == Branch && d.btbhit) begin
-        rg_bht_arr[d.pc[1]].upd(bht_index_, d.state);
+        rg_bht_arr[d.pc[2]].upd(bht_index_, d.state);
         `logLevel( bpu, 4, $format("[%2d]BPU : Upd BHT entry: %d with state: %d",hartid,
                                                                               bht_index_, d.state), wr_simulate_log_start)
       end

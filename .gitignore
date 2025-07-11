@@ -53,3 +53,5 @@ boot/shakti.dtb
 Benchmarks_analysis
 
 application-benchmarks/
+
+*.zip

@@ -365,7 +365,7 @@ typedef struct{
 // ---- structure of the zeroth pipeline stage ----------------//
 typedef struct{
 `ifdef compressed
-  Bool discard;
+  Bit#(2) discard;
 `endif
 `ifdef bpu
   BTBResponse btbresponse;
@@ -420,12 +420,13 @@ typedef struct{
 `elsif dpfpu
   Bool word32;
 `endif
+`ifdef compressed
+  Bool compressed;
+`endif
 `ifdef bpu
-  `ifdef compressed
-    Bool compressed;
-  `endif
   BTBResponse btbresponse;
 `endif
+  Bool instr_reversed;
   Bool is_microtrap;
   Bit#(TMax#(`causesize, 7)) funct;
   Access_type memaccess;
@@ -862,12 +863,10 @@ typedef struct{
 `endif
 
   // ------------------------------ types for predictor ------------------------------------------//
-  typedef enum {Branch = 0, JAL = 1, Call = 2, Ret = 3} ControlInsn deriving(Bits, Eq, FShow);
+  typedef enum {Branch = 0, JAL = 1, Call = 2, Ret = 3, None = 4} ControlInsn deriving(Bits, Eq, FShow);
 
   typedef struct{
-  `ifdef compressed
-    Bool hi;                          // bits [histlen+statesize+1]
-  `endif
+    Bit#(2) ci_offset;
   `ifdef gshare
     Bit#(`histlen) history;           // bits [histlen+statesize: statesize+1]
   `endif
@@ -876,8 +875,11 @@ typedef struct{
   } BTBResponse deriving(Bits, Eq, FShow);
 
   typedef struct {
+  //`ifdef compressed
+  //  Bool instr16;
+  //`endif
   `ifdef compressed
-    Bool instr16;
+    Bool compressed;
   `endif
     Bit#(`vaddr) nextpc;
     BTBResponse btbresponse;
@@ -885,7 +887,7 @@ typedef struct{
 
   typedef struct {
   `ifdef compressed
-    Bool          instr16;
+    Bool          compressed;
   `endif
   `ifdef gshare
     Bit#(`histlen) history;
@@ -901,9 +903,7 @@ typedef struct{
   `ifdef ifence
     Bool         fence;
   `endif
-  `ifdef compressed
-    Bool         discard;
-  `endif
+    Bit#(2)         discard;
     Bit#(`vaddr) pc;
   } PredictionRequest deriving(Bits, Eq, FShow);
   // --------------------------------------------------------------------------------------------//
