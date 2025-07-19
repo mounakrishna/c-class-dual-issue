@@ -499,17 +499,33 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         issue_two_inst = True;
       else if (instrType[0] == MEMORY && instrType[1] == ALU)
         issue_two_inst = True;
-      else if (instrType[0] == ALU && instrType[1] == BRANCH)
+      else if (instrType[0] == ALU && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
-      else if (instrType[0] == BRANCH && instrType[1] == ALU)
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == ALU)
         issue_two_inst = True;
-      else if (instrType[0] == ALU && instrType[1] == JAL)
+      //else if (instrType[0] == ALU && instrType[1] == JAL)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == JAL && instrType[1] == ALU)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == ALU && instrType[1] == JALR)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == JALR && instrType[1] == ALU)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == ALU && instrType[1] == BRANCH)
+      //  issue_two_inst = True;
+      //else if (instrType[0] == BRANCH && instrType[1] == ALU)
+      //  issue_two_inst = True;
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MULDIV)
         issue_two_inst = True;
-      else if (instrType[0] == JAL && instrType[1] == ALU)
+      else if (instrType[0] == MULDIV && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
-      else if (instrType[0] == ALU && instrType[1] == JALR)
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MEMORY)
         issue_two_inst = True;
-      else if (instrType[0] == JALR && instrType[1] == ALU)
+      else if (instrType[1] == MEMORY && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
+        issue_two_inst = True;
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == FLOAT)
+        issue_two_inst = True;
+      else if (instrType[1] == FLOAT && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
       // For all other cases issue only one instruction.
       else begin
@@ -599,9 +615,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 
     Bool instr_reversed = False;
 
-    if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY ||
-                            instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) begin
-      decoded_inst = reverse(decoded_inst);
+    //if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY)) begin
+    if (issue_two_inst && (instrType[0] == ALU || (instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR))) begin
+      decoded_inst = reverse(decoded_inst); 
       imm = reverse(imm);
       func_cause = reverse(func_cause);
       mtval = reverse(mtval);

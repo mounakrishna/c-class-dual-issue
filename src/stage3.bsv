@@ -145,11 +145,17 @@ endinterface:Ifc_stage3
 (*preempts="rl_exe_base_arith, rl_structural_stalls"*)
 (*preempts="rl_exe_base_memory, rl_structural_stalls"*)
 (*preempts="rl_exe_base_control, rl_structural_stalls"*)
+(*conflict_free="rl_exe_base_control, rl_exe_base_arith_1"*)
+(*conflict_free="rl_exe_base_control, rl_exe_base_arith"*)
+(*conflict_free="rl_exe_base_control, rl_exe_base_memory"*)
+(*conflict_free="rl_exe_base_control, rl_2nd_instruction_invalid"*)
 `ifdef muldiv
 (*preempts="rl_mbox, rl_structural_stalls"*)
+(*conflict_free="rl_exe_base_control, rl_mbox"*)
 `endif
 `ifdef spfpu
 (*preempts="rl_fbox, rl_structural_stalls"*)
+(*conflict_free="rl_exe_base_control, rl_fbox"*)
 `endif
 module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
@@ -947,24 +953,40 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
    * When the branch predictor is enabled, this rule will further send training informatino back
    * to the bpu for the control instruction.
   */
-  rule rl_exe_base_control((instr_type[0] == JALR || 
+  rule rl_exe_base_control(((instr_type[0] == JALR || 
                           instr_type[0] == JAL ||
-                          instr_type[0] == BRANCH )
+                          instr_type[0] == BRANCH ) || 
+                          (instr_type[1] == JALR ||
+                           instr_type[1] == JAL ||
+                           instr_type[1] == BRANCH ))
                           && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail
                `ifdef bpu && (isValid(wr_next_pc)) `endif );
 
-    let inst_type = instr_type[0];
-    Bit#(`vaddr)  base = (inst_type == JALR) ? truncate(wr_fwd_op1) : meta[0].pc;
+    Bit#(TLog#(`num_issue)) inst_num;
+    Instruction_type inst_type;
+    Stage3Meta lv_meta;
+    if (instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) begin
+      inst_type = instr_type[0];
+      lv_meta = meta[0];
+      inst_num = 0;
+    end
+    else begin
+      inst_type = instr_type[1];
+      lv_meta = meta[1];
+      inst_num = 1;
+    end
+
+    Bit#(`vaddr)  base = (inst_type == JALR) ? truncate(wr_fwd_op1) : lv_meta.pc;
     Bit#(TMax#(`vaddr,`flen))  offset = wr_op3.data;
     
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op received: ",hartid,fshow(inst_type)), wr_simulate_log_start)
-    `logLevel( stage3, 0, $format("[%2d]STAGE3: Base meta : ", hartid, fshow(meta[0])), wr_simulate_log_start)
+    `logLevel( stage3, 0, $format("[%2d]STAGE3: Base meta : ", hartid, fshow(lv_meta)), wr_simulate_log_start)
 
     Bit#(`vaddr) jump_address = (base + truncate(offset)) & {'1, ~(pack(inst_type==JALR))};
-    Bit#(`xlen) incr = `ifdef compressed (meta[0].compressed)?2 : `endif 4;
-    Bit#(`xlen) nlogical_pc = meta[0].pc + incr;
+    Bit#(`xlen) incr = `ifdef compressed (lv_meta.compressed)?2 : `endif 4;
+    Bit#(`xlen) nlogical_pc = lv_meta.pc + incr;
 
-    let btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta[0].funct));
+    let btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(lv_meta.funct));
 
     Bool trap = ( jump_address[1] != 0 && wr_misa_c == 0 &&
                 ( inst_type == JALR || inst_type == JAL ||
@@ -977,10 +999,25 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 	  	redirection = !trap;
   `else
     Bit#(`vaddr) nextpc;
-    if (instr_type[1] == NONE || meta[0].instr_reversed)
-      nextpc = fromMaybe(?,wr_next_pc);
-    else
+    //if (inst_num == 1 && meta.instr_reversed)
+    //  nextpc = meta[1].pc;
+    //else if (inst_num == 1)
+    //  nextpc =  fromMaybe(?,wr_next_pc);
+    //else if (instr_type[1] == NONE)
+    //  nextpc =  fromMaybe(?,wr_next_pc);
+    //else
+    //  nextpc = meta[1].pc;
+
+    if ((inst_num == 1 && !lv_meta.instr_reversed) || (inst_num == 0 && instr_type[1] == NONE))
+      nextpc =  fromMaybe(?,wr_next_pc);
+    else 
       nextpc = meta[1].pc;
+
+    `logLevel( stage3, 1, $format("[%2d]STAGE3: Base Control, nextpc: %h, jump_addr: %h", hartid, nextpc, jump_address), wr_simulate_log_start)
+    //if (instr_type[1] == NONE || meta.instr_reversed)
+    //  nextpc = fromMaybe(?,wr_next_pc);
+    //else
+    //  nextpc = meta[1].pc;
     let prediction = btbresponse.prediction;
     if(inst_type == BRANCH && btaken == 0)begin
       redirect_pc = nlogical_pc;
@@ -990,19 +1027,19 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     if (nextpc != redirect_pc)
 	    redirection = !trap;
     //end
-    let td = Training_data{pc : meta[0].pc,
+    let td = Training_data{pc : lv_meta.pc,
                            target : jump_address,
                            state  : ?
                         `ifdef gshare
                            ,history   : btbresponse.history
                         `endif
                         `ifdef compressed
-                           ,compressed : meta[0].compressed
+                           ,compressed : lv_meta.compressed
                         `endif
                            ,ci         : ?
                            ,btbhit     : btbresponse.btbhit
                         };
-    if((inst_type == JAL || inst_type == JALR) && meta[0].rd ==1)
+    if((inst_type == JAL || inst_type == JALR) && lv_meta.rd ==1)
       td.ci = Call;
     else if(inst_type == JALR &&& opmeta.rs1addr matches 'b00?01)
       td.ci = Ret;
@@ -1034,25 +1071,28 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     if(redirection)
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Misprediction. NextPC in Pipe:%h ExpectedPC:%h",hartid,nextpc,redirect_pc), wr_simulate_log_start)
   `endif
-    TrapOut trapout = TrapOut {cause   : `Inst_addr_misaligned, is_microtrap: False, mtval : meta[0].pc
+    TrapOut trapout = TrapOut {cause   : `Inst_addr_misaligned, is_microtrap: False, mtval : lv_meta.pc
                                                                                             `ifdef hypervisor ,mtval2: ?
                                                                                             `endif
                                                                                             };
-    BaseOut baseoutput = BaseOut { rdvalue   : nlogical_pc, rd: meta[0].rd, epochs: curr_epochs[0]
-                                 `ifdef spfpu ,fflags    : 0 , rdtype: meta[0].rdtype `endif };
+    BaseOut baseoutput = BaseOut { rdvalue   : nlogical_pc, rd: lv_meta.rd, epochs: curr_epochs[0]
+                                 `ifdef spfpu ,fflags    : 0 , rdtype: lv_meta.rdtype `endif };
     //let _id <- sboard.ma_lock_rd(unpack({0, pack(SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif })}));
-    wr_lock[0] <= SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif };
-    let common_pkt = FUid{pc    : meta[0].pc,
-                             rd    : meta[0].rd,
-                             epochs : meta[0].epochs[0],
-                             upper_instr: meta[0].upper_instr,
+    if (inst_num == 0)
+      wr_lock[0] <= SBDUpd{rd: lv_meta.rd `ifdef spfpu ,rdtype: lv_meta.rdtype `endif };
+    else
+      wr_lock[1] <= SBDUpd{rd: lv_meta.rd `ifdef spfpu ,rdtype: lv_meta.rdtype `endif };
+    let common_pkt = FUid{pc    : lv_meta.pc,
+                             rd    : lv_meta.rd,
+                             epochs : lv_meta.epochs[0],
+                             upper_instr: lv_meta.upper_instr,
                              insttype : NONE,
                              instpkt : tagged None
                             `ifdef no_wawstalls 
                               ,id: ?
                             `endif
                             `ifdef spfpu
-                              ,rdtype : meta[0].rdtype
+                              ,rdtype : lv_meta.rdtype
                             `endif } ;
   //`ifdef no_wawstalls
   //  baseoutput.id = _id[0];
@@ -1070,15 +1110,23 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op created trap: ",hartid,fshow(trapout)), wr_simulate_log_start)
     end
     //tx_fuid.u.enq(unpack({0, pack(common_pkt)}));
-    wr_fuid[0] <= common_pkt;
+    if (inst_num == 0)
+      wr_fuid[0] <= common_pkt;
+    else
+      wr_fuid[1] <= common_pkt;
     //deq_rx;
     rg_eEpoch         <= pack(redirection)^rg_eEpoch;
     wr_redirect_pc    <= redirect_pc;
     wr_flush_from_exe <= redirection;
   `ifdef rtldump
-    let clogpkt = rx_commitlog.u.first[0];
-    //tx_commitlog.u.enq(clogpkt);
-    wr_commitlog[0] <= clogpkt;
+    if (inst_num == 0) begin
+      let clogpkt = rx_commitlog.u.first[0];
+      wr_commitlog[0] <= clogpkt;
+    end
+    else begin
+      let clogpkt = rx_commitlog.u.first[1];
+      wr_commitlog[1] <= clogpkt;
+    end
   `endif
   `ifdef bpu 
     if (!trap && redirection)
@@ -1093,6 +1141,151 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   `endif
   endrule:rl_exe_base_control
 
+  //rule rl_exe_base_control_1((instr_type[1] == JALR || 
+  //                        instr_type[1] == JAL ||
+  //                        instr_type[1] == BRANCH )
+  //                        && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail
+  //             `ifdef bpu && (isValid(wr_next_pc)) `endif );
+
+  //  let inst_type = instr_type[1];
+  //  Bit#(`vaddr)  base = (inst_type == JALR) ? truncate(wr_fwd_op1) : meta[1].pc;
+  //  Bit#(TMax#(`vaddr,`flen))  offset = wr_op3.data;
+  //  
+  //  `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op received: ",hartid,fshow(inst_type)), wr_simulate_log_start)
+  //  `logLevel( stage3, 0, $format("[%2d]STAGE3: Base meta : ", hartid, fshow(meta[1])), wr_simulate_log_start)
+
+  //  Bit#(`vaddr) jump_address = (base + truncate(offset)) & {'1, ~(pack(inst_type==JALR))};
+  //  Bit#(`xlen) incr = `ifdef compressed (meta[0].compressed)?2 : `endif 4;
+  //  Bit#(`xlen) nlogical_pc = meta[1].pc + incr;
+
+  //  let btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta[1].funct));
+
+  //  Bool trap = ( jump_address[1] != 0 && wr_misa_c == 0 &&
+  //              ( inst_type == JALR || inst_type == JAL ||
+  //              ( inst_type == BRANCH && btaken == 1)));
+
+  //  Bit#(`vaddr) redirect_pc = jump_address;
+  //  Bool redirection = False;
+  //`ifndef bpu
+  //  if((inst_type == BRANCH && btaken == 1) || inst_type == JALR || inst_type == JAL )
+	//  	redirection = !trap;
+  //`else
+  //  Bit#(`vaddr) nextpc;
+  //  if (instr_type[1] == NONE || meta[0].instr_reversed)
+  //    nextpc = fromMaybe(?,wr_next_pc);
+  //  else
+  //    nextpc = meta[1].pc;
+  //  let prediction = btbresponse.prediction;
+  //  if(inst_type == BRANCH && btaken == 0)begin
+  //    redirect_pc = nlogical_pc;
+  //  end
+  //  //if( (inst_type == BRANCH  && btaken != prediction[`statesize-1] && (btbresponse.ci_offset == meta[0].pc[2:1])) ||
+  //  //    ( (inst_type == JALR || inst_type == JAL ) && nextpc != jump_address) )begin
+  //  if (nextpc != redirect_pc)
+	//    redirection = !trap;
+  //  //end
+  //  let td = Training_data{pc : meta[1].pc,
+  //                         target : jump_address,
+  //                         state  : ?
+  //                      `ifdef gshare
+  //                         ,history   : btbresponse.history
+  //                      `endif
+  //                      `ifdef compressed
+  //                         ,compressed : meta[1].compressed
+  //                      `endif
+  //                         ,ci         : ?
+  //                         ,btbhit     : btbresponse.btbhit
+  //                      };
+  //  if((inst_type == JAL || inst_type == JALR) && meta[1].rd ==1)
+  //    td.ci = Call;
+  //  else if(inst_type == JALR &&& opmeta.rs1addr matches 'b00?01)
+  //    td.ci = Ret;
+  //  else if(inst_type == JAL || inst_type == JALR)
+  //    td.ci = JAL;
+  //  else
+  //    td.ci = Branch;
+
+  //  if(inst_type == BRANCH && !trap)begin
+  //    if(btaken==1)begin
+  //      case(prediction)
+  //        'b00: prediction= 'b01;
+  //        'b01: prediction= 'b11;
+  //        'b10: prediction= 'b11;
+  //      endcase
+  //    end
+  //    else begin
+  //      case(prediction)
+  //        'b01:prediction= 'b00;
+  //        'b10:prediction= 'b00;
+  //        'b11:prediction= 'b10;
+  //      endcase
+  //    end
+  //    td.state = prediction;
+  //  end
+  //  else begin
+  //    td.state = 3;
+  //  end
+  //  if(redirection)
+  //    `logLevel( stage3, 0, $format("[%2d]STAGE3: Misprediction. NextPC in Pipe:%h ExpectedPC:%h",hartid,nextpc,redirect_pc), wr_simulate_log_start)
+  //`endif
+  //  TrapOut trapout = TrapOut {cause   : `Inst_addr_misaligned, is_microtrap: False, mtval : meta[1].pc
+  //                                                                                          `ifdef hypervisor ,mtval2: ?
+  //                                                                                          `endif
+  //                                                                                          };
+  //  BaseOut baseoutput = BaseOut { rdvalue   : nlogical_pc, rd: meta[1].rd, epochs: curr_epochs[1]
+  //                               `ifdef spfpu ,fflags    : 0 , rdtype: meta[1].rdtype `endif };
+  //  //let _id <- sboard.ma_lock_rd(unpack({0, pack(SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif })}));
+  //  wr_lock[0] <= SBDUpd{rd: meta[1].rd `ifdef spfpu ,rdtype: meta[1].rdtype `endif };
+  //  let common_pkt = FUid{pc    : meta[1].pc,
+  //                           rd    : meta[1].rd,
+  //                           epochs : meta[1].epochs[1],
+  //                           upper_instr: meta[1].upper_instr,
+  //                           insttype : NONE,
+  //                           instpkt : tagged None
+  //                          `ifdef no_wawstalls 
+  //                            ,id: ?
+  //                          `endif
+  //                          `ifdef spfpu
+  //                            ,rdtype : meta[1].rdtype
+  //                          `endif } ;
+  ////`ifdef no_wawstalls
+  ////  baseoutput.id = _id[0];
+  ////`endif
+  //  if (!trap) begin
+  //    //tx_baseout.u.enq(unpack({0, pack(baseoutput)}));
+  //    common_pkt.instpkt = tagged BASE baseoutput;
+  //    common_pkt.insttype = BASE;
+  //    `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op completed: ",hartid,fshow(baseoutput)), wr_simulate_log_start)
+  //  end
+  //  else begin
+  //    //tx_trapout.u.enq(unpack({0, pack(trapout)}));
+  //    common_pkt.instpkt = tagged TRAP trapout;
+  //    common_pkt.insttype = TRAP;
+  //    `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op created trap: ",hartid,fshow(trapout)), wr_simulate_log_start)
+  //  end
+  //  //tx_fuid.u.enq(unpack({0, pack(common_pkt)}));
+  //  wr_fuid[0] <= common_pkt;
+  //  //deq_rx;
+  //  rg_eEpoch         <= pack(redirection)^rg_eEpoch;
+  //  wr_redirect_pc    <= redirect_pc;
+  //  wr_flush_from_exe <= redirection;
+  //`ifdef rtldump
+  //  let clogpkt = rx_commitlog.u.first[0];
+  //  //tx_commitlog.u.enq(clogpkt);
+  //  wr_commitlog[0] <= clogpkt;
+  //`endif
+  //`ifdef bpu 
+  //  if (!trap && redirection)
+  //    wr_mispredict_ghr <= tagged Valid tuple2(btbresponse.btbhit, btbresponse.history);
+  //  wr_training_data <= tagged Valid td;
+  //`endif
+  //`ifdef perfmonitors
+  //  if (inst_type == BRANCH)
+  //    wr_count_branches <= 1;
+  //  else 
+  //    wr_count_jumps <= 1;
+  //`endif
+  //endrule:rl_exe_base_control
 `ifdef muldiv
 
   /*doc:rule: dummy rule to simply display the ready signals of the multiplication and division
