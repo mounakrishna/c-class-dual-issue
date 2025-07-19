@@ -12,7 +12,7 @@ import UniqueWrappers::*;
 `include "ccore_params.defines"	
 `include "fpu.defines"
 interface Ifc_fpu_int_to_sp;
-    method ActionValue#(Floating_output#(32)) _start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
+    method ActionValue#(Floating_output#(32)) ma_start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
 endinterface
     
 
@@ -83,7 +83,7 @@ module mkfpu_int_to_sp(Ifc_fpu_int_to_sp);
     Wrapper3#(Bit#(32), Bit#(1), Bit#(3),Bit#(37)) fcvt_s_wwu <- mkUniqueWrapper3(fcvt_s_w_l);
     Wrapper3#(Bit#(64), Bit#(1), Bit#(3),Bit#(37)) fcvt_s_llu <- mkUniqueWrapper3(fcvt_s_w_l);
 
-    method ActionValue#(Floating_output#(32)) _start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
+    method ActionValue#(Floating_output#(32)) ma_start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
         //`ifdef verbose $display($time,"\tGiving inputs: %h unsigned %b long %b rounding %b", inp_int, unsigned_bit, long, rounding_mode); `endif
 		  Floating_output#(32) wr_final_out=?;
         if((inp_int == 0 && long==1) || (inp_int[31:0] == 0 && long == 0))
@@ -143,7 +143,7 @@ module mkTb(Empty);
 
    rule rl_start_1(rg_clock=='d0);
        //`ifdef verbose $display("Giving inputs rg_operand 1 : %h through testbench",rg_operand1,$time); `endif
-      let abc<-itof._start(zeroExtend(rg_operand1),1'b1,1'b0,3'b000);
+      let abc<-itof.ma_start(zeroExtend(rg_operand1),1'b1,1'b0,3'b000);
        //`ifdef verbose $display("Final result= %h fflags= %h", abc.final_result, abc.fflags, $time); `endif
        $finish(0);
    endrule

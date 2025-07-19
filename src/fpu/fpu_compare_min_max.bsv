@@ -13,16 +13,16 @@ import ccore_types::*;
 `include "fpu.defines"
 
 interface Ifc_fpu_compare_min_max#(numeric type fpinp, numeric type fpman, numeric type fpexp);
-	method ActionValue#(Floating_output#(fpinp)) _start(Bit#(fpinp) operand1,Bit#(fpinp) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
+	method ActionValue#(Floating_output#(fpinp)) ma_start(Bit#(fpinp) operand1,Bit#(fpinp) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
 endinterface
 
 `ifdef fpu_hierarchical
     interface Ifc_fpu_compare_min_max32;
-    	method ActionValue#(Floating_output#(32)) _start(Bit#(32) operand1,Bit#(32) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
+    	method ActionValue#(Floating_output#(32)) ma_start(Bit#(32) operand1,Bit#(32) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
     endinterface
     
     interface Ifc_fpu_compare_min_max64;
-    	method ActionValue#(Floating_output#(64)) _start(Bit#(64) operand1,Bit#(64) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
+    	method ActionValue#(Floating_output#(64)) ma_start(Bit#(64) operand1,Bit#(64) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
     endinterface
 `endif
 
@@ -66,7 +66,7 @@ module mkfpu_compare_min_max(Ifc_fpu_compare_min_max#(fpinp, fpman, fpexp))
 			 Add#(fpman,1,fpman1)			
 		    );
 
-	method ActionValue#(Floating_output#(fpinp)) _start(Bit#(fpinp) operand1,Bit#(fpinp) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
+	method ActionValue#(Floating_output#(fpinp)) ma_start(Bit#(fpinp) operand1,Bit#(fpinp) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
 		
       let fPMAN = valueOf(fpman);
 		let fPEXP = valueOf(fpexp);
@@ -171,8 +171,8 @@ module mkfpu_compare_min_max(Ifc_fpu_compare_min_max#(fpinp, fpman, fpexp))
   (*synthesize*)
   module mkfpu_compare_min_max32(Ifc_fpu_compare_min_max32);
     Ifc_fpu_compare_min_max#(32,23,8) uut <- mkfpu_compare_min_max();
-	method ActionValue#(Floating_output#(32)) _start(Bit#(32) operand1,Bit#(32) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
-        let x <- uut._start(operand1,operand2,which_cmp_instr,cmp_or_min_max,condFlags);
+	method ActionValue#(Floating_output#(32)) ma_start(Bit#(32) operand1,Bit#(32) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
+        let x <- uut.ma_start(operand1,operand2,which_cmp_instr,cmp_or_min_max,condFlags);
         return x;
     endmethod
   endmodule
@@ -180,8 +180,8 @@ module mkfpu_compare_min_max(Ifc_fpu_compare_min_max#(fpinp, fpman, fpexp))
 (*synthesize*)
   module mkfpu_compare_min_max64(Ifc_fpu_compare_min_max64);
     Ifc_fpu_compare_min_max#(64,52,11) uut <- mkfpu_compare_min_max();
-	method ActionValue#(Floating_output#(64)) _start(Bit#(64) operand1,Bit#(64) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
-        let x <- uut._start(operand1,operand2,which_cmp_instr,cmp_or_min_max,condFlags);
+	method ActionValue#(Floating_output#(64)) ma_start(Bit#(64) operand1,Bit#(64) operand2, Bit#(3) which_cmp_instr,bit cmp_or_min_max,Tuple2#(Bit#(5),Bit#(5)) condFlags);
+        let x <- uut.ma_start(operand1,operand2,which_cmp_instr,cmp_or_min_max,condFlags);
         return x;
     endmethod
   endmodule
@@ -203,7 +203,7 @@ module mkfpu_compare_min_max(Ifc_fpu_compare_min_max#(fpinp, fpman, fpexp))
 
    rule rl_start_1(rg_clock=='d0);
     // `ifdef verbose $display("Giving Inputs to the compare module"); `endif
-     inst._start(rg_operand1, rg_operand2, 3'b000, 0);
+     inst.ma_start(rg_operand1, rg_operand2, 3'b000, 0);
    endrule
 
    rule rl_display_result;

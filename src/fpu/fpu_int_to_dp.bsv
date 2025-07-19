@@ -25,7 +25,7 @@ function Bit#(m) truncateLSB(Bit#(n) value);
 endfunction
 
 interface Ifc_fpu_int_to_dp;
-    method ActionValue#(Floating_output#(64)) _start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
+    method ActionValue#(Floating_output#(64)) ma_start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
 endinterface
     
 
@@ -66,7 +66,7 @@ endinterface
     //Wrapper3#(Bit#(32), Bit#(1), Bit#(3),Bit#(69)) fcvt_d_wwu <- mkUniqueWrapper3(fcvt_s_w_l);
     //Wrapper3#(Bit#(64), Bit#(1), Bit#(3),Bit#(69)) fcvt_d_llu <- mkUniqueWrapper3(fcvt_s_w_l);
 
-    method ActionValue#(Floating_output#(64)) _start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
+    method ActionValue#(Floating_output#(64)) ma_start(Bit#(64) inp_int, Bit#(1) unsigned_bit, Bit#(1) long, Bit#(3) rounding_mode);
 			Floating_output#(64) wr_final_out=?;
         //`ifdef verbose $display($time,"Giving inputs: %h unsigned %b long %b rounding %b", inp_int, unsigned_bit, long, rounding_mode); `endif
         if((inp_int == 0 && long==1) || (inp_int[31:0] == 0 && long == 0))
@@ -129,7 +129,7 @@ endmodule
 //
 //   rule rl_start_1(rg_clock=='d0);
 //       `ifdef verbose $display("Giving inputs rg_operand 1 : %h through testbench",rg_operand1,$time); `endif
-//      itod._start(zeroExtend(rg_operand1),1'b0,1'b0,3'b000);
+//      itod.ma_start(zeroExtend(rg_operand1),1'b0,1'b0,3'b000);
 //   endrule
 //
 //   rule rl_display_result;

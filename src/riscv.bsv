@@ -311,7 +311,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
   `endif
   `ifdef spfpu
     mkConnection(stage3.float.ma_fbox_ready,fbox.fpu_ready);
-    mkConnection(stage3.float.mv_fbox_inputs, fbox._start);
+    mkConnection(stage3.float.mv_fbox_inputs, fbox.ma_start);
     mkConnection(fbox.tx_output, ff_fbox_out);
     mkConnection(ff_fbox_out, stage4.s4_fbox.rx_fbox_output);
     `ifdef arith_trap

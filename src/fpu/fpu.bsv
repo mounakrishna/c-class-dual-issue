@@ -39,7 +39,7 @@ import Clocks::*;
 /*========================= */
 
 interface Ifc_fpu;							//interface to module mk_fpu
-	method Action _start(Input_Packet m);
+	method Action ma_start(Input_Packet m);
  `ifdef arith_trap
       method Action rd_arith_excep_en(Bit#(1) arith_en);
  `endif
@@ -235,7 +235,7 @@ module mkfpu(Ifc_fpu);
         let {flags1,flags2,flags3} <- condFlags32.func(tuple2(man1,exp1),tuple2(man2,exp2),tuple2(0,0));
         let sign1 = op1[31];
         let sign2 = op2[31];
-        let x <- inst_fpu_compare_min_max._start(op1,op2,funct3,funct7[2],tuple2(flags1,flags2));
+        let x <- inst_fpu_compare_min_max.ma_start(op1,op2,funct3,funct7[2],tuple2(flags1,flags2));
         let y = XBoxOutput {valid:True, fflags:x.fflags, data:? `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif };
 				`ifdef dpfpu
 					y.data=funct7[2]==0?zeroExtend(x.final_result):{'1,x.final_result};
@@ -252,7 +252,7 @@ module mkfpu(Ifc_fpu);
             let {f1,f2,f3}       <- condFlags64.func(tuple2(man3,exp3),tuple2(man4,exp4),tuple2(0,0));
             let sign3 = operand1[63];
             let sign4 = operand2[63];
-            let x<-inst_dpfpu_compare_min_max._start(operand1,operand2,funct3,funct7[2],tuple2(f1,f2));
+            let x<-inst_dpfpu_compare_min_max.ma_start(operand1,operand2,funct3,funct7[2],tuple2(f1,f2));
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
 			end
@@ -261,7 +261,7 @@ module mkfpu(Ifc_fpu);
 		end
 		else if((funct7[6:2]==`FCVT_F_I_f5) && opcode == `FP_OPCODE) begin
 			if(issp)begin
-				let x <-inst_fpu_int_to_fp._start(zeroExtend(operand1), imm[0],imm[1], funct3);
+				let x <-inst_fpu_int_to_fp.ma_start(zeroExtend(operand1), imm[0],imm[1], funct3);
         let y = XBoxOutput {valid:True, fflags:x.fflags, data:? `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif };
 				`ifdef dpfpu
 					y.data={'1,x.final_result};
@@ -273,7 +273,7 @@ module mkfpu(Ifc_fpu);
 			end
     `ifdef dpfpu
 			else begin
-				let x<-inst_dpfpu_int_to_fp._start(operand1,imm[0],imm[1],funct3);
+				let x<-inst_dpfpu_int_to_fp.ma_start(operand1,imm[0],imm[1],funct3);
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
 			end
@@ -283,7 +283,7 @@ module mkfpu(Ifc_fpu);
 		else if((funct7[6:2] == `FSGNJN_f5) && opcode == `FP_OPCODE)begin
 			if(issp)begin
 				let {op1,op2,op3} <- setCanonicalNaN.func(operand1,operand2,'1);
-			  let x <-inst_spfpu_sign_injection._start(op1, op2, funct3);
+			  let x <-inst_spfpu_sign_injection.ma_start(op1, op2, funct3);
         let y = XBoxOutput {valid:True, fflags:x.fflags, data:? `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif };
 			`ifdef dpfpu
 			  y.data={'1,x.final_result};
@@ -295,7 +295,7 @@ module mkfpu(Ifc_fpu);
       end
     `ifdef dpfpu
       else begin
-				let x<-inst_dpfpu_sign_injection._start(operand1,operand2,funct3);
+				let x<-inst_dpfpu_sign_injection.ma_start(operand1,operand2,funct3);
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
 			end
@@ -308,7 +308,7 @@ module mkfpu(Ifc_fpu);
 				let {man1,man2,man3} <- getMant32.func(op1, 0,0);
 				let {exp1,exp2,exp3} <- getExp32.func(op1, 0,0);
 				let {flags1,flags2,flags3} <- condFlags32.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
-				let x <- inst_spfp_to_int._start(op1[31],exp1,man1, imm[0],imm[1],funct3,flags1);
+				let x <- inst_spfp_to_int.ma_start(op1[31],exp1,man1, imm[0],imm[1],funct3,flags1);
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
       end
@@ -317,7 +317,7 @@ module mkfpu(Ifc_fpu);
       	  let {man4,man5,man6} <- getMant64.func(operand1, 0,0);
       	  let {exp4,exp5,exp6} <- getExp64.func(operand1, 0,0);
       	  let {flags4,flags5,flags6} <- condFlags64.func(tuple2(man4,exp4),tuple2(0,0),tuple2(0,0));
-      	  let x<-inst_dpfp_to_int._start(operand1[63],exp4,man4,imm[0],imm[1],funct3,flags4);
+      	  let x<-inst_dpfp_to_int.ma_start(operand1[63],exp4,man4,imm[0],imm[1],funct3,flags4);
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
       end
@@ -330,7 +330,7 @@ module mkfpu(Ifc_fpu);
 				let {man1,man2,man3}     <- getMant32.func(op1, 0,0);
 				let {exp1,exp2,exp3}     <- getExp32.func(op1, 0,0);
 				let {x1,x2,x3}           <- condFlags32.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
-				let x<-inst_spfpu_fclass._start(op1[31],man1,exp1,x1);
+				let x<-inst_spfpu_fclass.ma_start(op1[31],man1,exp1,x1);
 				//rg_result <= XBoxOutput{valid: True, data: zeroExtend(x.final_result), fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: zeroExtend(x.final_result), fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
        end
@@ -339,7 +339,7 @@ module mkfpu(Ifc_fpu);
 				let {man1,man2,man3} <- getMant64.func(operand1, 0,0);
 				let {exp1,exp2,exp3} <- getExp64.func(operand1, 0,0);
 				let {x1,x2,x3}       <- condFlags64.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
-				let x<-inst_dpfpu_fclass._start(operand1[63],man1,exp1,x1);
+				let x<-inst_dpfpu_fclass.ma_start(operand1[63],man1,exp1,x1);
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
        end
@@ -354,7 +354,7 @@ module mkfpu(Ifc_fpu);
       	     let {man1,man2,man3}     <- getMant32.func(op1, 0,0);
       	     let {exp1,exp2,exp3}     <- getExp32.func(op1, 0,0);
       	     let {x1,x2,x3}           <- condFlags32.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
-      	     let x<-inst_spfpu_cnvt._start(op1[31],exp1,man1,funct3,x1);
+      	     let x<-inst_spfpu_cnvt.ma_start(op1[31],exp1,man1,funct3,x1);
 				//rg_result <= XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags};
         tx_fbox_out.u.enq(XBoxOutput{valid: True, data: x.final_result, fflags: x.fflags `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif });
       	end
@@ -363,7 +363,7 @@ module mkfpu(Ifc_fpu);
       	     let {man1,man2,man3}     <- getMant64.func(operand1, 0,0);
       	     let {exp1,exp2,exp3}     <- getExp64.func(operand1, 0,0);
       	     let {x1,x2,x3}           <- condFlags64.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
-      	     let x<-inst_dpfpu_cnvt._start(operand1[63],exp1,man1,funct3,x1);
+      	     let x<-inst_dpfpu_cnvt.ma_start(operand1[63],exp1,man1,funct3,x1);
           let y = XBoxOutput {valid:True, fflags:x.fflags, data:? `ifdef arith_trap ,arith_trap_en: wr_arith_en `endif };
 			  `ifdef dpfpu
 			    y.data={'hffffffff,x.final_result[31:0]};
@@ -409,7 +409,7 @@ module mkfpu(Ifc_fpu);
             let sign1 = 0;
             let sign2 = op1[31];
             let sign3 = op2[31];
-            inst_spfm_add_sub._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),funct3,funct7[2],1'b0,1'b0,0,x);
+            inst_spfm_add_sub.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),funct3,funct7[2],1'b0,1'b0,0,x);
          end
         `ifdef dpfpu
          else begin
@@ -419,7 +419,7 @@ module mkfpu(Ifc_fpu);
           	let sign1 = 0;
           	let sign2 = operand1[63];
           	let sign3 = operand2[63];
-     		 	inst_dpfm_add_sub._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2), tuple3(sign3,exp3,man3), funct3, funct7[2], 1'b0, 1'b0,0,x);
+     		 	inst_dpfm_add_sub.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2), tuple3(sign3,exp3,man3), funct3, funct7[2], 1'b0, 1'b0,0,x);
          end
        `endif
 		`ifdef spfpu `logLevel( fpu, 0, $format("FPU:Giving inputs to the fpu add_sub"), wr_simulate_log_start) `endif
@@ -432,7 +432,7 @@ module mkfpu(Ifc_fpu);
             let {man1,man2,man3} <- getMant32.func(op1, op2,op3);
             let {exp1,exp2,exp3} <- getExp32.func(op1, op2,op3);
             let {f1,f2,f3}       <- condFlags32.func(tuple2(man1,exp1),tuple2(man2,exp2),tuple2(man3,exp3));
-            inst_spfpu_divider._start(op1[31]^op2[31],man1,exp1,man2,exp2,funct3,tuple2(f1,f2));
+            inst_spfpu_divider.ma_start(op1[31]^op2[31],man1,exp1,man2,exp2,funct3,tuple2(f1,f2));
 		`ifdef spfpu `logLevel( fpu, 0, $format("FPU:Giving inputs to the spfpu divider in1: %h, in2: %h", op1, op2), wr_simulate_log_start) `endif
         end
       `ifdef dpfpu
@@ -440,7 +440,7 @@ module mkfpu(Ifc_fpu);
             let {man3,man4,man5} <- getMant64.func(operand1, operand2,0);
             let {exp3,exp4,exp5} <- getExp64.func(operand1,operand2,0);
             let {y1,y2,y3}       <- condFlags64.func(tuple2(man3,exp3),tuple2(man4,exp4),tuple2(0,0));
-            inst_dpfpu_divider._start(operand1[63]^operand2[63],man3,exp3,man4,exp4,funct3, tuple2(y1,y2));
+            inst_dpfpu_divider.ma_start(operand1[63]^operand2[63],man3,exp3,man4,exp4,funct3, tuple2(y1,y2));
 		`ifdef spfpu `logLevel( fpu, 0, $format("FPU:Giving inputs to the dpfpu divider"), wr_simulate_log_start) `endif
         end
       `endif
@@ -452,14 +452,14 @@ module mkfpu(Ifc_fpu);
 				let {man1,man2,man3} <- getMant32.func(op1, 0,0);
 				let {exp1,exp2,exp3} <- getExp32.func(op1, 0,0);
 				let x           <- condFlags32.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
-				inst_spfpu_sqrt._start(operand1[31], man1, exp1, funct3, tpl_1(x));
+				inst_spfpu_sqrt.ma_start(operand1[31], man1, exp1, funct3, tpl_1(x));
       end
     `ifdef dpfpu
       else begin
 				let {man3,man4,man5} <- getMant64.func(operand1, 0,0);
 				let {exp3,exp4,exp5} <- getExp64.func(operand1,0,0);
 				let y           <- condFlags64.func(tuple2(man3,exp3),tuple2(0,0),tuple2(0,0));
-				inst_dpfpu_sqrt._start(operand1[63], man3, exp3, funct3, tpl_1(y));
+				inst_dpfpu_sqrt.ma_start(operand1[63], man3, exp3, funct3, tpl_1(y));
 				`ifdef spfpu `logLevel( fpu, 0, $format("FPU:Giving inputs to the spfpu sqrt"), wr_simulate_log_start) `endif
       end
     `endif
@@ -475,7 +475,7 @@ module mkfpu(Ifc_fpu);
             let sign1 = op1[31];
             let sign2 = op2[31];
             let sign3 = 0;
-            inst_spfm_add_sub._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),funct3,1'b1,1'b0,1'b1,0,x);
+            inst_spfm_add_sub.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),funct3,1'b1,1'b0,1'b1,0,x);
 			  end
       `ifdef dpfpu
          else begin
@@ -485,7 +485,7 @@ module mkfpu(Ifc_fpu);
                 let sign1 = operand1[63];
                 let sign2 = operand2[63];
                 let sign3 = 0;
-     		    inst_dpfm_add_sub._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3), funct3, 1'b1, 1'b0, 1'b1,0,x);
+     		    inst_dpfm_add_sub.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3), funct3, 1'b1, 1'b0, 1'b1,0,x);
          end
        `endif
 		 `ifdef spfpu `logLevel( fpu, 0, $format("FPU:Giving inputs to the spfloating multiplier module"), wr_simulate_log_start) `endif
@@ -501,7 +501,7 @@ module mkfpu(Ifc_fpu);
             let sign1 = op1[31];
             let sign2 = op2[31];
             let sign3 = op3[31];
-            inst_spfm_add_sub._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),funct3,opcode[0]^opcode[1],opcode[1],1'b0,1,x);
+            inst_spfm_add_sub.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),funct3,opcode[0]^opcode[1],opcode[1],1'b0,1,x);
             end
       `ifdef dpfpu
         else begin
@@ -512,7 +512,7 @@ module mkfpu(Ifc_fpu);
             let sign1 = operand1[63];
             let sign2 = operand2[63];
             let sign3 = operand3[63];
-     		inst_dpfm_add_sub._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3), funct3, opcode[0]^opcode[1],opcode[1], 1'b0,1,x);
+     		inst_dpfm_add_sub.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3), funct3, opcode[0]^opcode[1],opcode[1], 1'b0,1,x);
         end
       `endif
        `ifdef spfpu `logLevel( fpu, 0, $format("FPU:Operand 1: %h Operand 2: %h Operand 3: %h",operand1, operand2, operand3), wr_simulate_log_start) `endif
@@ -609,7 +609,7 @@ module mkfpu(Ifc_fpu);
 
 	// input method to start the floating point operation
 
-	method Action _start(Input_Packet m) if(!rg_multicycle_op);
+	method Action ma_start(Input_Packet m) if(!rg_multicycle_op);
 	    ff_input.enq (m);
       `logLevel( fpu, 0, $format("FPU: op1:%h op2:%h op3:%h",m.operand1,m.operand2,m.operand3), wr_simulate_log_start)
       `logLevel( fpu, 0, $format("FPU: opcode:%b f7:%h f3:%b imm:%h issp:%b", m.opcode, m.funct7,

@@ -34,7 +34,7 @@ import DReg::*;
 
 interface Ifc_fpu_sqrt#(numeric type fpinp, numeric type fpman, numeric type fpexp);
 	//Input Methods
-    method Action _start(Bit#(1) sign, Bit#(fpman) lv_mantissa, Bit#(fpexp) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
+    method Action ma_start(Bit#(1) sign, Bit#(fpman) lv_mantissa, Bit#(fpexp) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
 
 	//Output Methods
 //	method Action deque_buffer();
@@ -46,7 +46,7 @@ endinterface
 `ifdef fpu_hierarchical
 interface Ifc_fpu_sqrt32;
 	//Input Methods
-    method Action _start(Bit#(1) sign, Bit#(23) lv_mantissa, Bit#(8) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
+    method Action ma_start(Bit#(1) sign, Bit#(23) lv_mantissa, Bit#(8) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
 
 	//Output Methods
 //	method Action deque_buffer();
@@ -56,7 +56,7 @@ endinterface
 
 interface Ifc_fpu_sqrt64;
 	//Input Methods
-    method Action _start(Bit#(1) sign, Bit#(52) lv_mantissa, Bit#(11) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
+    method Action ma_start(Bit#(1) sign, Bit#(52) lv_mantissa, Bit#(11) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
 	//Output Methods
 //	method Action deque_buffer();
 	method Maybe#(Floating_output#(64)) get_result();
@@ -286,7 +286,7 @@ module mkfpu_sqrt(Ifc_fpu_sqrt#(fpinp,fpman,fpexp))
 
     //START METHOD
     //*******************ITERATION :1 *********************************//
-    method Action _start(Bit#(1) sign, Bit#(fpman) lv_mantissa, Bit#(fpexp) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags) if(rg_state==0);
+    method Action ma_start(Bit#(1) sign, Bit#(fpman) lv_mantissa, Bit#(fpexp) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags) if(rg_state==0);
 
         bit lv_is_invalid =0;                                               //Invalid Flag
         bit signalling_nan = condFlags[0];
@@ -410,8 +410,8 @@ endmodule
 (*synthesize*)
 module mkfpu_sqrt32(Ifc_fpu_sqrt32);
     Ifc_fpu_sqrt#(32,23,8) uut <- mkfpu_sqrt();
-    method Action _start(Bit#(1) sign, Bit#(23) lv_mantissa, Bit#(8) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
-        uut._start(sign,lv_mantissa,lv_exponent,rounding_mode,condFlags);
+    method Action ma_start(Bit#(1) sign, Bit#(23) lv_mantissa, Bit#(8) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
+        uut.ma_start(sign,lv_mantissa,lv_exponent,rounding_mode,condFlags);
     endmethod
 	//Output Methods
 //	method Action deque_buffer();
@@ -426,8 +426,8 @@ endmodule
 (*synthesize*)
 module mkfpu_sqrt64(Ifc_fpu_sqrt64);
     Ifc_fpu_sqrt#(64,52,11) uut <- mkfpu_sqrt();
-    method Action _start(Bit#(1) sign, Bit#(52) lv_mantissa, Bit#(11) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
-        uut._start(sign,lv_mantissa,lv_exponent,rounding_mode,condFlags);
+    method Action ma_start(Bit#(1) sign, Bit#(52) lv_mantissa, Bit#(11) lv_exponent, Bit#(3) rounding_mode, Bit#(5) condFlags);
+        uut.ma_start(sign,lv_mantissa,lv_exponent,rounding_mode,condFlags);
     endmethod
 	//Output Methods
 //	method Action deque_buffer();
