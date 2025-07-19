@@ -174,8 +174,10 @@ package gshare_fa;
     This rule would be called each time a fence.i is being performed. This rule will also reset the
     ghr and rg_allocate register*/
     rule rl_initialize (rg_initialize);
-      for(Integer i = 0; i < `btbdepth; i = i + 1)
+      for(Integer i = 0; i < `btbdepth; i = i + 1) begin
         v_reg_btb_tag[i]<=unpack(0);
+        v_reg_btb_entry[i]<=unpack(0);
+      end
       for(Integer i = 0; i < `bhtcols ; i = i + 1)
         rg_bht_arr[i].upd(rg_bht_index,1);
       if (rg_bht_index == fromInteger(valueOf(TDiv#(`bhtdepth,`bhtcols))-1))
@@ -299,7 +301,7 @@ package gshare_fa;
             ci_off = {1'b0, v_hit_entry[0].ci_offset};
             compressed = v_hit_entry[0].compressed;
           end
-          else if (v_hit_entry[0].ci == Branch  && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+          else if (v_hit_entry[0].ci == Branch  && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0] && branch_state_[0][`statesize - 1] == 1) begin
             prediction_ = branch_state_[0];
             target_ = v_hit_entry[0].target;
             ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
