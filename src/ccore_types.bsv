@@ -617,6 +617,7 @@ typedef struct{
   EXEType     insttype;
   FUPacket    instpkt;
   Bool upper_instr;
+  Bool drop_instr;
 } FUid deriving(Bits, Eq);
 
 instance FShow#(FUid);
@@ -629,6 +630,7 @@ instance FShow#(FUid);
   `ifdef no_wawstalls
     result = result + $format(" id:%2s",value.id);
   `endif
+    result = result + $format(" upper_instr:%b drop_instr:%b", value.upper_instr, value.drop_instr);
     return result;
   endfunction
 endinstance
@@ -688,6 +690,7 @@ typedef struct{
   Bit#(1)      epochs;
   CUPacket     instpkt;
   Bool upper_instr;
+  Bool drop_instr;
 } CUid deriving(Bits, Eq);
 
 instance FShow#(CUid);
@@ -700,6 +703,7 @@ instance FShow#(CUid);
   `ifdef no_wawstalls
     result = result + $format(" id:%2s",value.id);
   `endif
+    result = result + $format(" upper_instr:%b drop_instr:%b", value.upper_instr, value.drop_instr);
     return result;
   endfunction
 endinstance
@@ -707,7 +711,8 @@ endinstance
 
 function CUid fn_fu2cu(FUid f, WBMemop mem);
   CUid c;
-  c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, upper_instr: f.upper_instr, instpkt : ?
+  c =  CUid{pc: f.pc, rd: f.rd, epochs: f.epochs, upper_instr: f.upper_instr, 
+            instpkt : ?, drop_instr: f.drop_instr
           `ifdef no_wawstalls ,id: f.id `endif 
           `ifdef spfpu ,rdtype: f.rdtype `endif };
   case (f.instpkt) matches

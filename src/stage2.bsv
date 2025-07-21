@@ -271,6 +271,12 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     every time a retirement to the same register occurs.*/
   Reg#(FwdType) rg_op3[2] <- mkCReg(2, unpack(0));
 
+  /*doc:reg:
+    This register holds the offset value of branch instruction being present in the second
+    pipeline buffer.
+  */
+  Reg#(Bit#(32)) rg_op6 <- mkReg(unpack(0));
+
 `ifdef perfmonitors
   Wire#(Bit#(1)) wr_dual_issued <- mkDWire(0);
   Wire#(Bit#(1)) wr_raw_hazard <- mkDWire(0);
@@ -491,6 +497,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         issue_two_inst = True;
       else if (instrType[0] == MULDIV && instrType[1] == ALU)
         issue_two_inst = True;
+      // Removing below logic as it will not help coremarks. This will allow me
+      // to just have 4 bypass lines instead of 5.
       else if (instrType[0] == ALU && instrType[1] == FLOAT)
         issue_two_inst = True;
       else if (instrType[0] == FLOAT && instrType[1] == ALU)
@@ -503,18 +511,6 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         issue_two_inst = True;
       else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == ALU)
         issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == JAL)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == JAL && instrType[1] == ALU)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == JALR)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == JALR && instrType[1] == ALU)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == ALU && instrType[1] == BRANCH)
-      //  issue_two_inst = True;
-      //else if (instrType[0] == BRANCH && instrType[1] == ALU)
-      //  issue_two_inst = True;
       else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MULDIV)
         issue_two_inst = True;
       else if (instrType[0] == MULDIV && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
@@ -534,6 +530,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MULDIV)) begin
           wr_mul_branch_hazard <= 1;
           `logLevel( stage2, perf, $format("[%2d]STAGE2: MUL BRANCH Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == FLOAT && instrType[1] == ALU) || (instrType[0] == ALU && instrType[1] == FLOAT)) begin
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: FLOAT ALU Hazard", hartid), wr_simulate_log_start)
         end
         else if ((instrType[0] == MULDIV && instrType[1] == MEMORY) || (instrType[0] == MEMORY && instrType[1] == MULDIV)) begin
           wr_mul_mem_hazard <= 1;
@@ -674,7 +673,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     Bit#(`elen) op2_inst1 =  (decoded_inst[1].op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
                       (decoded_inst[1].op_type.rs2type == Constant4) ? 'd4:
                       (decoded_inst[1].op_type.rs2type == Immediate) ? signExtend(imm[1]) : rs5_from_rf;
-    Bit#(`elen) inst1_imm = signExtend(imm[1]);
+    Bit#(32) inst1_imm = signExtend(imm[1]);
     // -------------------------------------------------------------------------------------- //
 
     Vector#(`num_issue, Stage3Meta) stage3meta;
@@ -833,6 +832,13 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                         `ifdef no_wawstalls ,id: ? `endif
                         `ifdef spfpu ,rdtype: (decoded_inst[1].op_type.rs2type==FloatingRF)?FRF:IRF `endif
                         };
+      //let _op6 = FwdType{ valid: True, 
+      //                    addr: 0,
+      //                    data: zeroExtend(inst1_imm),
+      //                    epochs: wEpoch
+      //                  `ifdef spfpu ,rdtype: unpack(0) `endif 
+      //                  `ifdef no_wawstalls ,id : ? `endif };
+      let _op6 = inst1_imm;
                           
       rg_op1[0] <= _op1;
       rg_op2[0] <= _op2;
@@ -842,6 +848,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       rg_op4[0] <= _op4;
       rg_op5[0] <= _op5;
       wr_op5type <= IntegerRF;
+      rg_op6 <= _op6;
 
       `logLevel( stage2, 0, fstage2( hartid, 0, _op1, decoded_inst[0].op_type.rs1type, 
                 _op2, decoded_inst[0].op_type.rs2type, _op3, instrType[0], stage3meta[0], mtval[0] ), wr_simulate_log_start)
@@ -1027,6 +1034,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     method mv_op3 = rg_op3[0];
     method mv_op4 = rg_op4[0];
     method mv_op5 = rg_op5[0];
+    method mv_op6 = rg_op6;
   endinterface;
   method mv_wfi_detected = rg_wfi;
 	

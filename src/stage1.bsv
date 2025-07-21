@@ -609,6 +609,9 @@ package stage1;
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b01) begin
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
+        `ifdef bpu
+          lv_instr_new = replicate(True);
+        `endif
         if (imem_resp.word[17:16] == 2'b11 && imem_resp.word[49:48] == 2'b11) begin
           `logLevel( stage1, 1, $format("Case V - SS"), wr_simulate_log_start)
           final_instruction[0] = imem_resp.word[47:16];
@@ -674,6 +677,9 @@ package stage1;
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b10) begin
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
+        `ifdef bpu
+          lv_instr_new = replicate(True);
+        `endif
         if (imem_resp.word[33:32] == 2'b11) begin
           `logLevel( stage1, 1, $format("Case VI - S"), wr_simulate_log_start)
           final_instruction[0] = imem_resp.word[63:32];
@@ -723,6 +729,9 @@ package stage1;
       else if (rg_prev.mask == 2'b00 && stage0pc.discard == 2'b11) begin
         lv_deq_response = True;
         trap = replicate(imem_resp.trap);
+        `ifdef bpu
+          lv_instr_new = replicate(True);
+        `endif
         if (imem_resp.word[49:48] == 2'b11) begin
           `logLevel( stage1, 1, $format("Case VII - S"), wr_simulate_log_start)
           final_instruction = replicate(?);

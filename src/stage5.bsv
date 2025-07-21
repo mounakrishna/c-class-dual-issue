@@ -193,10 +193,10 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     wr_commitlog[0] <= tagged Invalid;
   `endif
     wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
-                               `ifdef no_wawstalls , id: fuid[0].id `endif
-                               `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+                                 `ifdef no_wawstalls , id: fuid[0].id `endif
+                                 `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
 
-    if (epochs_match) begin
+    if (epochs_match && !fuid[0].drop_instr) begin
     `ifdef microtrap_support
       if (trapout.is_microtrap) begin
         if (trapout.cause == `Sfence_rerun || trapout.cause == `FenceI_rerun || 
@@ -355,9 +355,14 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       if (epochs_match) begin
         wr_increment_minstret[i] <= True;
         //`ifdef spfpu csr.ma_set_fflags(baseout.fflags); `endif
-        wr_commit[i].wset(CommitData{addr: fuid[i].rd, data: zeroExtend(baseout.rdvalue), unlock_only:False
-                                   `ifdef no_wawstalls , id: fuid[i].id `endif
-                                   `ifdef spfpu ,rdtype: fuid[i].rdtype `endif });
+        if (fuid[i].drop_instr)
+          wr_commit[i].wset(CommitData{addr: fuid[i].rd, data: zeroExtend(baseout.rdvalue), unlock_only:True
+                                     `ifdef no_wawstalls , id: fuid[i].id `endif
+                                     `ifdef spfpu ,rdtype: fuid[i].rdtype `endif });
+        else
+          wr_commit[i].wset(CommitData{addr: fuid[i].rd, data: zeroExtend(baseout.rdvalue), unlock_only:False
+                                     `ifdef no_wawstalls , id: fuid[i].id `endif
+                                     `ifdef spfpu ,rdtype: fuid[i].rdtype `endif });
         //rx_fuid.u.deq;
         //rx_baseout.u.deq;
       `ifdef rtldump
@@ -367,7 +372,10 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
 	  		`ifdef hypervisor
 	  			clogpkt.v = csr.mv_virtual;
 	  		`endif
-        wr_commitlog[i] <= tagged Valid clogpkt;
+        if (fuid[i].drop_instr)
+          wr_commitlog[i] <= tagged Invalid;
+        else
+          wr_commitlog[i] <= tagged Valid clogpkt;
       `endif
       end
       else begin
@@ -406,7 +414,7 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       _pkt = cmem;
   `endif
 
-    if (epochs_match) begin
+    if (epochs_match && !fuid[0].drop_instr) begin
     `ifdef dcache
       if (!memop.io) begin // cacheable store/atomic op
         `logLevel( stage5, 1, $format("[%2d]STAGE5 : Cached Store Op ",hartid, fshow(memop)), simulate_log_start)
@@ -512,10 +520,16 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     //`endif
     `ifdef dcache
       if(!memop.io)
-        wr_commit_cacheop <= tuple2(rg_epoch, ?);
+        if(fuid[0].drop_instr)
+          wr_commit_cacheop <= tuple2(~rg_epoch, ?);
+        else
+          wr_commit_cacheop <= tuple2(rg_epoch, ?);
       else
     `endif
-        wr_commit_ioop <= rg_epoch;
+        if (fuid[0].drop_instr)
+          wr_commit_ioop <= ~rg_epoch;
+        else
+          wr_commit_ioop <= rg_epoch;
     end
   endrule:rl_writeback_memop
 
@@ -530,6 +544,15 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
     //csr.ma_incr_minstret(1);
   endrule:rl_incr_minstret
 
+  rule rl_update_1st_instruction_default(rx_fuid.u.first[0].instpkt matches tagged None);
+  `ifdef rtldump
+    wr_commitlog[0] <= tagged Invalid;
+  `endif
+    let fuid = rx_fuid.u.first;
+    wr_commit[0].wset(CommitData{addr: fuid[0].rd, data: ?, unlock_only:True
+                               `ifdef no_wawstalls , id: fuid[0].id `endif
+                               `ifdef spfpu ,rdtype: fuid[0].rdtype `endif });
+  endrule
   rule rl_update_2nd_instruction_default(rx_fuid.u.first[1].instpkt matches tagged None);
   `ifdef rtldump
     wr_commitlog[1] <= tagged Invalid;

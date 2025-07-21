@@ -187,6 +187,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   Wire#(FwdType) wr_rf_op2 <- mkWire();
   /*doc:wire: reads operand-3/immediate from the registerfile which was indexed in the previous cycle*/
   Wire#(FwdType) wr_op3 <- mkWire();
+  /*doc:wire: reads operand-3/immediate from the registerfile which was indexed in the previous cycle*/
+  Wire#(Bit#(32)) wr_op6 <- mkWire();
   /*doc:wire: reads operand-1 from the registerfile which was indexed in the previous cycle*/
   Wire#(FwdType) wr_rf_op4 <- mkWire();
   /*doc:wire: reads operand-2 from the registerfile which was indexed in the previous cycle*/
@@ -559,7 +561,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   */
   rule rl_operands_available(epochs_match);
     Bool ops_instr1_avail;
-    if (instr_type[1] == ALU) 
+    if (instr_type[1] == ALU || instr_type[1] == BRANCH || instr_type[1] == JAL || instr_type[1] == JALR) 
       if (wr_op4_avail && wr_op5_avail) 
         ops_instr1_avail = True;
       else 
@@ -657,6 +659,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                             rd    : meta[0].rd,
                             epochs : meta[0].epochs[0],
                             upper_instr: meta[0].upper_instr,
+                            drop_instr: False,
                             insttype : SYSTEM,
                             instpkt: tagged SYSTEM systemout
                           `ifdef no_wawstalls 
@@ -695,6 +698,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            rd    : meta[0].rd,
                            epochs : meta[0].epochs[0],
                            upper_instr: meta[0].upper_instr,
+                           drop_instr: False,
                            insttype : TRAP,
                            instpkt : tagged TRAP trapout
                          `ifdef no_wawstalls 
@@ -740,6 +744,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            rd    : meta[0].rd,
                            epochs : meta[0].epochs[0],
                            upper_instr: meta[0].upper_instr,
+                           drop_instr: False,
                            insttype : BASE,
                            instpkt: tagged BASE baseoutput
                            `ifdef no_wawstalls 
@@ -787,6 +792,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            rd    : meta[1].rd,
                            epochs : meta[1].epochs[0],
                            upper_instr: meta[1].upper_instr,
+                           drop_instr: False,
                            insttype : BASE,
                            instpkt: tagged BASE baseoutput
                            `ifdef no_wawstalls 
@@ -880,6 +886,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                              rd    : meta[0].rd,
                              epochs : meta[0].epochs[0],
                              upper_instr: meta[0].upper_instr,
+                             drop_instr: False,
                              insttype : NONE,
                              instpkt: tagged None
                            `ifdef no_wawstalls 
@@ -965,19 +972,25 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     Bit#(TLog#(`num_issue)) inst_num;
     Instruction_type inst_type;
     Stage3Meta lv_meta;
+    Bit#(TMax#(`vaddr,`flen))  offset;
     if (instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) begin
       inst_type = instr_type[0];
       lv_meta = meta[0];
       inst_num = 0;
+      offset = wr_op3.data;
     end
     else begin
       inst_type = instr_type[1];
       lv_meta = meta[1];
       inst_num = 1;
+      offset = signExtend(wr_op6);
     end
 
-    Bit#(`vaddr)  base = (inst_type == JALR) ? truncate(wr_fwd_op1) : lv_meta.pc;
-    Bit#(TMax#(`vaddr,`flen))  offset = wr_op3.data;
+    Bit#(`vaddr)  base;
+    if (inst_num == 0)
+      base = (inst_type == JALR) ? truncate(wr_fwd_op1) : lv_meta.pc;
+    else
+      base = (inst_type == JALR) ? truncate(wr_fwd_op4) : lv_meta.pc;
     
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op received: ",hartid,fshow(inst_type)), wr_simulate_log_start)
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base meta : ", hartid, fshow(lv_meta)), wr_simulate_log_start)
@@ -986,7 +999,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     Bit#(`xlen) incr = `ifdef compressed (lv_meta.compressed)?2 : `endif 4;
     Bit#(`xlen) nlogical_pc = lv_meta.pc + incr;
 
-    let btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(lv_meta.funct));
+    Bit#(1) btaken;
+    if (inst_num == 0)
+      btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(lv_meta.funct));
+    else
+      btaken = fn_bru(wr_fwd_op4, wr_fwd_op5, truncateLSB(lv_meta.funct));
+
 
     Bool trap = ( jump_address[1] != 0 && wr_misa_c == 0 &&
                 ( inst_type == JALR || inst_type == JAL ||
@@ -1010,8 +1028,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
     if ((inst_num == 1 && !lv_meta.instr_reversed) || (inst_num == 0 && instr_type[1] == NONE))
       nextpc =  fromMaybe(?,wr_next_pc);
-    else 
+    else if(inst_num == 0)
       nextpc = meta[1].pc;
+    else
+      nextpc = meta[0].pc;
 
     `logLevel( stage3, 1, $format("[%2d]STAGE3: Base Control, nextpc: %h, jump_addr: %h", hartid, nextpc, jump_address), wr_simulate_log_start)
     //if (instr_type[1] == NONE || meta.instr_reversed)
@@ -1086,6 +1106,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                              rd    : lv_meta.rd,
                              epochs : lv_meta.epochs[0],
                              upper_instr: lv_meta.upper_instr,
+                             drop_instr: False,
                              insttype : NONE,
                              instpkt : tagged None
                             `ifdef no_wawstalls 
@@ -1312,6 +1333,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                       rd    : meta[0].rd,
                       epochs : meta[0].epochs[0],
                       upper_instr: meta[0].upper_instr,
+                      drop_instr: False,
                       insttype : MULDIV,
                       instpkt: tagged None
                     `ifdef no_wawstalls 
@@ -1376,6 +1398,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                       rd    : meta[0].rd,
                       epochs : meta[0].epochs[0],
                       upper_instr: meta[0].upper_instr,
+                      drop_instr: False,
                       insttype : FLOAT,
                       instpkt : tagged None
                     `ifdef no_wawstalls 
@@ -1403,6 +1426,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                                 rd : ?,
                                 epochs: ?,
                                 upper_instr: meta[1].upper_instr,
+                                drop_instr: True,
                                 insttype: NONE,
                                 instpkt : tagged None
                               `ifdef no_wawstalls 
@@ -1459,19 +1483,25 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     end
 
     // Drop upper instruction if lower instruction generates a trap.
-    if (!meta[0].upper_instr && (fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
+    if (!meta[0].upper_instr && (instr_type[0] == BRANCH || instr_type[0] == JAL || instr_type[0] == JALR)
+      && (fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Dropping upper instruction as lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
-      //fuid[1].epochs = ~fuid[1].epochs;
-      fuid[1].insttype = NONE;
-      fuid[1].instpkt = tagged None;
-      //fuid[1].rd = 0;
-      //fuid[1].pc = ?;
-      //`ifdef spfpu
-      //  fuid[1].rdtype = IRF;
+      fuid[1].drop_instr = True;
+      //fuid[1].insttype = NONE;
+      //fuid[1].instpkt = tagged None;
+      //`ifdef rtldump
+      //  commitlog[1] = default_commitlog;
       //`endif
-      `ifdef rtldump
-        commitlog[1] = default_commitlog;
-      `endif
+    end
+    else if (!meta[1].upper_instr && (instr_type[1] == BRANCH || instr_type[1] == JAL || instr_type[1] == JALR) 
+      && wr_flush_from_exe) begin
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Dropping upper instruction as lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
+      fuid[0].drop_instr = True;
+      //fuid[0].insttype = NONE;
+      //fuid[0].instpkt = tagged None;
+      //`ifdef rtldump
+      //  commitlog[0] = default_commitlog;
+      //`endif
     end
 
     tx_fuid.u.enq(fuid);
@@ -1519,6 +1549,9 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     endmethod
     method Action ma_op5 (FwdType i);
       wr_rf_op5 <= i;
+    endmethod
+    method Action ma_op6 (Bit#(32) i);
+      wr_op6 <= i;
     endmethod
   endinterface;
   // -------------------------------------------------------------------------------------------//

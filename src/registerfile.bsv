@@ -19,7 +19,8 @@ compile params affecting this file:
 */
 package registerfile;
 	import ccore_types::*;
-	import RegFile5r2w::*;
+	import RegFile4r2w::*;
+  import RegFile::*;
   `include "Logger.bsv"
 
 	interface Ifc_registerfile;
@@ -40,13 +41,13 @@ package registerfile;
 	module mkregisterfile#(parameter Bit#(`xlen) hartid) (Ifc_registerfile);
     String regfile ="";
 `ifdef merged_rf
-    RegFile5r2w#(Bit#(6), Bit#(`elen)) rf <- mkRegFile5r2wWCF(0,63);
+    RegFile4r2w#(Bit#(6), Bit#(`elen)) rf <- mkRegFile4r2wWCF(0,63);
 		Reg#(Bit#(6)) rg_index <- mkReg(0);
 `else
-    RegFile5r2w#(Bit#(5), Bit#(`xlen)) xrf <- mkRegFile5r2wWCF(0, 31);
+    RegFile4r2w#(Bit#(5), Bit#(`xlen)) xrf <- mkRegFile4r2wWCF(0, 31);
 		Reg#(Bit#(5)) rg_index <- mkReg(0);
   `ifdef spfpu
-    RegFile5r2w#(Bit#(5), Bit#(`flen)) frf <- mkRegFile5r2wWCF(0, 31);
+    RegFile#(Bit#(5), Bit#(`flen)) frf <- mkRegFileWCF(0, 31);
   `endif
 `endif
 
@@ -63,7 +64,7 @@ package registerfile;
     `else
       xrf.upd_1(rg_index, 0);
       `ifdef spfpu
-        frf.upd_1(rg_index, 0);
+        frf.upd(rg_index, 0);
       `endif
     `endif
 			rg_index <= rg_index + 1;
@@ -129,9 +130,6 @@ package registerfile;
       `ifdef merged_rf
         return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
       `else
-        `ifdef spfpu
-          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
-        `endif
         return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
       `endif
     endmethod
@@ -145,9 +143,6 @@ package registerfile;
       `ifdef merged_rf
         return zeroExtend(rf.sub({pack(rstype==FRF),addr}));
       `else
-        `ifdef spfpu
-          if(rstype == FRF) return zeroExtend(frf.sub(addr)); else
-        `endif
         return zeroExtend(xrf.sub(addr)); // zero extend is required when XLEN<ELEN*/
       `endif
     endmethod
@@ -165,7 +160,7 @@ package registerfile;
     	  rf.upd_1({pack(c.rdtype==FRF),c.addr},truncate(c.data));
     `else
       `ifdef spfpu
-        if(c.rdtype == FRF) frf.upd_1(c.addr, truncate(c.data)); else
+        if(c.rdtype == FRF) frf.upd(c.addr, truncate(c.data)); else
       `endif
         if(c.addr != 0) xrf.upd_1(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
     `endif
@@ -178,9 +173,6 @@ package registerfile;
   	  if (c.rdtype != IRF || c.addr != 0)
     	  rf.upd_2({pack(c.rdtype==FRF),c.addr},truncate(c.data));
     `else
-      `ifdef spfpu
-        if(c.rdtype == FRF) frf.upd_2(c.addr, truncate(c.data)); else
-      `endif
         if(c.addr != 0) xrf.upd_2(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
     `endif
 		endmethod
