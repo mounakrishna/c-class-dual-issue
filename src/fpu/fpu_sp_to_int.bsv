@@ -12,14 +12,14 @@ import UniqueWrappers::*;
 `include "ccore_params.defines"
 `include "fpu.defines"
 interface Ifc_fpu_sp_to_int;
-	method ActionValue#(Floating_output#(ELEN)) _start(Bit#(1) sign,Bit#(8) exponent, Bit#(23) mantissa,  bit convert_unsigned, bit convert_long, Bit#(3) rounding_mode, Bit#(5) flags);
+	method ActionValue#(Floating_output#(ELEN)) ma_start(Bit#(1) sign,Bit#(8) exponent, Bit#(23) mantissa,  bit convert_unsigned, bit convert_long, Bit#(3) rounding_mode, Bit#(5) flags);
 endinterface
 
 `ifdef fpu_hierarchical
 (*synthesize*)
 `endif
 module mkfpu_sp_to_int(Ifc_fpu_sp_to_int);
-	method ActionValue#(Floating_output#(ELEN)) _start(Bit#(1) lv_sign,Bit#(8) lv_exponent, Bit#(23) lv_mantissa,  bit convert_unsigned, bit convert_long, Bit#(3) rounding_mode, Bit#(5) flags);
+	method ActionValue#(Floating_output#(ELEN)) ma_start(Bit#(1) lv_sign,Bit#(8) lv_exponent, Bit#(23) lv_mantissa,  bit convert_unsigned, bit convert_long, Bit#(3) rounding_mode, Bit#(5) flags);
 		bit lv_overflow = 0;
 		bit lv_zero = flags[3];
 		bit lv_infinity = flags[1];
@@ -304,7 +304,7 @@ Wrapper3#(Tuple2#(Bit#(23), Bit#(8)),Tuple2#(Bit#(23), Bit#(8)), Tuple2#(Bit#(23
             let {flags1,flags2,flags3} <- condFlags32.func(tuple2(man1,exp1),tuple2(man2,exp2),tuple2(0,0));
             let sign1 = wr_operand1[31];
 //`ifdef verbose $display("input %b %b %b given at %0d", sign1, exp1, man1, state_clock);`endif
- 		let x <- converter._start(sign1,exp1,man1, 1, 1, 3'b010,flags1);
+ 		let x <- converter.ma_start(sign1,exp1,man1, 1, 1, 3'b010,flags1);
  //`ifdef verbose $display("output : %h fflags : %h",x.final_result,x.fflags); `endif
  	endrule
 

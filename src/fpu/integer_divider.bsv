@@ -10,7 +10,7 @@ package integer_divider;
 import UniqueWrappers::*;
 
 interface Ifc_integer_divider#(numeric type fpman4);
-	method Action _inputs(Bit#(fpman4) _denominator, Bit#(fpman4) _numerator);
+	method Action ma_inputs(Bit#(fpman4) _denominator, Bit#(fpman4) _numerator);
 	method Bit#(TAdd#(TMul#(fpman4,3),2)) result_();
     method Action flush;
 endinterface
@@ -115,7 +115,7 @@ endfunction
 		wr_final_out <= x;
 	endrule
 
-	method Action _inputs(Bit#(fpman4) _denominator, Bit#(fpman4) _numerator)if(rg_state==0);
+	method Action ma_inputs(Bit#(fpman4) _denominator, Bit#(fpman4) _numerator)if(rg_state==0);
 		rg_state <= rg_state + 1;
         Bit#(fpman4) man_all_zeros = '0;
         Bit#(op_fpman) packed_div = {_denominator,{2'b0,_numerator},man_all_zeros};
@@ -143,7 +143,7 @@ endmodule
      Ifc_integer_divider#(27) instance_divider <-mkinteger_divider();
 
      rule rl_input1(rg_clock==1);
-      instance_divider._inputs(27'h6d74e20,27'h68a4e18); // divisor, dividend 
+      instance_divider.ma_inputs(27'h6d74e20,27'h68a4e18); // divisor, dividend 
      endrule
 
      rule rl_finish;
@@ -171,7 +171,7 @@ endmodule
 //
 //     rule rl_input1(rg_clock==1);
 //		`ifdef verbose $display("giving inputat %0d", rg_clock);`endif
-//         instance_divider._inputs(27'd40,27'd800); // divisor, dividend 
+//         instance_divider.ma_inputs(27'd40,27'd800); // divisor, dividend 
 //    `ifdef verbose $display("Expected Quotient: %d",27'd800/27'd40);`endif
 //     endrule
 //

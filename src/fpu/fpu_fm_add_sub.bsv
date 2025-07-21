@@ -17,7 +17,7 @@ import UniqueWrappers::*;
 import ConfigReg::*;
 
 interface Ifc_fpu_fm_add_sub#(numeric type fpinp, numeric type fpman, numeric type fpexp);
-    method Action _start(Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand1, Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand2,Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
+    method Action ma_start(Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand1, Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand2,Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
 	method Floating_output#(fpinp) get_result();
     method Action flush;
 endinterface
@@ -25,13 +25,13 @@ endinterface
 
 `ifdef fpu_hierarchical
     interface Ifc_fpu_fm_add_sub32;
-        method Action _start(Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand1, Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand2,Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
+        method Action ma_start(Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand1, Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand2,Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
     	method Floating_output#(32) get_result();
         method Action flush;
     endinterface
     
     interface Ifc_fpu_fm_add_sub64;
-        method Action _start(Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand1, Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand2,Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul,bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
+        method Action ma_start(Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand1, Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand2,Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul,bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
     	method Floating_output#(64) get_result();	
         method Action flush;
     endinterface
@@ -742,7 +742,7 @@ module mkfpu_fm_add_sub(Ifc_fpu_fm_add_sub#(fpinp,fpman,fpexp))
          //`ifdef verbose $display("FMA: Result: %h fflags: %8h",lv_final_output, {24'b0,fflags}); `endif
     endrule
 	
-	    method Action _start(Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand1, Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand2,Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
+	    method Action ma_start(Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand1, Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand2,Tuple3#(Bit#(1),Bit#(fpexp),Bit#(fpman)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
 			
 
 		 Bit#(TSub#(fpexp,1)) bias       =  '1;                                   //Bias for the exponent: 127 for SP and 1023 for DP
@@ -911,7 +911,7 @@ module mkfpu_fm_add_sub(Ifc_fpu_fm_add_sub#(fpinp,fpman,fpexp))
 		     let sign1 = operand1[31];
 		     let sign2 = operand2[31];
 		     let sign3 = operand3[31];
-		     uut._start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),3'b0,1'b0,1'b0,1'b0,1'b1,x);
+		     uut.ma_start(tuple3(sign1,exp1,man1),tuple3(sign2,exp2,man2),tuple3(sign3,exp3,man3),3'b0,1'b0,1'b0,1'b0,1'b1,x);
 	//`ifdef verbose $display("giving inputs at %0d", rg_clock); `endif
 
 	    endrule
@@ -928,8 +928,8 @@ module mkfpu_fm_add_sub(Ifc_fpu_fm_add_sub#(fpinp,fpman,fpexp))
 	module mkfpu_fm_add_sub32(Ifc_fpu_fm_add_sub32);
 		Ifc_fpu_fm_add_sub#(32,23,8) uut <- mkfpu_fm_add_sub();
 
-	   method Action _start(Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand1, Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand2,Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
-		uut._start(_operand1,_operand2,_operand3,rounding_mode,operation,_negate,mul,muladd,flags);
+	   method Action ma_start(Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand1, Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand2,Tuple3#(Bit#(1),Bit#(8),Bit#(23)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul, bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
+		uut.ma_start(_operand1,_operand2,_operand3,rounding_mode,operation,_negate,mul,muladd,flags);
 	   endmethod
 	    method Floating_output#(32) get_result();
 		return uut.get_result();
@@ -942,8 +942,8 @@ module mkfpu_fm_add_sub(Ifc_fpu_fm_add_sub#(fpinp,fpman,fpexp))
 	(*synthesize*)
 	module mkfpu_fm_add_sub64(Ifc_fpu_fm_add_sub64);
 		Ifc_fpu_fm_add_sub#(64,52,11) uut <- mkfpu_fm_add_sub();
-	   method Action _start(Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand1, Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand2,Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul,bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
-		uut._start(_operand1,_operand2,_operand3,rounding_mode,operation,_negate,mul,muladd, flags);
+	   method Action ma_start(Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand1, Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand2,Tuple3#(Bit#(1),Bit#(11),Bit#(52)) _operand3, Bit#(3) rounding_mode, bit operation, bit _negate, bit mul,bit muladd, Tuple3#(Bit#(5),Bit#(5),Bit#(5)) flags);
+		uut.ma_start(_operand1,_operand2,_operand3,rounding_mode,operation,_negate,mul,muladd, flags);
 	   endmethod
 	    method Floating_output#(64) get_result();
 		return uut.get_result();

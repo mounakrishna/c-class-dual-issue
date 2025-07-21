@@ -67,16 +67,16 @@ import ccore_types::*;
 `include "fpu.defines"	
 
 interface Ifc_fpu_fclass#(numeric type fpinp, numeric type fpman, numeric type fpexp);
-	method ActionValue#(Floating_output#(fpinp)) _start(Bit#(1) sign1,Bit#(fpman)mantissa,Bit#(fpexp)exponent, Bit#(5) flags);
+	method ActionValue#(Floating_output#(fpinp)) ma_start(Bit#(1) sign1,Bit#(fpman)mantissa,Bit#(fpexp)exponent, Bit#(5) flags);
 endinterface
 
 `ifdef fpu_hierarchical
 interface Ifc_fpu_fclass32;
-	method ActionValue#(Floating_output#(32)) _start(Bit#(1) sign1,Bit#(23)mantissa,Bit#(8)exponent, Bit#(5) flags);
+	method ActionValue#(Floating_output#(32)) ma_start(Bit#(1) sign1,Bit#(23)mantissa,Bit#(8)exponent, Bit#(5) flags);
 endinterface
 
 interface Ifc_fpu_fclass64;
-	method ActionValue#(Floating_output#(64)) _start(Bit#(1) sign1,Bit#(52)mantissa,Bit#(11)exponent, Bit#(5) flags);
+	method ActionValue#(Floating_output#(64)) ma_start(Bit#(1) sign1,Bit#(52)mantissa,Bit#(11)exponent, Bit#(5) flags);
 endinterface
 `endif
 
@@ -91,7 +91,7 @@ module mkfpu_fclass(Ifc_fpu_fclass#(fpinp,fpman,fpexp))
 	let fPMAN  = valueOf(fpman);
 	let fPEXP  = valueOf(fpexp);
 
-	method ActionValue#(Floating_output#(fpinp)) _start(Bit#(1) sign1,Bit#(fpman)mantissa,Bit#(fpexp)exponent, Bit#(5) flags);
+	method ActionValue#(Floating_output#(fpinp)) ma_start(Bit#(1) sign1,Bit#(fpman)mantissa,Bit#(fpexp)exponent, Bit#(5) flags);
 	
 		Bit#(10) result_fclass;
         Bool sbit = (sign1==1);
@@ -161,8 +161,8 @@ endmodule
 (*synthesize*)
 module mkfpu_fclass32(Ifc_fpu_fclass32);
     Ifc_fpu_fclass#(32,23,8) uut <- mkfpu_fclass();
-	method ActionValue#(Floating_output#(32)) _start(Bit#(1) sign1,Bit#(23)mantissa,Bit#(8)exponent, Bit#(5) flags);
-        let x <- uut._start(sign1,mantissa,exponent,flags);
+	method ActionValue#(Floating_output#(32)) ma_start(Bit#(1) sign1,Bit#(23)mantissa,Bit#(8)exponent, Bit#(5) flags);
+        let x <- uut.ma_start(sign1,mantissa,exponent,flags);
         return x;
     endmethod
 endmodule
@@ -170,8 +170,8 @@ endmodule
 (*synthesize*)
 module mkfpu_fclass64(Ifc_fpu_fclass64);
     Ifc_fpu_fclass#(64,52,11) uut <- mkfpu_fclass();
-	method ActionValue#(Floating_output#(64)) _start(Bit#(1) sign1,Bit#(52)mantissa,Bit#(11)exponent, Bit#(5) flags);
-        let x <- uut._start(sign1,mantissa,exponent,flags);
+	method ActionValue#(Floating_output#(64)) ma_start(Bit#(1) sign1,Bit#(52)mantissa,Bit#(11)exponent, Bit#(5) flags);
+        let x <- uut.ma_start(sign1,mantissa,exponent,flags);
         return x;
     endmethod
 endmodule
@@ -184,7 +184,7 @@ endmodule
 // 	Reg#(Bit#(32)) rg_operand1<-mkReg('h7f8ff000); //positive normal set 6
 
 // 	rule get_input(rg_clock == 0);
-// 		inst_fpu_fclass._start(rg_operand1);
+// 		inst_fpu_fclass.ma_start(rg_operand1);
 // 		rg_clock <= rg_clock + 1;
 // 	endrule
 
