@@ -14,11 +14,11 @@ import UniqueWrappers::*;
 `include "ccore_params.defines"
 `include "fpu.defines"
 interface Ifc_fpu_convert_sp_dp;
-	method ActionValue#(Floating_output#(64))_start(Bit#(1) sign, Bit#(8) exponent, Bit#(23) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
+	method ActionValue#(Floating_output#(64))ma_start(Bit#(1) sign, Bit#(8) exponent, Bit#(23) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
 endinterface
 
 interface Ifc_fpu_convert_dp_sp;
-	method ActionValue#(Floating_output#(32)) _start(Bit#(1) sign, Bit#(11) exponent, Bit#(52) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
+	method ActionValue#(Floating_output#(32)) ma_start(Bit#(1) sign, Bit#(11) exponent, Bit#(52) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
 endinterface
 
 function Bit#(m) zeroExtendLSB(Bit#(n) value)
@@ -173,7 +173,7 @@ endactionvalue;
 (*synthesize*)
 `endif
 module mkfpu_convert_sp_dp(Ifc_fpu_convert_sp_dp);
-	method ActionValue#(Floating_output#(64))_start(Bit#(1) sign, Bit#(8) exponent, Bit#(23) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
+	method ActionValue#(Floating_output#(64))ma_start(Bit#(1) sign, Bit#(8) exponent, Bit#(23) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
             //`ifdef verbose $display("sign : %b exponent %b mantissa %b rounding_mode %b flags %b",sign,exponent,mantissa,rounding_mode,flags); `endif
             let x = floatDouble(sign,exponent,mantissa,rounding_mode,flags); 
             return Floating_output{
@@ -187,7 +187,7 @@ endmodule
 (*synthesize*)
 `endif
 module mkfpu_convert_dp_sp(Ifc_fpu_convert_dp_sp);
-	method ActionValue#(Floating_output#(32)) _start(Bit#(1) sign, Bit#(11) exponent, Bit#(52) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
+	method ActionValue#(Floating_output#(32)) ma_start(Bit#(1) sign, Bit#(11) exponent, Bit#(52) mantissa, Bit#(3) rounding_mode, Bit#(5) flags);
             //`ifdef verbose $display("sign : %b exponent %b mantissa %b rounding_mode %b flags %b",sign,exponent,mantissa,rounding_mode,flags); `endif
             let x<- doubleFloat(sign,exponent,mantissa,rounding_mode,flags);
             return Floating_output{
@@ -284,7 +284,7 @@ Wrapper3#(Tuple2#(Bit#(23), Bit#(8)),Tuple2#(Bit#(23), Bit#(8)), Tuple2#(Bit#(23
            let {x1,x2,x3}           <- condFlags64.func(tuple2(man1,exp1),tuple2(0,0),tuple2(0,0));
            //`ifdef verbose $display("sign: %b exponent : %b mantissa : %b",wr_operand1[63],exp1,man1); `endif
            //`ifdef verbose $display("exponent: %d",exp1); `endif
-          let x <- cvt._start(wr_operand1[63],exp1,man1,3'b011,x1);
+          let x <- cvt.ma_start(wr_operand1[63],exp1,man1,3'b011,x1);
 		  //`ifdef verbose $display("Output= %h fflags %h" , x.final_result,x.fflags,$time); `endif
     endrule
 

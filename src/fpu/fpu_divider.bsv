@@ -65,20 +65,20 @@ package fpu_divider;
 
 
     interface Ifc_fpu_divider#(numeric type fpinp, numeric type fpman, numeric type fpexp);
-	    method Action _start(Bit#(1) lv_sign, Bit#(fpman) lv_mantissa1, Bit#(fpexp) lv_exponent1, Bit#(fpman) lv_mantissa2, Bit#(fpexp) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
+	    method Action ma_start(Bit#(1) lv_sign, Bit#(fpman) lv_mantissa1, Bit#(fpexp) lv_exponent1, Bit#(fpman) lv_mantissa2, Bit#(fpexp) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
     	method Floating_output#(fpinp) final_result_();				 // Output method
         method Action flush;
     endinterface
 
  `ifdef fpu_hierarchical
     interface Ifc_fpu_divider32;
-	    method Action _start(Bit#(1) lv_sign, Bit#(23) lv_mantissa1, Bit#(8) lv_exponent1, Bit#(23) lv_mantissa2, Bit#(8) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
+	    method Action ma_start(Bit#(1) lv_sign, Bit#(23) lv_mantissa1, Bit#(8) lv_exponent1, Bit#(23) lv_mantissa2, Bit#(8) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
     	method Floating_output#(32) final_result_();				 // Output method
         method Action flush;
     endinterface
 
     interface Ifc_fpu_divider64;
-	    method Action _start(Bit#(1) lv_sign, Bit#(52) lv_mantissa1, Bit#(11) lv_exponent1, Bit#(52) lv_mantissa2, Bit#(11) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
+	    method Action ma_start(Bit#(1) lv_sign, Bit#(52) lv_mantissa1, Bit#(11) lv_exponent1, Bit#(52) lv_mantissa2, Bit#(11) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
     	method Floating_output#(64) final_result_();				 // Output method
         method Action flush;
     endinterface
@@ -131,7 +131,7 @@ module mkfpu_divider(Ifc_fpu_divider#(fpinp,fpman,fpexp))
     
     //This is the second stage of the pipe. Here the division of the two mantissas take place. Rest of the data are enqueued in another FIFO.
 	rule rl_stage2 (rg_state_handler == Stage1 && !wr_flush);
-	      int_div._inputs({rg_stage1.divisor,3'd0},
+	      int_div.ma_inputs({rg_stage1.divisor,3'd0},
 	    				{rg_stage1.dividend,3'd0}
 	    				);
          rg_state_handler <= Stage2;
@@ -422,7 +422,7 @@ module mkfpu_divider(Ifc_fpu_divider#(fpinp,fpman,fpexp))
 
 	endrule
 
-	method Action _start(Bit#(1) lv_sign, Bit#(fpman) lv_mantissa1, Bit#(fpexp) lv_exponent1, Bit#(fpman) lv_mantissa2, Bit#(fpexp) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
+	method Action ma_start(Bit#(1) lv_sign, Bit#(fpman) lv_mantissa1, Bit#(fpexp) lv_exponent1, Bit#(fpman) lv_mantissa2, Bit#(fpexp) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
  
         Bit#(TSub#(fpexp,1)) bias = '1;
         let condFlags1 = tpl_1(flags);
@@ -578,7 +578,7 @@ module mkTb_fpu_divider(Empty);
             let {exp1,exp2} =  getExp(rg_operand1, rg_operand2);
             let {x1,x2}           =  condFlags(tuple2(man1,exp1),tuple2(man2,exp2));
 		// `ifdef verbose $display("Giving inputs rg_operand 1 : %h rg_operand 2 : %h through testbench",rg_operand1,rg_operand2,$time); `endif
-		divider._start(rg_operand1[63]^rg_operand2[63],man1,exp1,man2,exp2,3'b100,tuple2(x1,x2));
+		divider.ma_start(rg_operand1[63]^rg_operand2[63],man1,exp1,man2,exp2,3'b100,tuple2(x1,x2));
 	endrule
 
 	rule rl_display_result;
@@ -597,8 +597,8 @@ endmodule:mkTb_fpu_divider
 (*synthesize*)
 module mkfpu_divider32(Ifc_fpu_divider32);
     Ifc_fpu_divider#(32,23,8) uut <- mkfpu_divider();
-        method Action _start(Bit#(1) lv_sign, Bit#(23) lv_mantissa1, Bit#(8) lv_exponent1, Bit#(23) lv_mantissa2, Bit#(8) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
-            uut._start(lv_sign,lv_mantissa1,lv_exponent1,lv_mantissa2,lv_exponent2,rounding_mode,flags);
+        method Action ma_start(Bit#(1) lv_sign, Bit#(23) lv_mantissa1, Bit#(8) lv_exponent1, Bit#(23) lv_mantissa2, Bit#(8) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
+            uut.ma_start(lv_sign,lv_mantissa1,lv_exponent1,lv_mantissa2,lv_exponent2,rounding_mode,flags);
         endmethod
     	method Floating_output#(32) final_result_();				 // Output method
             return uut.final_result_;
@@ -611,8 +611,8 @@ endmodule
 (*synthesize*)
 module mkfpu_divider64(Ifc_fpu_divider64);
     Ifc_fpu_divider#(64,52,11) uut <- mkfpu_divider();
-        method Action _start(Bit#(1) lv_sign, Bit#(52) lv_mantissa1, Bit#(11) lv_exponent1, Bit#(52) lv_mantissa2, Bit#(11) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
-            uut._start(lv_sign,lv_mantissa1,lv_exponent1,lv_mantissa2,lv_exponent2,rounding_mode,flags);
+        method Action ma_start(Bit#(1) lv_sign, Bit#(52) lv_mantissa1, Bit#(11) lv_exponent1, Bit#(52) lv_mantissa2, Bit#(11) lv_exponent2, Bit#(3) rounding_mode, Tuple2#(Bit#(5),Bit#(5)) flags);
+            uut.ma_start(lv_sign,lv_mantissa1,lv_exponent1,lv_mantissa2,lv_exponent2,rounding_mode,flags);
         endmethod
     	method Floating_output#(64) final_result_();				 // Output method
             return uut.final_result_;
@@ -650,7 +650,7 @@ endmodule
 //
 //	/*******************input******************************************/
 //	rule take_input_in (rg_state == 0);
-//		divider._start(input_data.sub(index)[67:36],input_data.sub(index)[35:4],0,input_data.sub(index)[2:0]);
+//		divider.ma_start(input_data.sub(index)[67:36],input_data.sub(index)[35:4],0,input_data.sub(index)[2:0]);
 //		index <= index + 1;
 //        rg_state <= 1;
 //	endrule

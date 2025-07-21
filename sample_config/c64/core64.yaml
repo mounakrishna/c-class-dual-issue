@@ -73,8 +73,8 @@ bsc_compile_options:
   log_end_time: 12745970
 verilator_configuration:
   coverage: none
-  trace: true
-  threads: 1
+  trace: false
+  threads: 2
   verbosity: true
   opt_fast: "-O3"
   opt_slow: "-O3"

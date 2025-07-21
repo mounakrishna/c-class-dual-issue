@@ -19,16 +19,16 @@ import ccore_types::*;
 `include "fpu.defines"
 
 interface Ifc_fpu_sign_injection#(numeric type fpinp, numeric type fpman, numeric type fpexp);
-	method ActionValue#(Floating_output#(fpinp)) _start(Bit#(fpinp) operand1, Bit#(fpinp) operand2, Bit#(3) operation);
+	method ActionValue#(Floating_output#(fpinp)) ma_start(Bit#(fpinp) operand1, Bit#(fpinp) operand2, Bit#(3) operation);
 endinterface
 
 `ifdef fpu_hierarchical
 interface Ifc_fpu_sign_injection32;
-	method ActionValue#(Floating_output#(32)) _start(Bit#(32) operand1, Bit#(32) operand2, Bit#(3) operation);
+	method ActionValue#(Floating_output#(32)) ma_start(Bit#(32) operand1, Bit#(32) operand2, Bit#(3) operation);
 endinterface
 
 interface Ifc_fpu_sign_injection64;
-	method ActionValue#(Floating_output#(64)) _start(Bit#(64) operand1, Bit#(64) operand2, Bit#(3) operation);
+	method ActionValue#(Floating_output#(64)) ma_start(Bit#(64) operand1, Bit#(64) operand2, Bit#(3) operation);
 endinterface
 `endif
 
@@ -41,7 +41,7 @@ module mkfpu_sign_injection(Ifc_fpu_sign_injection#(fpinp,fpman,fpexp))
 
    let fPINP  = valueOf(fpinp);
 
-	method ActionValue#(Floating_output#(fpinp)) _start(Bit#(fpinp) operand1, Bit#(fpinp) operand2, Bit#(3) operation);
+	method ActionValue#(Floating_output#(fpinp)) ma_start(Bit#(fpinp) operand1, Bit#(fpinp) operand2, Bit#(3) operation);
 
      if(operation == 3'b000)                           //FSGNJ
 	    operand1[fPINP-1] = operand2[fPINP-1];
@@ -63,8 +63,8 @@ endmodule
     (*synthesize*)
     module mkfpu_sign_injection32(Ifc_fpu_sign_injection32);
         Ifc_fpu_sign_injection#(32,23,8) uut <- mkfpu_sign_injection();
-    	method ActionValue#(Floating_output#(32)) _start(Bit#(32) operand1, Bit#(32) operand2, Bit#(3) operation);
-               let x <- uut._start(operand1,operand2,operation);
+    	method ActionValue#(Floating_output#(32)) ma_start(Bit#(32) operand1, Bit#(32) operand2, Bit#(3) operation);
+               let x <- uut.ma_start(operand1,operand2,operation);
                return x;
         endmethod 
     endmodule
@@ -72,8 +72,8 @@ endmodule
     (*synthesize*)
     module mkfpu_sign_injection64(Ifc_fpu_sign_injection64);
         Ifc_fpu_sign_injection#(64,52,11) uut <- mkfpu_sign_injection();
-        method ActionValue#(Floating_output#(64)) _start(Bit#(64) operand1, Bit#(64) operand2, Bit#(3) operation);
-            let x <- uut._start(operand1,operand2,operation);
+        method ActionValue#(Floating_output#(64)) ma_start(Bit#(64) operand1, Bit#(64) operand2, Bit#(3) operation);
+            let x <- uut.ma_start(operand1,operand2,operation);
             return x;
         endmethod
     endmodule
@@ -86,7 +86,7 @@ endmodule
 // Reg#(Bit#(32)) rg_operand2<-mkReg('hff800000); 
 
 // rule get_input(rg_clock == 0);
-// inst_fpu_sign_injection._start(rg_operand1,rg_operand2,'b000);
+// inst_fpu_sign_injection.ma_start(rg_operand1,rg_operand2,'b000);
 // rg_clock <= rg_clock + 1;
 // endrule
 

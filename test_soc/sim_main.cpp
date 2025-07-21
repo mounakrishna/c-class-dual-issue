@@ -22,7 +22,9 @@ double sc_time_stamp () {    // Called by $time in Verilog
 }
 
 void signal_handler(int signal) {
+#if VM_TRACE
   tfp->close();
+#endif
   exit(signal);
 }
 

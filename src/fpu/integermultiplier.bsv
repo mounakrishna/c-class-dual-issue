@@ -9,7 +9,7 @@ Last updated on : 5th August 2016
 package integermultiplier;
   import DReg::*;
   interface Ifc_integermultiplier#(numeric type regwidth, numeric type loop);
-    method ActionValue#(Maybe#(Bit#(TMul#(2,regwidth)))) _start(Bit#(regwidth) inp1, Bit#(regwidth) inp2); //_div_name 00 : DIV/REM 01: DIVU/REMU
+    method ActionValue#(Maybe#(Bit#(TMul#(2,regwidth)))) ma_start(Bit#(regwidth) inp1, Bit#(regwidth) inp2); //_div_name 00 : DIV/REM 01: DIVU/REMU
   endinterface
   //(*synthesize*)
   module mkintegermultiplier(Ifc_integermultiplier#(regwidth,loop))
@@ -26,7 +26,7 @@ package integermultiplier;
     let rEGWIDTH = valueOf(regwidth);
     let lOOP = valueOf(loop); 
     
-    method ActionValue#(Maybe#(Bit#(regwidth_twice))) _start(Bit#(regwidth) inp1, Bit#(regwidth) inp2); 
+    method ActionValue#(Maybe#(Bit#(regwidth_twice))) ma_start(Bit#(regwidth) inp1, Bit#(regwidth) inp2); 
         //`ifdef verbose $display("Taken inputs in multiplier. rs1: %h rs2: %h",inp1,inp2); `endif
       //`ifdef verbose $display("Register State Counter %h", rg_state_counter);`endif
       //`ifdef verbose $display("partial_prod %h", partial_prod);`endif
@@ -60,7 +60,7 @@ package integermultiplier;
    Reg#(Bit#(8)) inp2 <- mkReg(8'b1010);
 
    rule give_inputs;
-   let x <- mul._start(inp1,inp2);
+   let x <- mul.ma_start(inp1,inp2);
    if(x matches tagged Valid .res) begin
        //`ifdef verbose $display("Output is %b",res);`endif
        $finish(0);
