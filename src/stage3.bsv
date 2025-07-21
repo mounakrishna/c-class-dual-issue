@@ -1026,7 +1026,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     //else
     //  nextpc = meta[1].pc;
 
-    if ((inst_num == 1 && !lv_meta.instr_reversed) || (inst_num == 0 && instr_type[1] == NONE))
+    if ((inst_num == 1 && !lv_meta.instr_reversed) || (inst_num == 0 && instr_type[1] == NONE) || (inst_num == 0 && lv_meta.instr_reversed))
       nextpc =  fromMaybe(?,wr_next_pc);
     else if(inst_num == 0)
       nextpc = meta[1].pc;
