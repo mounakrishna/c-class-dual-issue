@@ -65,7 +65,7 @@ fabrics:
   checkout: master
 common_verilog:
   url: git@github.com:mounakrishna/common_verilog.git
-  checkout: signedmul_opt
+  checkout: master
 caches_mmu:
     url: git@github.com:mounakrishna/caches_mmu_dual_issue.git
     checkout: tagreg
