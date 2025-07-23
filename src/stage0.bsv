@@ -188,9 +188,12 @@ package stage0;
           // check for edge case
           //Bool edgecase = bpuresp.btbresponse.hi && !bpuresp.instr16;
           Bool edgecase = !bpuresp.compressed && (bpuresp.btbresponse.ci_offset == 3);
+          if (edgecase)
+            `logLevel( stage0, 0, $format("[%2d]STAGE0: Edgecase", hartid))          
         `endif
-          if (bpuresp.btbresponse.prediction[`statesize - 1] == 1 && bpuresp.btbresponse.btbhit 
-                                    `ifdef compressed && !edgecase `endif )
+          //if (bpuresp.btbresponse.prediction[`statesize - 1] == 1 && bpuresp.btbresponse.btbhit 
+          //                          `ifdef compressed && !edgecase `endif )
+          if (bpuresp.taken `ifdef compressed && !edgecase `endif )
             nextpc = bpuresp.nextpc;
         `ifdef compressed
           // send new target from previously predicted edgecase Ci
@@ -199,7 +202,7 @@ package stage0;
             rg_delayed_redirect[0] <= tagged Invalid;
           end
           // send pc+4 and store the target for the next round
-          else if(edgecase && bpuresp.btbresponse.prediction > 1 && !rg_fence[0])
+          else if(edgecase && bpuresp.taken && !rg_fence[0])
             rg_delayed_redirect[0] <= tagged Valid bpuresp.nextpc;
         `endif
 
