@@ -257,11 +257,14 @@ package gshare_fa;
       Vector#(2, Bool) push_ras = replicate(False);
       Vector#(2, Bit#(`vaddr)) push_pc = replicate(0);
 
+      `ifdef compressed
+        Bool edgecase = False;
+      `endif
       Bit#(`vaddr) target_ = r.pc;
-      Bool compressed_ = False;
+      //Bool compressed_ = False;
       Vector#(2, Bool) taken = replicate(False);
       Vector#(2, BTBResponse) btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0
-                                                                 `ifdef gshare , history : ghr `endif };
+                                                                 `ifdef gshare , history : ghr `endif });
 
       if(!r.fence && wr_bpu_enable) begin
         Bit#(`btbdepth) match_;
@@ -292,35 +295,35 @@ package gshare_fa;
               push_ras[1] = True;
               //ras_stack.push(push_pc);
               target_ = target_;
-              compressed_ = v_hit_entry[1].compressed;
+              //compressed_ = v_hit_entry[1].compressed;
               taken[1] = True;
-              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset},
+              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
             end
             else if(v_hit_entry[1].ci == Ret) begin
               target_ = ras_stack.top;
-              compressed_ = v_hit_entry[1].compressed;
+              //compressed_ = v_hit_entry[1].compressed;
               pop_ras[1] = True;
               taken[1] = True;
-              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset},
+              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
               //ras_stack.pop;
             end
             else if(v_hit_entry[1].ci == JAL) begin
               taken[1] = True;
               target_ = v_hit_entry[1].target;
-              compressed_ = v_hit_entry[1].compressed;
-              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset},
+              //compressed_ = v_hit_entry[1].compressed;
+              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
             end
             else if(v_hit_entry[1].ci == Branch) begin
               prediction_ = branch_state_[1];
               taken[1] = unpack(prediction_[`statesize-1]);
-              compressed_ = v_hit_entry[1].compressed;
+              //compressed_ = v_hit_entry[1].compressed;
               if (taken[1])
                 target_ = v_hit_entry[1].target;
               ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
-              btbresponse[1] = BTBResponse { prediction: prediction_, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset},
+              btbresponse[1] = BTBResponse { prediction: prediction_, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
             end
           end
@@ -336,34 +339,34 @@ package gshare_fa;
               push_ras[0] = True;
               push_pc[0] = r.pc + ras_push_offset;
               target_ = target_;
-              compressed_ = v_hit_entry[0].compressed;
+              //compressed_ = v_hit_entry[0].compressed;
               taken[0] = True;
-              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset},
+              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
             end
             else if (v_hit_entry[0].ci == Ret) begin
               target_ = ras_stack.top;
               pop_ras[0] = True;
               taken[0] = True;
-              compressed_ = v_hit_entry[0].compressed;
-              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset},
+              //compressed_ = v_hit_entry[0].compressed;
+              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
             end
             else if (v_hit_entry[0].ci == JAL) begin
               taken[0] = True;
               target_ = v_hit_entry[1].target;
-              compressed_ = v_hit_entry[0].compressed;
-              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset},
+              //compressed_ = v_hit_entry[0].compressed;
+              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
             end
             else if (v_hit_entry[0].ci == Branch) begin
               prediction_ = branch_state_[0];
               taken[0] = unpack(prediction_[`statesize-1]);
-              compressed_ = v_hit_entry[0].compressed;
+              //compressed_ = v_hit_entry[0].compressed;
               if (taken[0])
                 target_ = v_hit_entry[0].target;
               ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
-              btbresponse[0] = BTBResponse { prediction: prediction_, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset},
+              btbresponse[0] = BTBResponse { prediction: prediction_, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
                                               `ifdef gshare , history : ghr `endif };
 
             end
@@ -378,11 +381,16 @@ package gshare_fa;
             ras_stack.pop;
           else if (!taken[0] && taken[1] && pop_ras[1])
             ras_stack.pop;
+
+          `ifdef compressed
+            if (taken[1] && !taken[0] && !v_hit_entry[1].compressed && v_hit_entry[1].ci_offset == 1)
+              edgecase = True;
+          `endif
         end
         else begin
           taken = replicate(False);
-          btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0,
-                                                 compressed: False  `ifdef gshare , history : ghr `endif };
+          btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0
+                                                 `ifdef gshare , history : ghr `endif });
         end
 
         rg_ghr[0] <= ghr;
@@ -397,7 +405,7 @@ package gshare_fa;
       end
 
       return PredictionResponse{ nextpc : target_, btbresponse: btbresponse
-        `ifdef ,compressed: compressed_ `endif , taken: (taken[0] || taken[1])};
+        `ifdef compressed ,edgecase: edgecase `endif , taken: (taken[0] || taken[1])};
 
 
         // A local variable to indicate which entry in the BTB is giving the prediction.

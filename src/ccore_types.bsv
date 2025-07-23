@@ -879,7 +879,7 @@ typedef struct{
   //  Bool instr16;
   //`endif
   `ifdef compressed
-    Bool compressed;
+    Bool edgecase;
   `endif
     Bool taken;
     Bit#(`vaddr) nextpc;

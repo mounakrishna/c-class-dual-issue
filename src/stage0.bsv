@@ -49,6 +49,7 @@ package stage0;
   import TxRx           :: * ;
   import icache_types   :: * ;
   import pipe_ifcs      :: * ;
+  import Vector :: *;
 
   // -- project imports
   `include "Logger.bsv"
@@ -187,9 +188,10 @@ package stage0;
         `ifdef compressed
           // check for edge case
           //Bool edgecase = bpuresp.btbresponse.hi && !bpuresp.instr16;
-          Bool edgecase = !bpuresp.compressed && (bpuresp.btbresponse.ci_offset == 3);
+          //Bool edgecase = !bpuresp.compressed && (bpuresp.btbresponse.ci_offset == 3);
+          Bool edgecase = bpuresp.edgecase;
           if (edgecase)
-            `logLevel( stage0, 0, $format("[%2d]STAGE0: Edgecase", hartid))          
+            `logLevel( stage0, 0, $format("[%2d]STAGE0: Edgecase", hartid), wr_simulate_log_start)
         `endif
           //if (bpuresp.btbresponse.prediction[`statesize - 1] == 1 && bpuresp.btbresponse.btbhit 
           //                          `ifdef compressed && !edgecase `endif )

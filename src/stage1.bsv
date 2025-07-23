@@ -606,7 +606,7 @@ package stage1;
           compressed_instr[0] = True;
           compressed_instr[1] = False;
         `ifdef bpu
-          btbresponse = stage0pc.btbresponse;
+          btbresponse = replicate(stage0pc.btbresponse[0]);
           lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
           lv_prev.btbresponse[1] = ?;
         `endif
