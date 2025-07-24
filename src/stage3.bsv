@@ -401,6 +401,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   endrule
 
   rule rl_stage3_not_firing(!rx_meta.u.notEmpty);
+    `logLevel( stage3, stall, $format("[%2d]STAGE3: Not firing", hartid), wr_simulate_log_start)
     `ifdef perfmonitors
       wr_st3_not_firing <= 1;
     `endif
