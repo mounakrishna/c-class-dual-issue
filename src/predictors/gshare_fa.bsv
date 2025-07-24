@@ -247,11 +247,21 @@ package gshare_fa;
         branch_state_[i] = rg_bht_arr[i].sub(bht_index_);
 
       Bit#(`statesize) prediction_ = 1;
-      Bit#(`vaddr) target_ = r.pc;
       Bool hit = False;
       Bit#(`histlen) ghr = rg_ghr[0];
-      Bool compressed = False;
-      Bit#(2) ci_off;
+
+
+      Vector#(2, Bool) pop_ras = replicate(False);
+      Vector#(2, Bool) push_ras = replicate(False);
+      Vector#(2, Bit#(`vaddr)) push_pc = replicate(0);
+
+      `ifdef compressed
+        Bool edgecase = False;
+      `endif
+      Bit#(`vaddr) target_ = r.pc;
+      Vector#(2, Bool) taken = replicate(False);
+      Vector#(2, BTBResponse) btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0
+                                                                 `ifdef gshare , history : ghr `endif });
 
       if(!r.fence && wr_bpu_enable) begin
         Bit#(`btbdepth) match_;
@@ -269,117 +279,233 @@ package gshare_fa;
             `logLevel( bpu, 1, $format("[%2d]BPU : BTB Hit: ",hartid,fshow(v_hit_entry[i])), wr_simulate_log_start)
         end
 
-
-        // A local variable to indicate which entry in the BTB is giving the prediction.
         if (hit) begin
-          if (v_hit_entry[0].ci == Call && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
-            Bit#(`vaddr) ras_push_offset;
-            case (v_hit_entry[0].ci_offset) //TODO: Didnt include support when compressed is OFF.
-              'b0: ras_push_offset = v_hit_entry[0].compressed ? 2 : 4;
-              'b1: ras_push_offset = v_hit_entry[0].compressed ? 4 : 6;
-              default: ras_push_offset = 0;
-            endcase
-            let push_pc = r.pc + ras_push_offset;
-            ras_stack.push(r.pc);
-            prediction_ = 3;
-            target_ = target_;
-            ci_off = {1'b0, v_hit_entry[0].ci_offset};
-            compressed = v_hit_entry[0].compressed;
-            `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS: %h", hartid, push_pc), wr_simulate_log_start)
+          if ((r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]) || (r.discard[1] == 0)) begin
+            if (v_hit_entry[1].ci == Call) begin
+              Bit#(`vaddr) ras_push_offset;
+              case (v_hit_entry[1].ci_offset) //TODO: Didnt include support when compressed is OFF.
+                'b0: ras_push_offset = v_hit_entry[0].compressed ? 6 : 8;
+                'b1: ras_push_offset = v_hit_entry[0].compressed ? 8 : 12;
+                default: ras_push_offset = 0;
+              endcase
+              push_pc[1] = r.pc + ras_push_offset;
+              push_ras[1] = True;
+              //ras_stack.push(push_pc);
+              target_ = target_;
+              //compressed_ = v_hit_entry[1].compressed;
+              taken[1] = True;
+              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+            end
+            else if(v_hit_entry[1].ci == Ret) begin
+              target_ = ras_stack.top;
+              //compressed_ = v_hit_entry[1].compressed;
+              pop_ras[1] = True;
+              taken[1] = True;
+              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+              //ras_stack.pop;
+            end
+            else if(v_hit_entry[1].ci == JAL) begin
+              taken[1] = True;
+              target_ = v_hit_entry[1].target;
+              //compressed_ = v_hit_entry[1].compressed;
+              btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+            end
+            else if(v_hit_entry[1].ci == Branch) begin
+              prediction_ = branch_state_[1];
+              taken[1] = unpack(prediction_[`statesize-1]);
+              //compressed_ = v_hit_entry[1].compressed;
+              if (taken[1])
+                target_ = v_hit_entry[1].target;
+              ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
+              btbresponse[1] = BTBResponse { prediction: prediction_, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+            end
           end
-          else if (v_hit_entry[0].ci == Ret && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
-            target_ = ras_stack.top;
+
+          if (r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+            if (v_hit_entry[0].ci == Call) begin
+              Bit#(`vaddr) ras_push_offset;
+              case (v_hit_entry[0].ci_offset) //TODO: Didnt include support when compressed is OFF.
+                'b0: ras_push_offset = v_hit_entry[0].compressed ? 2 : 4;
+                'b1: ras_push_offset = v_hit_entry[0].compressed ? 4 : 6;
+                default: ras_push_offset = 0;
+              endcase
+              push_ras[0] = True;
+              push_pc[0] = r.pc + ras_push_offset;
+              target_ = target_;
+              //compressed_ = v_hit_entry[0].compressed;
+              taken[0] = True;
+              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+            end
+            else if (v_hit_entry[0].ci == Ret) begin
+              target_ = ras_stack.top;
+              pop_ras[0] = True;
+              taken[0] = True;
+              //compressed_ = v_hit_entry[0].compressed;
+              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+            end
+            else if (v_hit_entry[0].ci == JAL) begin
+              taken[0] = True;
+              target_ = v_hit_entry[0].target;
+              //compressed_ = v_hit_entry[0].compressed;
+              btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
+                                             `ifdef gshare , history : ghr `endif };
+            end
+            else if (v_hit_entry[0].ci == Branch) begin
+              prediction_ = branch_state_[0];
+              taken[0] = unpack(prediction_[`statesize-1]);
+              //compressed_ = v_hit_entry[0].compressed;
+              if (taken[0])
+                target_ = v_hit_entry[0].target;
+              ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
+              btbresponse[0] = BTBResponse { prediction: prediction_, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
+                                              `ifdef gshare , history : ghr `endif };
+
+            end
+          end
+
+          if (taken[0] && push_ras[0])
+            ras_stack.push(push_pc[0]);
+          else if (!taken[0] && taken[1] && push_ras[1])
+            ras_stack.push(push_pc[1]);
+
+          if (taken[0] && pop_ras[0])
             ras_stack.pop;
-            ci_off = {1'b0, v_hit_entry[0].ci_offset};
-            compressed = v_hit_entry[0].compressed;
-            `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
-            prediction_ = 3;
-          end
-          else if (v_hit_entry[0].ci == JAL && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
-            prediction_ = 3;
-            target_ = v_hit_entry[0].target;
-            ci_off = {1'b0, v_hit_entry[0].ci_offset};
-            compressed = v_hit_entry[0].compressed;
-          end
-          else if (v_hit_entry[0].ci == Branch  && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0] && branch_state_[0][`statesize - 1] == 1) begin
-            prediction_ = branch_state_[0];
-            target_ = v_hit_entry[0].target;
-            ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
-            ci_off = {1'b0, v_hit_entry[0].ci_offset};
-            compressed = v_hit_entry[0].compressed;
-          end
-          else if (v_hit_entry[1].ci == Call && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
-            Bit#(`vaddr) ras_push_offset;
-            case (v_hit_entry[1].ci_offset) //TODO: Didnt include support when compressed is OFF.
-              'b0: ras_push_offset = v_hit_entry[0].compressed ? 6 : 8;
-              'b1: ras_push_offset = v_hit_entry[0].compressed ? 8 : 12;
-              default: ras_push_offset = 0;
-            endcase
-            let push_pc = r.pc + ras_push_offset;
-            ras_stack.push(r.pc);
-            prediction_ = 3;
-            target_ = target_;
-            ci_off = {1'b1, v_hit_entry[1].ci_offset};
-            compressed = v_hit_entry[1].compressed;
-            `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS: %h", hartid, push_pc), wr_simulate_log_start)
-          end
-          else if (v_hit_entry[1].ci == Ret && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
-            target_ = ras_stack.top;
+          else if (!taken[0] && taken[1] && pop_ras[1])
             ras_stack.pop;
-            ci_off = {1'b1, v_hit_entry[1].ci_offset};
-            compressed = v_hit_entry[1].compressed;
-            `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
-            prediction_ = 3;
-          end
-          else if (v_hit_entry[1].ci == JAL && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
-            prediction_ = 3;
-            target_ = v_hit_entry[1].target;
-            ci_off = {1'b1, v_hit_entry[1].ci_offset};
-            compressed = v_hit_entry[1].compressed;
-          end
-          else if (v_hit_entry[1].ci == Branch  && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
-            prediction_ = branch_state_[1];
-            target_ = v_hit_entry[1].target;
-            ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
-            ci_off = {1'b1, v_hit_entry[1].ci_offset};
-            compressed = v_hit_entry[1].compressed;
-          end
-          else begin
-            ci_off = 0;
-            compressed = False;
-            prediction_ = 1;
-            target_ = target_;
-          end
+
+          `ifdef compressed
+            if (taken[1] && !taken[0] && !v_hit_entry[1].compressed && v_hit_entry[1].ci_offset == 1)
+              edgecase = True;
+          `endif
         end
         else begin
-          ci_off = 0;
-          compressed = False;
-          prediction_ = 1;
-          target_ = target_;
+          taken = replicate(False);
+          btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0
+                                                 `ifdef gshare , history : ghr `endif });
         end
 
-      `ifdef ifence if(!r.fence) `endif
-          rg_ghr[0] <= ghr;
-
-        `logLevel( bpu, 0, $format("[%2d]BPU : BHTindex_:%d Target:%h Pred:%d",hartid,
-                                                  bht_index_, target_, prediction_), wr_simulate_log_start)
+        rg_ghr[0] <= ghr;
 
         `ifdef ASSERT
           dynamicAssert(countOnes(match_) < 2, "Multiple Matches in BTB");
         `endif
-      end
-      else begin
-        ci_off = 0;
-        compressed = False;
-        prediction_ = 1;
-        target_ = target_;
-      end
 
-      let btbresponse = BTBResponse{prediction: prediction_, btbhit: hit, ci_offset : ci_off
-                        `ifdef gshare , history : ghr `endif };
+
+        `logLevel( bpu, 0, $format("[%2d]BPU : BHTindex_:%d Target:%h Pred:%d",hartid,
+                                                  bht_index_, target_, prediction_), wr_simulate_log_start)
+      end
 
       return PredictionResponse{ nextpc : target_, btbresponse: btbresponse
-              `ifdef compressed  ,compressed: compressed `endif };
+        `ifdef compressed ,edgecase: edgecase `endif , taken: (taken[0] || taken[1])};
+
+
+        // A local variable to indicate which entry in the BTB is giving the prediction.
+        //if (hit) begin
+        //  if (v_hit_entry[0].ci == Call && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+        //    Bit#(`vaddr) ras_push_offset;
+        //    case (v_hit_entry[0].ci_offset) //TODO: Didnt include support when compressed is OFF.
+        //      'b0: ras_push_offset = v_hit_entry[0].compressed ? 2 : 4;
+        //      'b1: ras_push_offset = v_hit_entry[0].compressed ? 4 : 6;
+        //      default: ras_push_offset = 0;
+        //    endcase
+        //    let push_pc = r.pc + ras_push_offset;
+        //    ras_stack.push(r.pc);
+        //    prediction_ = 3;
+        //    target_ = target_;
+        //    ci_off = {1'b0, v_hit_entry[0].ci_offset};
+        //    compressed = v_hit_entry[0].compressed;
+        //    `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS: %h", hartid, push_pc), wr_simulate_log_start)
+        //  end
+        //  else if (v_hit_entry[0].ci == Ret && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+        //    target_ = ras_stack.top;
+        //    ras_stack.pop;
+        //    ci_off = {1'b0, v_hit_entry[0].ci_offset};
+        //    compressed = v_hit_entry[0].compressed;
+        //    `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
+        //    prediction_ = 3;
+        //  end
+        //  else if (v_hit_entry[0].ci == JAL && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0]) begin
+        //    prediction_ = 3;
+        //    target_ = v_hit_entry[0].target;
+        //    ci_off = {1'b0, v_hit_entry[0].ci_offset};
+        //    compressed = v_hit_entry[0].compressed;
+        //  end
+        //  else if (v_hit_entry[0].ci == Branch  && r.discard[1] == 0 && v_hit_entry[0].ci_offset >= r.discard[0] && branch_state_[0][`statesize - 1] == 1) begin
+        //    prediction_ = branch_state_[0];
+        //    target_ = v_hit_entry[0].target;
+        //    ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
+        //    ci_off = {1'b0, v_hit_entry[0].ci_offset};
+        //    compressed = v_hit_entry[0].compressed;
+        //  end
+        //  else if (v_hit_entry[1].ci == Call && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+        //    Bit#(`vaddr) ras_push_offset;
+        //    case (v_hit_entry[1].ci_offset) //TODO: Didnt include support when compressed is OFF.
+        //      'b0: ras_push_offset = v_hit_entry[0].compressed ? 6 : 8;
+        //      'b1: ras_push_offset = v_hit_entry[0].compressed ? 8 : 12;
+        //      default: ras_push_offset = 0;
+        //    endcase
+        //    let push_pc = r.pc + ras_push_offset;
+        //    ras_stack.push(r.pc);
+        //    prediction_ = 3;
+        //    target_ = target_;
+        //    ci_off = {1'b1, v_hit_entry[1].ci_offset};
+        //    compressed = v_hit_entry[1].compressed;
+        //    `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS: %h", hartid, push_pc), wr_simulate_log_start)
+        //  end
+        //  else if (v_hit_entry[1].ci == Ret && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+        //    target_ = ras_stack.top;
+        //    ras_stack.pop;
+        //    ci_off = {1'b1, v_hit_entry[1].ci_offset};
+        //    compressed = v_hit_entry[1].compressed;
+        //    `logLevel( bpu, 1, $format("[%2d]BPU: Choosing from top RAS:%h",hartid,target_), wr_simulate_log_start)
+        //    prediction_ = 3;
+        //  end
+        //  else if (v_hit_entry[1].ci == JAL && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+        //    prediction_ = 3;
+        //    target_ = v_hit_entry[1].target;
+        //    ci_off = {1'b1, v_hit_entry[1].ci_offset};
+        //    compressed = v_hit_entry[1].compressed;
+        //  end
+        //  else if (v_hit_entry[1].ci == Branch  && (r.discard[1] == 0 || (r.discard[1] == 1 && v_hit_entry[1].ci_offset >= r.discard[0]))) begin
+        //    prediction_ = branch_state_[1];
+        //    target_ = v_hit_entry[1].target;
+        //    ghr = {prediction_[`statesize - 1], truncateLSB(rg_ghr[0])};
+        //    ci_off = {1'b1, v_hit_entry[1].ci_offset};
+        //    compressed = v_hit_entry[1].compressed;
+        //  end
+        //  else begin
+        //    ci_off = 0;
+        //    compressed = False;
+        //    prediction_ = 1;
+        //    target_ = target_;
+        //  end
+        //end
+        //else begin
+        //  ci_off = 0;
+        //  compressed = False;
+        //  prediction_ = 1;
+        //  target_ = target_;
+        //end
+
+      //end
+      //else begin
+      //  //ci_off = 0;
+      //  //compressed = False;
+      //  //prediction_ = 1;
+      //  target_ = target_;
+      //  btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0,
+      //                                      compressed: False  `ifdef gshare , history : ghr `endif };
+      //end
+
+      //let btbresponse = BTBResponse{prediction: prediction_, btbhit: hit, ci_offset : ci_off
+      //                  `ifdef gshare , history : ghr `endif };
+
     endmethod
 
     /*doc:method: This method is called for all unconditional and conditional jumps.
