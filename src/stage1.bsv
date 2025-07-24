@@ -399,8 +399,8 @@ package stage1;
           btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
-          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
-          lv_prev.btbresponse[1] = ?;
+          lv_prev.btbresponse = stage0pc.btbresponse;
+          //lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b11;
           lv_prev.instruction = imem_resp.word[63:16];
@@ -921,7 +921,7 @@ package stage1;
     interface icache = interface Ifc_s1_icache
   		interface inst_response = interface Put
   			method Action put (IMem_core_response#(TMul#(`iwords, 8), `iesize) resp);
-          `logLevel( stage1, 3, $format("[%2d]STAGE1: ",hartid,fshow(resp)), wr_simulate_log_start)
+          `logLevel( stage1, 1, $format("[%2d]STAGE1: ",hartid,fshow(resp)), wr_simulate_log_start)
           ff_memory_response.enq(resp);
   			endmethod
       endinterface;

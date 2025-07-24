@@ -354,7 +354,7 @@ package gshare_fa;
             end
             else if (v_hit_entry[0].ci == JAL) begin
               taken[0] = True;
-              target_ = v_hit_entry[1].target;
+              target_ = v_hit_entry[0].target;
               //compressed_ = v_hit_entry[0].compressed;
               btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
                                              `ifdef gshare , history : ghr `endif };
