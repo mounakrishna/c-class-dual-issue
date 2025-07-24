@@ -249,8 +249,6 @@ package gshare_fa;
       Bit#(`statesize) prediction_ = 1;
       Bool hit = False;
       Bit#(`histlen) ghr = rg_ghr[0];
-      Bool compressed = False;
-      Bit#(2) ci_off;
 
 
       Vector#(2, Bool) pop_ras = replicate(False);
@@ -261,7 +259,6 @@ package gshare_fa;
         Bool edgecase = False;
       `endif
       Bit#(`vaddr) target_ = r.pc;
-      //Bool compressed_ = False;
       Vector#(2, Bool) taken = replicate(False);
       Vector#(2, BTBResponse) btbresponse = replicate(BTBResponse{prediction: 1, btbhit: False, ci_offset : 0
                                                                  `ifdef gshare , history : ghr `endif });
