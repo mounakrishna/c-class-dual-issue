@@ -409,6 +409,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   endrule
 
   rule rl_stage3_not_firing(!rx_meta.u.notEmpty);
+    `logLevel( stage3, stall, $format("[%2d]STAGE3: Not firing", hartid), wr_simulate_log_start)
     `ifdef perfmonitors
       wr_st3_not_firing <= 1;
     `endif
@@ -431,8 +432,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * initiate execution.
   */
   rule rl_perform_fwding(rx_meta.u.notEmpty && tx_fuid.u.notFull);
-    `logLevel( stage3, pc, $format("[%2d]STAGE3: PC0:%h, instrType0:",hartid, meta[0].pc,fshow(instr_type[0])), wr_simulate_log_start)
-    `logLevel( stage3, pc, $format("[%2d]STAGE3: PC1:%h, instrType1:",hartid, meta[1].pc,fshow(instr_type[1])), wr_simulate_log_start)
+    `logLevel( stage3, 0, $format("[%2d]STAGE3: PC0:%h, instrType0:",hartid, meta[0].pc,fshow(instr_type[0])), wr_simulate_log_start)
+    `logLevel( stage3, 0, $format("[%2d]STAGE3: PC1:%h, instrType1:",hartid, meta[1].pc,fshow(instr_type[1])), wr_simulate_log_start)
     
     // ----------------------- check for WAW hazard ------------------------------------------- //
     `ifdef no_wawstalls
@@ -498,10 +499,10 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     let {_op4_avail, _fwd_op4} = fn_bypass( req_addr4, byp4, wr_rf_op4);
     let {_op5_avail, _fwd_op5} = fn_bypass( req_addr5, byp5, wr_rf_op5);
 
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op1: ",hartid, fshow(byp1), " req:", fshow(req_addr1), " rf_data:", fshow(wr_rf_op1)), wr_simulate_log_start)
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op2: ",hartid, fshow(byp2), " req:", fshow(req_addr2), " rf_data:", fshow(wr_rf_op2)), wr_simulate_log_start)
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op4: ",hartid, fshow(byp4), " req:", fshow(req_addr4), " rf_data:", fshow(wr_rf_op4)), wr_simulate_log_start)
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op5: ",hartid, fshow(byp5), " req:", fshow(req_addr5), " rf_data:", fshow(wr_rf_op5)), wr_simulate_log_start)
+    `logLevel(stage3, 3, $format("[%2d]STAGE3: Op1: ",hartid, fshow(byp1), " req:", fshow(req_addr1), " rf_data:", fshow(wr_rf_op1)), wr_simulate_log_start)
+    `logLevel(stage3, 3, $format("[%2d]STAGE3: Op2: ",hartid, fshow(byp2), " req:", fshow(req_addr2), " rf_data:", fshow(wr_rf_op2)), wr_simulate_log_start)
+    `logLevel(stage3, 3, $format("[%2d]STAGE3: Op4: ",hartid, fshow(byp4), " req:", fshow(req_addr4), " rf_data:", fshow(wr_rf_op4)), wr_simulate_log_start)
+    `logLevel(stage3, 3, $format("[%2d]STAGE3: Op5: ",hartid, fshow(byp5), " req:", fshow(req_addr5), " rf_data:", fshow(wr_rf_op5)), wr_simulate_log_start)
 
     wr_op1_avail <= _op1_avail; wr_fwd_op1 <= _fwd_op1;
     wr_op1_avail_probe <= _op1_avail;
@@ -528,12 +529,12 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     byp3[0] = wr_bypass[0];
     byp3[1] = wr_bypass[1];
 
-    `logLevel(stage3,0, $format("[%2d]STAGE3: Op3: ",hartid, fshow(byp3), " req:", fshow(req_addr3)), wr_simulate_log_start)
+    `logLevel(stage3,3, $format("[%2d]STAGE3: Op3: ",hartid, fshow(byp3), " req:", fshow(req_addr3)), wr_simulate_log_start)
     let {_op3_avail, _fwd_op3} = fn_bypass( req_addr3, byp3, wr_op3);
     wr_op3_avail <= (rf3type==IRF || _op3_avail); wr_fwd_op3 <= _fwd_op3;
     wr_op3_avail_probe <= _op3_avail;
   `endif
-    `logLevel( stage3, 0, $format("[%2d]STAGE3: ",hartid, fshow(sboard.mv_board)), wr_simulate_log_start)
+    `logLevel( stage3, 3, $format("[%2d]STAGE3: ",hartid, fshow(sboard.mv_board)), wr_simulate_log_start)
     if (lv_waw_stall)begin
       `logLevel( stage3, 0, $format("[%2d]STAGE3: WAW Stall", hartid), wr_simulate_log_start)
     end
@@ -590,7 +591,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     end
     else begin
       `logLevel( stage3, 4, $format("[%2d]STAGE3: SBD: ",hartid,fshow(sboard.mv_board)), wr_simulate_log_start)
-      `logLevel( stage3, stall, $format("[%2d]STAGE3: Waiting for operands to be available \n op1_avail: %h, op2_avail: %h, op3_avail: %h, op4_avail: %h, op5_avail: %h",hartid, wr_op1_avail, wr_op2_avail, wr_op3_avail, wr_op4_avail, wr_op5_avail), wr_simulate_log_start)
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Waiting for operands to be available \n op1_avail: %h, op2_avail: %h, op3_avail: %h, op4_avail: %h, op5_avail: %h",hartid, wr_op1_avail, wr_op2_avail, wr_op3_avail, wr_op4_avail, wr_op5_avail), wr_simulate_log_start)
       wr_ops_avail <= False;
       wr_ops_avail_probe <= False;
       `ifdef perfmonitors

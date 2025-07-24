@@ -289,7 +289,9 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     mkConnection(stage3.common.ma_hstatus, stage5.csrs.mv_csr_hstatus);
   `endif
   `ifdef bpu
-    mkConnection(stage3.bpu.ma_next_pc, pipe1.first[0].program_counter);
+    rule rl_connect_next_pc_to_stage3(pipe_s1s2_notEmpty);
+      stage3.bpu.ma_next_pc(pipe1.first[0].program_counter);
+    endrule
     mkConnection(stage0.s0_bpu.ma_train_bpu, stage3.bpu.mv_train_bpu);
   `ifdef gshare
     mkConnection(stage0.s0_bpu.ma_mispredict, stage3.bpu.mv_mispredict);

@@ -368,7 +368,7 @@ typedef struct{
   Bit#(2) discard;
 `endif
 `ifdef bpu
-  BTBResponse btbresponse;
+  Vector#(2, BTBResponse) btbresponse;
 `endif
   Bit#(addr)  address;      // XLEN:0
 } Stage0PC#(numeric type addr) deriving(Bits, Eq, FShow);
@@ -884,10 +884,11 @@ typedef struct{
   //  Bool instr16;
   //`endif
   `ifdef compressed
-    Bool compressed;
+    Bool edgecase;
   `endif
+    Bool taken;
     Bit#(`vaddr) nextpc;
-    BTBResponse btbresponse;
+    Vector#(2, BTBResponse) btbresponse;
   }PredictionResponse deriving (Bits, Eq, FShow);
 
   typedef struct {

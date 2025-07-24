@@ -39,7 +39,7 @@ package stage1;
     Bit#(2) mask;
     Bit#(2) epochs;
   `ifdef bpu
-    BTBResponse btbresponse;
+    Vector#(2, BTBResponse) btbresponse;
   `endif
   } PrevMeta deriving(Eq, Bits, FShow);
 
@@ -294,7 +294,7 @@ package stage1;
           receiving_upper[1] = True;
           compressed_instr = replicate(False);
         `ifdef bpu
-          btbresponse = replicate(rg_prev.btbresponse);
+          btbresponse = rg_prev.btbresponse;
           lv_instr_new = replicate(False);
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
@@ -315,7 +315,7 @@ package stage1;
           compressed_instr[1] = True;
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse = replicate(rg_prev.btbresponse);
+          btbresponse = rg_prev.btbresponse;
           lv_instr_new = replicate(False);
         `endif
           lv_prev.mask = 2'b00;
@@ -331,8 +331,9 @@ package stage1;
           compressed_instr = replicate(True);
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse = replicate(rg_prev.btbresponse);
-          lv_prev.btbresponse = rg_prev.btbresponse;
+          btbresponse = rg_prev.btbresponse;
+          lv_prev.btbresponse[0] = rg_prev.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
           lv_instr_new = replicate(False);
         `endif
           lv_prev.mask = 2'b01;
@@ -351,7 +352,7 @@ package stage1;
           compressed_instr[1] = False;
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse = replicate(rg_prev.btbresponse);
+          btbresponse = rg_prev.btbresponse;
           lv_instr_new = replicate(False);
         `endif
           lv_prev.mask = 2'b00;
@@ -370,11 +371,12 @@ package stage1;
           compressed_instr = replicate(False);
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse[0] = rg_prev.btbresponse;
-          btbresponse[1] = stage0pc.btbresponse;
+          btbresponse[0] = rg_prev.btbresponse[0];
+          btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b10;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
@@ -393,11 +395,12 @@ package stage1;
           compressed_instr[1] = True;
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse[0] = rg_prev.btbresponse;
-          btbresponse[1] = stage0pc.btbresponse;
+          btbresponse[0] = rg_prev.btbresponse[0];
+          btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
+          //lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b11;
           lv_prev.instruction = imem_resp.word[63:16];
@@ -416,7 +419,7 @@ package stage1;
           compressed_instr[1] = True;
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse = replicate(rg_prev.btbresponse);
+          btbresponse = replicate(rg_prev.btbresponse[0]);
           lv_instr_new = replicate(False);
         `endif
           lv_prev.mask = 2'b00;
@@ -434,7 +437,7 @@ package stage1;
           receiving_upper[0] = False;
           receiving_upper[1] = True;
         `ifdef bpu
-          btbresponse = replicate(rg_prev.btbresponse);
+          btbresponse = replicate(rg_prev.btbresponse[0]);
           lv_prev.btbresponse = stage0pc.btbresponse;
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
@@ -461,10 +464,11 @@ package stage1;
           receiving_upper[0] = True;
           receiving_upper[1] = False;
         `ifdef bpu
-          btbresponse[0] = rg_prev.btbresponse;
-          btbresponse[1] = stage0pc.btbresponse;
+          btbresponse[0] = rg_prev.btbresponse[0];
+          btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new = replicate(True);
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -482,10 +486,11 @@ package stage1;
           receiving_upper[0] = True;
           receiving_upper[1] = False;
         `ifdef bpu
-          btbresponse[0] = rg_prev.btbresponse;
-          btbresponse[1] = stage0pc.btbresponse;
+          btbresponse[0] = rg_prev.btbresponse[0];
+          btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new = replicate(True);
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b10;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
@@ -503,8 +508,8 @@ package stage1;
           trap[1] = imem_resp.trap;
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse[0] = rg_prev.btbresponse;
-          btbresponse[1] = stage0pc.btbresponse;
+          btbresponse[0] = rg_prev.btbresponse[0];
+          btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
@@ -525,11 +530,12 @@ package stage1;
           trap[1] = imem_resp.trap;
           receiving_upper = replicate(False);
         `ifdef bpu
-          btbresponse[0] = rg_prev.btbresponse;
-          btbresponse[1] = stage0pc.btbresponse;
+          btbresponse[0] = rg_prev.btbresponse[0];
+          btbresponse[1] = stage0pc.btbresponse[0];
           lv_instr_new[0] = False;
           lv_instr_new[1] = True;
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b10;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
@@ -551,7 +557,7 @@ package stage1;
           instr_pc[0] = stage0pc.address;
           instr_pc[1] = stage0pc.address | 4;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
+          btbresponse = stage0pc.btbresponse;
         `endif
           compressed_instr[0] = False;
           compressed_instr[1] = False;
@@ -566,8 +572,9 @@ package stage1;
           compressed_instr[0] = False;
           compressed_instr[1] = True;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -582,8 +589,9 @@ package stage1;
           compressed_instr[0] = True;
           compressed_instr[1] = True;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          btbresponse = replicate(stage0pc.btbresponse[0]);
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b10;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:32]);
@@ -598,8 +606,9 @@ package stage1;
           compressed_instr[0] = True;
           compressed_instr[1] = False;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          btbresponse = replicate(stage0pc.btbresponse[0]);
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -620,9 +629,10 @@ package stage1;
           instr_pc[0] = stage0pc.address | 2;
           instr_pc[1] = ?;
         `ifdef bpu
-          btbresponse[0] = stage0pc.btbresponse;
+          btbresponse[0] = stage0pc.btbresponse[0];
           btbresponse[1] = ?;
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -638,7 +648,7 @@ package stage1;
           instr_pc[0] = stage0pc.address | 2;
           instr_pc[1] = stage0pc.address | 6;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
+          btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.mask = 2'b00;
           valid_instructions = 2;
@@ -651,8 +661,9 @@ package stage1;
           instr_pc[0] = stage0pc.address | 2;
           instr_pc[1] = stage0pc.address | 4;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -668,7 +679,7 @@ package stage1;
           instr_pc[0] = stage0pc.address | 2;
           instr_pc[1] = stage0pc.address | 4;
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
+          btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.mask = 2'b00;
           valid_instructions = 2;
@@ -687,7 +698,7 @@ package stage1;
           instr_pc[0] = stage0pc.address | 4;
           instr_pc[1] = ?;
         `ifdef bpu
-          btbresponse[0] = stage0pc.btbresponse;
+          btbresponse[0] = stage0pc.btbresponse[1];
           btbresponse[1] = ?;
         `endif
           compressed_instr = replicate(False);
@@ -702,7 +713,8 @@ package stage1;
           instr_pc[1] = stage0pc.address | 6;
           compressed_instr = replicate(True);
         `ifdef bpu
-          btbresponse = replicate(stage0pc.btbresponse);
+          btbresponse[0] = stage0pc.btbresponse[1];
+          btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b00;
           valid_instructions = 2;
@@ -716,9 +728,10 @@ package stage1;
           instr_pc[0] = stage0pc.address | 4;
           instr_pc[1] = ?;
         `ifdef bpu
-          btbresponse[0] = stage0pc.btbresponse;
+          btbresponse[0] = stage0pc.btbresponse[1];
           btbresponse[1] = ?;
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -741,7 +754,8 @@ package stage1;
         `ifdef bpu
           btbresponse[0] = ?;
           btbresponse[1] = ?;
-          lv_prev.btbresponse = stage0pc.btbresponse;
+          lv_prev.btbresponse[0] = stage0pc.btbresponse[1];
+          lv_prev.btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b01;
           lv_prev.instruction = zeroExtend(imem_resp.word[63:48]);
@@ -757,7 +771,7 @@ package stage1;
           instr_pc[0] = stage0pc.address | 6;
           instr_pc[1] = ?;
         `ifdef bpu
-          btbresponse[0] = stage0pc.btbresponse;
+          btbresponse[0] = stage0pc.btbresponse[1];
           btbresponse[1] = ?;
         `endif
           lv_prev.mask = 2'b00;
@@ -907,7 +921,7 @@ package stage1;
     interface icache = interface Ifc_s1_icache
   		interface inst_response = interface Put
   			method Action put (IMem_core_response#(TMul#(`iwords, 8), `iesize) resp);
-          `logLevel( stage1, 3, $format("[%2d]STAGE1: ",hartid,fshow(resp)), wr_simulate_log_start)
+          `logLevel( stage1, 1, $format("[%2d]STAGE1: ",hartid,fshow(resp)), wr_simulate_log_start)
           ff_memory_response.enq(resp);
   			endmethod
       endinterface;
