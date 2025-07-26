@@ -21,6 +21,7 @@ package registerfile;
 	import ccore_types::*;
 	import RegFile4r2w::*;
   import RegFile::*;
+  import Vector :: *;
   `include "Logger.bsv"
 
 	interface Ifc_registerfile;
@@ -29,8 +30,8 @@ package registerfile;
     method ActionValue#(Bit#(`elen)) read_rs3(Bit#(5) addr);
     method ActionValue#(Bit#(`elen)) read_rs4(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
     method ActionValue#(Bit#(`elen)) read_rs5(Bit#(5) addr `ifdef spfpu, RFType rstype `endif );
-		method Action commit_rd_1 (CommitData c);
-		method Action commit_rd_2 (CommitData c);
+		method Action commit_rd (Vector#(`num_issue, CommitData) c);
+		//method Action commit_rd (CommitData c);
   `ifdef simulate
     method Action ma_simulate_log_start(Bit#(1) start);
   `endif
@@ -152,30 +153,48 @@ package registerfile;
     // above methods for operand forwarding.
     // Explicit Conditions : fire only when initialize is False;
     // Implicit Conditions : None
-		method Action commit_rd_1 (CommitData c) if(!initialize);
-     `logLevel( regfile, 1, $format("[%2d]RF : Writing Rd: %d(%h) ",hartid,c.addr, c.data
-                                                  `ifdef spfpu, fshow(c.rdtype) `endif ), wr_simulate_log_start)
-    `ifdef merged_rf 
-  	  if (c.rdtype != IRF || c.addr != 0)
-    	  rf.upd_1({pack(c.rdtype==FRF),c.addr},truncate(c.data));
-    `else
-      `ifdef spfpu
-        if(c.rdtype == FRF) frf.upd(c.addr, truncate(c.data)); else
-      `endif
-        if(c.addr != 0) xrf.upd_1(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
-    `endif
-		endmethod
+		//method Action commit_rd_1 (CommitData c) if(!initialize);
+    // `logLevel( regfile, 1, $format("[%2d]RF : Writing Rd: %d(%h) ",hartid,c.addr, c.data
+    //                                              `ifdef spfpu, fshow(c.rdtype) `endif ), wr_simulate_log_start)
+    //`ifdef merged_rf 
+  	//  if (c.rdtype != IRF || c.addr != 0)
+    //	  rf.upd_1({pack(c.rdtype==FRF),c.addr},truncate(c.data));
+    //`else
+    //  `ifdef spfpu
+    //    if(c.rdtype == FRF) frf.upd(c.addr, truncate(c.data)); else
+    //  `endif
+    //    if(c.addr != 0) xrf.upd_1(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
+    //`endif
+		//endmethod
 
-		method Action commit_rd_2 (CommitData c) if(!initialize);
-     `logLevel( regfile, 1, $format("[%2d]RF : Writing Rd: %d(%h) ",hartid,c.addr, c.data
-                                                  `ifdef spfpu, fshow(c.rdtype) `endif ), wr_simulate_log_start)
-    `ifdef merged_rf 
-  	  if (c.rdtype != IRF || c.addr != 0)
-    	  rf.upd_2({pack(c.rdtype==FRF),c.addr},truncate(c.data));
-    `else
-        if(c.addr != 0) xrf.upd_2(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
-    `endif
-		endmethod
+		//method Action commit_rd_2 (CommitData c) if(!initialize);
+    // `logLevel( regfile, 1, $format("[%2d]RF : Writing Rd: %d(%h) ",hartid,c.addr, c.data
+    //                                              `ifdef spfpu, fshow(c.rdtype) `endif ), wr_simulate_log_start)
+    //`ifdef merged_rf 
+  	//  if (c.rdtype != IRF || c.addr != 0)
+    //	  rf.upd_2({pack(c.rdtype==FRF),c.addr},truncate(c.data));
+    //`else
+    //    if(c.addr != 0) xrf.upd_2(c.addr, truncate(c.data)); // truncate is required when XLEN<ELEN
+    //`endif
+		//endmethod
+    
+    method Action commit_rd (Vector#(`num_issue, CommitData) c) if(!initialize);
+      if (!c[0].unlock_only && c[0].addr != 0 && c[0].rdtype == IRF)
+          xrf.upd_1(c[0].addr, truncate(c[0].data));
+      if (!c[1].unlock_only && c[1].addr != 0 && c[1].rdtype == IRF)
+          xrf.upd_2(c[1].addr, truncate(c[1].data));
+
+      if (!c[0].unlock_only && c[0].rdtype == FRF)
+          frf.upd(c[0].addr, truncate(c[0].data)); 
+      else if (!c[1].unlock_only && c[1].rdtype == FRF)
+          frf.upd(c[1].addr, truncate(c[1].data)); 
+
+      //if(!c[0].unlock_only) 
+      //  if (c[0].rdtype == FRF) 
+      //  else if (c[0].addr != 0) 
+      //if (!c[1].unlock_only && c[1].addr != 0) 
+      //  xrf.upd_2(c[
+    endmethod
   `ifdef simulate
     method Action ma_simulate_log_start(Bit#(1) start);
       wr_simulate_log_start <= start;

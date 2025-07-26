@@ -827,7 +827,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * SFence instruction henceforth will be treated as a regular nop instruction and avoiding
   * polling on the data subsystem in the subsequent pipeline stages.
   */
-  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail);
+  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail && 
+    ((instr_type[1] != BRANCH && instr_type[1] != JAL && instr_type[1] != JALR) || isValid(wr_next_pc)));
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Memory Op received",hartid), wr_simulate_log_start)
     Bit#(`vaddr) memory_address = wr_fwd_op1 + truncate(wr_op3.data);
     Bit#(3) funct3  = truncate(meta[0].funct);
@@ -1321,7 +1322,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * offloaded the mbox.*/
   rule rl_mbox(instr_type[0] == MULDIV && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail &&
               ( (meta[0].funct[2]==0 && wr_mul_ready) || 
-                (meta[0].funct[2]==1 && wr_div_ready) ) );
+                (meta[0].funct[2]==1 && wr_div_ready) ) &&
+    ((instr_type[1] != BRANCH && instr_type[1] != JAL && instr_type[1] != JALR) || isValid(wr_next_pc)));
     `logLevel( stage3, 0, $format("[%2d]STAGE3: MULDIV Op received",hartid), wr_simulate_log_start)
     wr_muldiv_inputs <= MBoxIn{in1: wr_fwd_op1, in2: wr_fwd_op2, funct3: truncate(meta[0].funct)
                               `ifdef RV64 , wordop: meta[0].word32 `endif };
@@ -1381,7 +1383,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   /*doc:rule: This rule will fire when the epochs match and when the multiplier/divider are
   * avaialble based on the current instruction. Both the operands are required for execution to be
   * offloaded the mbox.*/
-  rule rl_fbox(instr_type[0] == FLOAT && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_fbox_ready && wr_ops_avail);
+  rule rl_fbox(instr_type[0] == FLOAT && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_fbox_ready && wr_ops_avail &&
+    ((instr_type[1] != BRANCH && instr_type[1] != JAL && instr_type[1] != JALR) || isValid(wr_next_pc)));
     `logLevel( stage3, 0, $format("[%2d]STAGE3: FLOAT Op received",hartid), wr_simulate_log_start)
     wr_float_inputs <= Input_Packet{operand1: truncate(wr_fwd_op1), operand2: truncate(wr_fwd_op2), operand3:truncate(wr_fwd_op3),
                              opcode: (meta[0].funct[6:3]), funct3: truncate(meta[0].funct), 
