@@ -372,9 +372,6 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                                           };
   Bool epochs_match = curr_epochs == meta[0].epochs;
   //Bool epochs_match_instr1 = (instr_type[1] != NONE) ? curr_epochs == meta[1].epochs : False;
-`ifdef bpu
-  let btbresponse = meta[0].btbresponse;
-`endif
   // ---------------------- Start local function definitions ----------------//
 
   // this function will deque the response received from the previous stage. Instead of replicating
@@ -975,15 +972,18 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     Instruction_type inst_type;
     Stage3Meta lv_meta;
     Bit#(TMax#(`vaddr,`flen))  offset;
+    BTBResponse btbresponse;
     if (instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) begin
       inst_type = instr_type[0];
       lv_meta = meta[0];
       inst_num = 0;
+      btbresponse = meta[0].btbresponse;
       offset = wr_op3.data;
     end
     else begin
       inst_type = instr_type[1];
       lv_meta = meta[1];
+      btbresponse = meta[1].btbresponse;
       inst_num = 1;
       offset = signExtend(wr_op6);
     end

@@ -528,7 +528,7 @@ package gshare_fa;
     */
     method Action ma_train_bpu (Training_data d) if(wr_bpu_enable
                                                           `ifdef ifence && !rg_initialize `endif );
-      `logLevel( bpu, 4, $format("[%2d]BPU : Received Training: ",hartid,fshow(d)), wr_simulate_log_start)
+      `logLevel( bpu, 2, $format("[%2d]BPU : Received Training: ",hartid,fshow(d)), wr_simulate_log_start)
 
       function Bool fn_tag_match (BTBTag a);
         return  (a.tag == truncateLSB(d.pc) && a.valid);
@@ -541,10 +541,10 @@ package gshare_fa;
                             ,ci_offset : d.pc[1]
                             `ifdef compressed ,compressed : d.compressed `endif };
                             //`ifdef compressed ,instr16: d.instr16, hi:unpack(d.pc[1]) `endif };
-        `logLevel( bpu, 4, $format("[%2d]BPU : Training existing Entry index: %d",hartid,h), wr_simulate_log_start)
+        `logLevel( bpu, 2, $format("[%2d]BPU : Training existing Entry index: %d",hartid,h), wr_simulate_log_start)
       end
       else begin
-        `logLevel( bpu, 4, $format("[%2d]BPU : Allocating new index: %d",hartid,rg_allocate), wr_simulate_log_start)
+        `logLevel( bpu, 2, $format("[%2d]BPU : Allocating new index: %d",hartid,rg_allocate), wr_simulate_log_start)
         Vector#(2, BTBEntry) btb_entry = replicate(unpack(0));
         //v_reg_btb_entry[rg_allocate][d.pc[2]] <= BTBEntry{ target : d.target, ci : d.ci
         btb_entry[d.pc[2]] = BTBEntry{ target : d.target, ci : d.ci
@@ -554,7 +554,7 @@ package gshare_fa;
           btb_entry[~d.pc[2]] = BTBEntry{ target: ?, ci: None,
                                            ci_offset : ?
                                            `ifdef compressed ,compressed : ? `endif };
-          `logLevel( bpu, 4, $format("[%2d]BPU : Conflict Detected",hartid), wr_simulate_log_start)
+          `logLevel( bpu, 2, $format("[%2d]BPU : Conflict Detected",hartid), wr_simulate_log_start)
         end
         else begin
           btb_entry[~d.pc[2]] = v_reg_btb_entry[rg_allocate][~d.pc[2]];
@@ -566,11 +566,11 @@ package gshare_fa;
       end
 
       // we use the ghr version before the prediction to train the BHT
-      `logLevel( bpu, 4, $format("[%2d]BPU : BHT Hash inputs during training : ghr : %h, pc : %h", hartid, d.history << 1, d.pc), wr_simulate_log_start)
+      `logLevel( bpu, 2, $format("[%2d]BPU : BHT Hash inputs during training : ghr : %h, pc : %h", hartid, d.history << 1, d.pc), wr_simulate_log_start)
       let bht_index_ = fn_hash(d.history<<1, d.pc);
       if(d.ci == Branch && d.btbhit) begin
         rg_bht_arr[d.pc[2]].upd(bht_index_, d.state);
-        `logLevel( bpu, 4, $format("[%2d]BPU : Upd BHT entry: %d with state: %d",hartid,
+        `logLevel( bpu, 2, $format("[%2d]BPU : Upd BHT entry: %d with state: %d",hartid,
                                                                               bht_index_, d.state), wr_simulate_log_start)
       end
     endmethod
@@ -584,7 +584,7 @@ package gshare_fa;
       let {btbhit, ghr} = g;
       if(btbhit)
         ghr[`histlen-1] = ~ghr[`histlen-1];
-      `logLevel( bpu, 4, $format("[%2d]BPU : Misprediction fired. Restoring ghr:%h",hartid,
+      `logLevel( bpu, 2, $format("[%2d]BPU : Misprediction fired. Restoring ghr:%h",hartid,
                                                                                               ghr), wr_simulate_log_start)
       rg_ghr[1] <= ghr;
     endmethod

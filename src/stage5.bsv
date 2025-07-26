@@ -538,10 +538,10 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
   rule rl_incr_minstret(wr_increment_minstret[0] || wr_increment_minstret[1]);
     case({pack(wr_increment_minstret[1]), pack(wr_increment_minstret[0])}) 
       2'b01: csr.ma_incr_minstret(1);
+      2'b10: csr.ma_incr_minstret(1);
       2'b11: csr.ma_incr_minstret(2);
       default: csr.ma_incr_minstret(0);
     endcase
-    //csr.ma_incr_minstret(1);
   endrule:rl_incr_minstret
 
   rule rl_update_1st_instruction_default(rx_fuid.u.first[0].instpkt matches tagged None);
