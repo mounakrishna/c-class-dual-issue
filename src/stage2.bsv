@@ -520,11 +520,11 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         issue_two_inst = True;
       else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MEMORY)
         issue_two_inst = True;
-      else if (instrType[1] == MEMORY && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
+      else if (instrType[0] == MEMORY && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
       else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == FLOAT)
         issue_two_inst = True;
-      else if (instrType[1] == FLOAT && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
+      else if (instrType[0] == FLOAT && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
       // For all other cases issue only one instruction.
       else begin
