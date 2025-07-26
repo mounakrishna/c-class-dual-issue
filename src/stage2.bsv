@@ -280,6 +280,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
 `ifdef perfmonitors
   Wire#(Bit#(1)) wr_dual_issued <- mkDWire(0);
   Wire#(Bit#(1)) wr_raw_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_raw_hazard_dual <- mkDWire(0);
   /*doc: wire: Indicates that only one instruction is present in the instruction queue.*/
   Wire#(Bit#(1)) wr_one_instr <- mkDWire(0);
   Wire#(Bit#(1)) wr_mul_branch_hazard <- mkDWire(0);
@@ -474,6 +475,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           `ifdef spfpu || dest_addr[0] == src3_addr[1] `endif )) begin
         issue_two_inst = False;
         wr_raw_hazard <= 1;
+        if (instrType[0] == ALU || instrType[1] == ALU)
+          wr_raw_hazard_dual <= 1;
         `logLevel( stage2, perf, $format("[%2d]STAGE2: RAW Hazard", hartid), wr_simulate_log_start)
       end
     `ifndef no_wawstalls
@@ -1053,6 +1056,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     method mv_instr_queue_empty = pack(!rx_pipe1.u.deqReady_1);
     method mv_dual_issued = wr_dual_issued;
     method mv_raw_hazard = wr_raw_hazard;
+    method mv_raw_hazard_dual = wr_raw_hazard_dual;
     method mv_one_instr = wr_one_instr;
     method mv_mul_branch_hazard = wr_mul_branch_hazard;
     method mv_mul_mem_hazard = wr_mul_mem_hazard;

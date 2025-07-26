@@ -188,6 +188,7 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
     Bit#(1) lv_count_instr_queue_empty      = stage2.perf.mv_instr_queue_empty;
     Bit#(1) lv_dual_issued                  = stage2.perf.mv_dual_issued;
     Bit#(1) lv_raw_hazard                   = stage2.perf.mv_raw_hazard;
+    Bit#(1) lv_raw_hazard_dual              = stage2.perf.mv_raw_hazard_dual;
     Bit#(1) lv_one_instr                    = stage2.perf.mv_one_instr;
     Bit#(1) lv_mul_branch_hazard            = stage2.perf.mv_mul_branch_hazard;
     Bit#(1) lv_mul_mem_hazard               = stage2.perf.mv_mul_mem_hazard;
@@ -234,7 +235,8 @@ module mkriscv#(Bit#(`vaddr) resetpc, parameter Bit#(`xlen) hartid)(Ifc_riscv);
       lv_mem_float_hazard,
       lv_float_branch_hazard,
       lv_float_float_hazard,
-      lv_branch_branch_hazard
+      lv_branch_branch_hazard,
+      lv_raw_hazard_dual
     });
 `endif
 
