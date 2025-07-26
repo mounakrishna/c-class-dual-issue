@@ -714,7 +714,7 @@ package stage1;
           compressed_instr = replicate(True);
         `ifdef bpu
           btbresponse[0] = stage0pc.btbresponse[1];
-          btbresponse[1] = ?;
+          btbresponse[1] = stage0pc.btbresponse[1];
         `endif
           lv_prev.mask = 2'b00;
           valid_instructions = 2;

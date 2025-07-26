@@ -118,7 +118,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     /*doc:rule: This rule will simply bypass the results of instructinos which were executed in the
     * previous stage without any alteration*/
    for (Integer i=0; i<`num_issue; i=i+1) begin
-    rule rl_fwd_baseout(rx_fuid.u.first[i].insttype == BASE);
+    rule rl_fwd_baseout(rx_fuid.u.first[i].insttype == BASE && tx_fuid.u.notFull());
       //tx_baseout.u.enq(rx_baseout.u.first);
       //tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
       wr_fuid[i] <= fn_fu2cu(rx_fuid.u.first[i], ?);
@@ -144,7 +144,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 
     /*doc:rule: This rule will bypass the system operation as is to the write-back stage where it
     * will be executed. No alteration required in this stage for system operations*/
-    rule rl_fwd_systemout(rx_fuid.u.first[0].insttype == SYSTEM);
+    rule rl_fwd_systemout(rx_fuid.u.first[0].insttype == SYSTEM && tx_fuid.u.notFull());
       //tx_systemout.u.enq(rx_systemout.u.first);
       //tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
       wr_fuid[0] <= fn_fu2cu(rx_fuid.u.first[0], ?);
@@ -162,7 +162,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
 
     /*doc:rule: This rule will bypass an instructino that was tagged as a trap in the previous
     * stages to the write-back stage which will handle the traps accordingly*/
-    rule rl_fwd_trapout(rx_fuid.u.first[0].insttype == TRAP);
+    rule rl_fwd_trapout(rx_fuid.u.first[0].insttype == TRAP && tx_fuid.u.notFull());
       //tx_trapout.u.enq(rx_trapout.u.first);
       //tx_fuid.u.enq(fn_fu2cu(rx_fuid.u.first, ?));
       wr_fuid[0] <= fn_fu2cu(rx_fuid.u.first[0], ?);
@@ -194,7 +194,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
     * Note: In case of loads, thoug the CUid changes to base-out the commitLog packet is still
     * tagged as Memory for correct log-keeping
     */
-    rule rl_handle_memory(rx_fuid.u.first[0].insttype == MEMORY && ff_memory_response.notEmpty);
+    rule rl_handle_memory(rx_fuid.u.first[0].insttype == MEMORY && ff_memory_response.notEmpty && tx_fuid.u.notFull());
       `logLevel( stage4, 0, $format("[%2d]STAGE4: PC:%h",hartid,rx_fuid.u.first[0].pc), wr_simulate_log_start)
       let mem_response = ff_memory_response.first;
       ff_memory_response.deq;
@@ -294,7 +294,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
      * The outputs from the mbox are transfered to the tx_baseout ISB for a regular commit in the
      * write-back stage
     */
-   rule rl_capture_muldiv(rx_fuid.u.first[0].insttype == MULDIV && rx_mbox.u.notEmpty() `ifdef arith_trap && rx_mbox_arith_trap_output.u.notEmpty() `endif );
+   rule rl_capture_muldiv(rx_fuid.u.first[0].insttype == MULDIV && rx_mbox.u.notEmpty() `ifdef arith_trap && rx_mbox_arith_trap_output.u.notEmpty() `endif  && tx_fuid.u.notFull());
       let mbox_result = rx_mbox.u.first;
       let fuid = rx_fuid.u.first;
       rx_mbox.u.deq;
@@ -356,7 +356,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
    * The outputs from the fbox are transfered to the tx_baseout ISB for a regular commit in the
    * write-back stage
   */
-  rule rl_capture_float(rx_fuid.u.first[0].insttype == FLOAT && rx_fbox.u.notEmpty());
+  rule rl_capture_float(rx_fuid.u.first[0].insttype == FLOAT && rx_fbox.u.notEmpty() && tx_fuid.u.notFull());
     let _r = rx_fbox.u.first;
     let fuid = rx_fuid.u.first;
     rx_fbox.u.deq;
@@ -432,7 +432,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                             `endif
                                             };
 
-    rule rl_1st_instruction_invalid(rx_fuid.u.first[0].insttype == NONE);
+    rule rl_1st_instruction_invalid(rx_fuid.u.first[0].insttype == NONE && tx_fuid.u.notFull());
       let default_common = CUid { pc : rx_fuid.u.first[0].pc,
                                   rd : rx_fuid.u.first[0].rd,
                                   epochs: rx_fuid.u.first[0].epochs,
@@ -450,7 +450,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       wr_fuid[0] <= default_common;
     endrule
 
-    rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE);
+    rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE && tx_fuid.u.notFull());
       let default_common = CUid { pc : rx_fuid.u.first[1].pc,
                                   rd : rx_fuid.u.first[1].rd,
                                   epochs: rx_fuid.u.first[1].epochs,
