@@ -559,13 +559,16 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   */
   rule rl_operands_available(epochs_match);
     Bool ops_instr1_avail;
-    if (instr_type[1] == ALU || instr_type[1] == BRANCH || instr_type[1] == JAL || instr_type[1] == JALR) 
-      if (wr_op4_avail && wr_op5_avail) 
-        ops_instr1_avail = True;
-      else 
-        ops_instr1_avail = False;
-    else
+    if (instr_type[1] == ALU && wr_op4_avail && wr_op5_avail) 
       ops_instr1_avail = True;
+    else if ((instr_type[1] == BRANCH || instr_type[1] == JAL || instr_type[1] == JALR) `ifdef bpu && isValid(wr_next_pc) `endif
+            && wr_op4_avail && wr_op5_avail) begin
+    ops_instr1_avail = True;
+    end
+    else if (instr_type[1] == NONE)
+      ops_instr1_avail = True;
+    else
+      ops_instr1_avail = False;
 
     if (instr_type[0] == TRAP) begin
       wr_ops_avail <= True;
@@ -575,13 +578,27 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       wr_ops_avail <= True;
       wr_ops_avail_probe <= True;
     end
-    else if ((instr_type[0] == ALU || instr_type[0] == MULDIV || instr_type[0] == MEMORY 
-              || instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) &&
-             wr_op1_avail && wr_op2_avail && ops_instr1_avail) begin
+    else if (instr_type[0] == ALU && wr_op1_avail && wr_op2_avail && ops_instr1_avail) begin
       wr_ops_avail <= True;
       wr_ops_avail_probe <= True;
     end
-    else if (instr_type[0] == FLOAT && 
+    else if ((instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) `ifdef bpu && isValid(wr_next_pc) `endif
+            && wr_op1_avail && wr_op2_avail && ops_instr1_avail) begin
+      wr_ops_avail <= True;
+      wr_ops_avail_probe <= True;
+    end
+    else if (instr_type[0] == MEMORY && wr_cache_avail &&
+            wr_op1_avail && wr_op2_avail && ops_instr1_avail) begin
+      wr_ops_avail <= True;
+      wr_ops_avail_probe <= True;
+    end
+    else if (instr_type[0] == MULDIV && wr_op1_avail && wr_op2_avail && ops_instr1_avail &&
+              ( (meta[0].funct[2]==0 && wr_mul_ready) || 
+                (meta[0].funct[2]==1 && wr_div_ready) )) begin
+      wr_ops_avail <= True;
+      wr_ops_avail_probe <= True;
+    end
+    else if (instr_type[0] == FLOAT && wr_fbox_ready &&
              wr_op1_avail && wr_op2_avail && wr_op3_avail && ops_instr1_avail) begin
       wr_ops_avail <= True;
       wr_ops_avail_probe <= True;
@@ -824,8 +841,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * SFence instruction henceforth will be treated as a regular nop instruction and avoiding
   * polling on the data subsystem in the subsequent pipeline stages.
   */
-  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail && 
-    ((instr_type[1] != BRANCH && instr_type[1] != JAL && instr_type[1] != JALR) || isValid(wr_next_pc)));
+  rule rl_exe_base_memory(instr_type[0] == MEMORY && wr_cache_avail && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail);
     `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Memory Op received",hartid), wr_simulate_log_start)
     Bit#(`vaddr) memory_address = wr_fwd_op1 + truncate(wr_op3.data);
     Bit#(3) funct3  = truncate(meta[0].funct);
@@ -965,8 +981,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                           (instr_type[1] == JALR ||
                            instr_type[1] == JAL ||
                            instr_type[1] == BRANCH ))
-                          && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail
-               `ifdef bpu && (isValid(wr_next_pc)) `endif );
+                          && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail);
 
     Bit#(TLog#(`num_issue)) inst_num;
     Instruction_type inst_type;
@@ -1321,8 +1336,6 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   * avaialble based on the current instruction. Both the operands are required for execution to be
   * offloaded the mbox.*/
   rule rl_mbox(instr_type[0] == MULDIV && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail &&
-              ( (meta[0].funct[2]==0 && wr_mul_ready) || 
-                (meta[0].funct[2]==1 && wr_div_ready) ) &&
     ((instr_type[1] != BRANCH && instr_type[1] != JAL && instr_type[1] != JALR) || isValid(wr_next_pc)));
     `logLevel( stage3, 0, $format("[%2d]STAGE3: MULDIV Op received",hartid), wr_simulate_log_start)
     wr_muldiv_inputs <= MBoxIn{in1: wr_fwd_op1, in2: wr_fwd_op2, funct3: truncate(meta[0].funct)
