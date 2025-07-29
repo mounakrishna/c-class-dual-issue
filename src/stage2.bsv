@@ -478,6 +478,15 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         if (instrType[0] == ALU || instrType[1] == ALU)
           wr_raw_hazard_dual <= 1;
         `logLevel( stage2, perf, $format("[%2d]STAGE2: RAW Hazard", hartid), wr_simulate_log_start)
+        `logLevel( stage2, raw, $format("RAW Hazard\nPC1: %h (", pc[0], fshow(instrType[0]), ") PC2: %x (", pc[1], fshow(instrType[1]), ")\n"), wr_simulate_log_start)
+        `logLevel( stage2, raw2, $format("Instr1: RS1=%d (", decoded_inst[0].op_addr.rs1addr, fshow(decoded_inst[0].op_addr.rs1type), 
+            " RS2=%d (", decoded_inst[0].op_addr.rs2addr, fshow(decoded_inst[0].op_addr.rs2type), 
+            " RS3=%d (", decoded_inst[0].op_addr.rs3addr, fshow(decoded_inst[0].op_addr.rs3type),
+            " RD=%d (", decoded_inst[0].op_addr.rd, fshow(decoded_inst[0].op_addr.rdtype)), wr_simulate_log_start)
+        `logLevel( stage2, raw2, $format("Instr2: RS1=%d (", decoded_inst[1].op_addr.rs1addr, fshow(decoded_inst[1].op_addr.rs1type), 
+            " RS2=%d (", decoded_inst[1].op_addr.rs2addr, fshow(decoded_inst[1].op_addr.rs2type), 
+            " RS3=%d (", decoded_inst[1].op_addr.rs3addr, fshow(decoded_inst[1].op_addr.rs3type),
+            " RD=%d (", decoded_inst[1].op_addr.rd, fshow(decoded_inst[1].op_addr.rdtype)), wr_simulate_log_start)
       end
     `ifndef no_wawstalls
       // WAR Hazard
