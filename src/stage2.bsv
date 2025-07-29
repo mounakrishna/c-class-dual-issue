@@ -830,10 +830,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     */
   	method Action ma_commit_rd (Vector#(`num_issue, CommitData) commit);
       `logLevel( stage2, 0, $format("[%2d]STAGE2: ",hartid,fshow(commit)), wr_simulate_log_start)
-      if (!commit[0].unlock_only) 
-        registerfile.commit_rd_1(commit[0]);
-      if (!commit[1].unlock_only) 
-        registerfile.commit_rd_2(commit[1]);
+      registerfile.commit_rd(commit);
    
       //if ( || !commit[0].unlock_only) begin
       `ifdef spfpu
