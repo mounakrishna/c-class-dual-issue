@@ -475,18 +475,33 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           `ifdef spfpu || dest_addr[0] == src3_addr[1] `endif )) begin
         issue_two_inst = False;
         wr_raw_hazard <= 1;
-        if (instrType[0] == ALU || instrType[1] == ALU)
+        if (instrType[0] == ALU || instrType[1] == ALU 
+          || instrType[0] == BRANCH || instrType[1] == BRANCH
+          || instrType[0] == JAL || instrType[1] == JAL
+          || instrType[0] == JALR || instrType[1] == JALR) begin
           wr_raw_hazard_dual <= 1;
+          `logLevel( stage2, rawalu, $format("RAW ALU/BRANCH Hazard PC1: %h (", pc[0], fshow(instrType[0]), ") PC2: %h (", pc[1], fshow(instrType[1]), ")"), wr_simulate_log_start)
+          `logLevel( stage2, rawalu2, $format("Instr1: RS1=%d ", decoded_inst[0].op_addr.rs1addr, fshow(decoded_inst[0].op_type.rs1type), 
+              " RS2=%d ", decoded_inst[0].op_addr.rs2addr, fshow(decoded_inst[0].op_type.rs2type), 
+              " RS3=%d ", decoded_inst[0].op_addr.rs3addr, fshow(decoded_inst[0].op_type.rs3type),
+              " RD=%d ", decoded_inst[0].op_addr.rd, fshow(decoded_inst[0].op_type.rdtype)), wr_simulate_log_start)
+          `logLevel( stage2, rawalu2, $format("Instr2: RS1=%d ", decoded_inst[1].op_addr.rs1addr, fshow(decoded_inst[1].op_type.rs1type),
+              " RS2=%d ", decoded_inst[1].op_addr.rs2addr, fshow(decoded_inst[1].op_type.rs2type), 
+              " RS3=%d ", decoded_inst[1].op_addr.rs3addr, fshow(decoded_inst[1].op_type.rs3type),
+              " RD=%d ", decoded_inst[1].op_addr.rd, fshow(decoded_inst[1].op_type.rdtype), "\n-----------------------------------------------"), wr_simulate_log_start)
+        end
+
         `logLevel( stage2, perf, $format("[%2d]STAGE2: RAW Hazard", hartid), wr_simulate_log_start)
-        `logLevel( stage2, raw, $format("RAW Hazard\nPC1: %h (", pc[0], fshow(instrType[0]), ") PC2: %x (", pc[1], fshow(instrType[1]), ")\n"), wr_simulate_log_start)
-        `logLevel( stage2, raw2, $format("Instr1: RS1=%d (", decoded_inst[0].op_addr.rs1addr, fshow(decoded_inst[0].op_addr.rs1type), 
-            " RS2=%d (", decoded_inst[0].op_addr.rs2addr, fshow(decoded_inst[0].op_addr.rs2type), 
-            " RS3=%d (", decoded_inst[0].op_addr.rs3addr, fshow(decoded_inst[0].op_addr.rs3type),
-            " RD=%d (", decoded_inst[0].op_addr.rd, fshow(decoded_inst[0].op_addr.rdtype)), wr_simulate_log_start)
-        `logLevel( stage2, raw2, $format("Instr2: RS1=%d (", decoded_inst[1].op_addr.rs1addr, fshow(decoded_inst[1].op_addr.rs1type), 
-            " RS2=%d (", decoded_inst[1].op_addr.rs2addr, fshow(decoded_inst[1].op_addr.rs2type), 
-            " RS3=%d (", decoded_inst[1].op_addr.rs3addr, fshow(decoded_inst[1].op_addr.rs3type),
-            " RD=%d (", decoded_inst[1].op_addr.rd, fshow(decoded_inst[1].op_addr.rdtype)), wr_simulate_log_start)
+        `logLevel( stage2, raw, $format("RAW Hazard PC1: %h (", pc[0], fshow(instrType[0]), ") PC2: %h (", pc[1], fshow(instrType[1]), ")"), wr_simulate_log_start)
+        `logLevel( stage2, raw2, $format("Instr1: RS1=%d ", decoded_inst[0].op_addr.rs1addr, fshow(decoded_inst[0].op_type.rs1type), 
+            " RS2=%d ", decoded_inst[0].op_addr.rs2addr, fshow(decoded_inst[0].op_type.rs2type), 
+            " RS3=%d ", decoded_inst[0].op_addr.rs3addr, fshow(decoded_inst[0].op_type.rs3type),
+            " RD=%d ", decoded_inst[0].op_addr.rd, fshow(decoded_inst[0].op_type.rdtype)), wr_simulate_log_start)
+        `logLevel( stage2, raw2, $format("Instr2: RS1=%d ", decoded_inst[1].op_addr.rs1addr, fshow(decoded_inst[1].op_type.rs1type),
+            " RS2=%d ", decoded_inst[1].op_addr.rs2addr, fshow(decoded_inst[1].op_type.rs2type), 
+            " RS3=%d ", decoded_inst[1].op_addr.rs3addr, fshow(decoded_inst[1].op_type.rs3type),
+            " RD=%d ", decoded_inst[1].op_addr.rd, fshow(decoded_inst[1].op_type.rdtype), "\n-----------------------------------------------"), wr_simulate_log_start)
+        `logLevel( stage2, raw, $format(""), wr_simulate_log_start)
       end
     `ifndef no_wawstalls
       // WAR Hazard

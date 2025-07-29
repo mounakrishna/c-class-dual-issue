@@ -353,16 +353,17 @@ module mkstage5#(parameter Bit#(`xlen) hartid) (Ifc_stage5);
       `logLevel( stage5, 1, $format("[%2d]STAGE5 : Base Op ",hartid, fshow(baseout)), simulate_log_start)
       //`logLevel( stage5, 0, $format("[%2d]STAGE5 : Base Op1 ",hartid, fshow(baseout)), simulate_log_start)
       if (epochs_match) begin
-        wr_increment_minstret[i] <= True;
         //`ifdef spfpu csr.ma_set_fflags(baseout.fflags); `endif
         if (fuid[i].drop_instr)
           wr_commit[i].wset(CommitData{addr: fuid[i].rd, data: zeroExtend(baseout.rdvalue), unlock_only:True
                                      `ifdef no_wawstalls , id: fuid[i].id `endif
                                      `ifdef spfpu ,rdtype: fuid[i].rdtype `endif });
-        else
+        else begin
+          wr_increment_minstret[i] <= True;
           wr_commit[i].wset(CommitData{addr: fuid[i].rd, data: zeroExtend(baseout.rdvalue), unlock_only:False
                                      `ifdef no_wawstalls , id: fuid[i].id `endif
                                      `ifdef spfpu ,rdtype: fuid[i].rdtype `endif });
+        end
         //rx_fuid.u.deq;
         //rx_baseout.u.deq;
       `ifdef rtldump
