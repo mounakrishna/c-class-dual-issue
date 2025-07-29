@@ -24,9 +24,9 @@ package stage1;
   import ccore_types    :: * ;     // for pipe - line types
   import icache_types   :: * ;          // for global interface definitions
   import pipe_ifcs      :: * ;
-`ifdef compressed
-  import decompress     :: * ;
-`endif
+//`ifdef compressed
+//  import decompress     :: * ;
+//`endif
   `include "ccore_params.defines"// for core parameters
   `include "Logger.bsv"       // for logging display statements.
 
@@ -490,11 +490,11 @@ package stage1;
       inst[0] = final_instruction[0];
       inst[1] = final_instruction[1];
 
-      if (compressed_instr[0])
-        final_instruction[0] = fn_decompress(truncate(final_instruction[0]));
+      //if (compressed_instr[0])
+      //  final_instruction[0] = fn_decompress(truncate(final_instruction[0]));
 
-      if (compressed_instr[1])
-        final_instruction[1] = fn_decompress(truncate(final_instruction[1]));
+      //if (compressed_instr[1])
+      //  final_instruction[1] = fn_decompress(truncate(final_instruction[1]));
 
     Vector#(`num_issue, PIPE1) pipedata;
     for (Integer i=0; i<`num_issue; i=i+1) begin

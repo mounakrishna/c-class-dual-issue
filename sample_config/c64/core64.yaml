@@ -6,7 +6,7 @@ isb_sizes:
     isb_s4s5: 8
 num_harts: 1
 num_issue: 2
-instr_queue: 16
+instr_queue: 8
 merged_rf: False
 s_extension:
   itlb_size: 4
@@ -35,7 +35,7 @@ icache_configuration:
   fb_size: 4
   ecc_enable: false
   one_hot_select: false
-  tag_type: 'reg'
+  tag_type: 'sram'
 dcache_configuration:
   instantiate: true
   sets: 64
@@ -50,7 +50,7 @@ dcache_configuration:
   ecc_enable: false
   one_hot_select: false
   rwports: '1rw'
-  tag_type: 'reg'
+  tag_type: 'sram'
 reset_pc: 4096
 bus_protocol: AXI4
 bsc_compile_options:
@@ -59,14 +59,14 @@ bsc_compile_options:
   ovl_assertions: False
   sva_assertions: False
   ovl_path: ""
-  trace_dump: false
-  compile_target: 'asic'
+  trace_dump: true
+  compile_target: 'sim'
   suppress_warnings: ["G0020"]
   verilog_dir: build/hw/verilog
   build_dir: build/hw/intermediate
-  top_module: mkccore_axi4
-  top_file: ccore.bsv
-  top_dir: src
+  top_module: mkTbSoc
+  top_file: TbSoc.bsv
+  top_dir: test_soc
   open_ocd: False
   cocotb_sim: False
   log_start_time: 12710770

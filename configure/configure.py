@@ -377,6 +377,7 @@ def capture_compile_cmd(foo, isa_node, debug_spec, grouping_spec):
     macros += ' max_int_cause='+str(max_int_cause)
     macros += ' max_ex_cause='+str(max_ex_cause)
     macros += ' causesize='+str(math.ceil(math.log2(max(max_int_cause, max_ex_cause)+1))+1)
+    macros += ' fpu_hierarchical'
 
     # noinlining modules
     for module in foo['noinline_modules']:

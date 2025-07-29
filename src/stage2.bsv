@@ -67,6 +67,9 @@ import pipe_ifcs    :: * ;
 `include "ccore_params.defines"   // for core parameters
 `include "trap.defines"
 `include "Logger.bsv"             // for logging display statements.
+`ifdef compressed
+  import decompress     :: * ;
+`endif
 
 interface Ifc_stage2;
 
@@ -342,11 +345,16 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     `ifdef compressed
       highbyte_err[i] = instr_data[i].upper_err;
       compressed[i] = instr_data[i].compressed;
+      if (compressed[i])                                                                                            
+        inst[i] = fn_decompress(truncate(instr_data[i].instruction));                                               
+      else                                                                                                          
+        inst[i] = instr_data[i].instruction;
+    `else
+      inst[i] = instr_data[i].instruction;
     `endif
     `ifdef bpu
       btbresponse[i] = instr_data[i].btbresponse;
     `endif
-      inst[i] = instr_data[i].instruction;
       upper_instr[i] = unpack(fromInteger(i));
     end
 
