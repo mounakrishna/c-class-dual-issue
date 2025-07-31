@@ -295,7 +295,8 @@ package stage1;
           compressed_instr = replicate(False);
         `ifdef bpu
           btbresponse = rg_prev.btbresponse;
-          lv_instr_new = replicate(False);
+          lv_instr_new[0] = False;
+          lv_instr_new[1] = True;
           lv_prev.btbresponse = stage0pc.btbresponse;
         `endif
           lv_prev.mask = 2'b11;
