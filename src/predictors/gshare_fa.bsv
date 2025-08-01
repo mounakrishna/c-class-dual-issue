@@ -291,7 +291,7 @@ package gshare_fa;
               push_pc[1] = r.pc + ras_push_offset;
               push_ras[1] = True;
               //ras_stack.push(push_pc);
-              target_ = target_;
+              target_ = v_hit_entry[1].target;
               //compressed_ = v_hit_entry[1].compressed;
               taken[1] = True;
               btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
@@ -335,7 +335,7 @@ package gshare_fa;
               endcase
               push_ras[0] = True;
               push_pc[0] = r.pc + ras_push_offset;
-              target_ = target_;
+              target_ = v_hit_entry[0].target;
               //compressed_ = v_hit_entry[0].compressed;
               taken[0] = True;
               btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
@@ -369,15 +369,23 @@ package gshare_fa;
             end
           end
 
-          if (taken[0] && push_ras[0])
+          if (taken[0] && push_ras[0]) begin
             ras_stack.push(push_pc[0]);
-          else if (!taken[0] && taken[1] && push_ras[1])
+            `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS0: %h", hartid, push_pc[0]), wr_simulate_log_start)
+          end
+          else if (!taken[0] && taken[1] && push_ras[1]) begin
             ras_stack.push(push_pc[1]);
+            `logLevel( bpu, 0, $format("[%2d]BPU : Pushing to RAS1: %h", hartid, push_pc[1]), wr_simulate_log_start)
+          end
 
-          if (taken[0] && pop_ras[0])
+          if (taken[0] && pop_ras[0]) begin
             ras_stack.pop;
-          else if (!taken[0] && taken[1] && pop_ras[1])
+            `logLevel( bpu, 0, $format("[%2d]BPU : Popping from RAS0: %h", hartid, ras_stack.top), wr_simulate_log_start)
+          end
+          else if (!taken[0] && taken[1] && pop_ras[1]) begin
             ras_stack.pop;
+            `logLevel( bpu, 0, $format("[%2d]BPU : Popping from RAS1: %h", hartid, ras_stack.top), wr_simulate_log_start)
+          end
 
           `ifdef compressed
             if (taken[1] && !taken[0] && !v_hit_entry[1].compressed && v_hit_entry[1].ci_offset == 1)
