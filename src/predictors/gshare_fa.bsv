@@ -291,7 +291,7 @@ package gshare_fa;
               push_pc[1] = r.pc + ras_push_offset;
               push_ras[1] = True;
               //ras_stack.push(push_pc);
-              target_ = target_;
+              target_ = v_hit_entry[1].target;
               //compressed_ = v_hit_entry[1].compressed;
               taken[1] = True;
               btbresponse[1] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b1, v_hit_entry[1].ci_offset}
@@ -335,7 +335,7 @@ package gshare_fa;
               endcase
               push_ras[0] = True;
               push_pc[0] = r.pc + ras_push_offset;
-              target_ = target_;
+              target_ = v_hit_entry[0].target;
               //compressed_ = v_hit_entry[0].compressed;
               taken[0] = True;
               btbresponse[0] = BTBResponse { prediction: 3, btbhit: True, ci_offset: {1'b0, v_hit_entry[0].ci_offset}
