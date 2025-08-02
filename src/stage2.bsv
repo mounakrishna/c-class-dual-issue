@@ -935,8 +935,10 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         end
    
         //TODO DUAL ISSUE: Need to consider commit output of 2nd pipe inst also when float units are replicated.
-        if(rg_op3[1].addr == commit[0].addr && rg_op3[1].rdtype == FRF &&  commit[0].rdtype == FRF)
+        if(!commit[0].unlock_only && rg_op3[1].addr == commit[0].addr && rg_op3[1].rdtype == FRF &&  commit[0].rdtype == FRF)
           rg_op3[1].data <= commit[0].data;
+        else if(!commit[1].unlock_only && rg_op3[1].addr == commit[1].addr && rg_op3[1].rdtype == FRF &&  commit[1].rdtype == FRF)
+          rg_op3[1].data <= commit[1].data;
     
         if(!commit[1].unlock_only && commit[1].addr == rg_op4[1].addr && commit[1].rdtype == rg_op4[1].rdtype) begin
           let _x = rg_op4[1];
