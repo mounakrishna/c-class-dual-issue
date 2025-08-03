@@ -59,6 +59,7 @@ package stage4;
   (*preempts="rl_fwd_systemout, rl_polling_check"*)
   (*preempts="rl_fwd_trapout, rl_polling_check"*)
   (*preempts="rl_handle_memory, rl_polling_check"*)
+  (*preempts="rl_1st_instruction_invalid, rl_polling_check"*)
 `endif
   (*conflict_free="rl_fwd_baseout_1, rl_2nd_instruction_invalid"*)
 
@@ -431,11 +432,32 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
                                             `endif
                                             };
 
-    rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE);
+
+    rule rl_1st_instruction_invalid(rx_fuid.u.first[0].insttype == NONE && tx_fuid.u.notFull());
+      let default_common = CUid { pc : rx_fuid.u.first[0].pc,
+                                  rd : rx_fuid.u.first[0].rd,
+                                  epochs: rx_fuid.u.first[0].epochs,
+                                  upper_instr: rx_fuid.u.first[0].upper_instr,                   
+                                  drop_instr: True,
+                                  instpkt : tagged None
+                                `ifdef no_wawstalls 
+                                  ,id: rx_fuid.u.first[0].id
+                                `endif
+                                `ifdef spfpu
+                                  ,rdtype : rx_fuid.u.first[0].rdtype
+                                `endif } ;
+    
+      wr_commitlog[0] <= default_commitlog;
+      wr_fuid[0] <= default_common;
+    endrule
+
+
+    rule rl_2nd_instruction_invalid(rx_fuid.u.first[1].insttype == NONE && tx_fuid.u.notFull());
       let default_common = CUid { pc : rx_fuid.u.first[1].pc,
                                   rd : rx_fuid.u.first[1].rd,
                                   epochs: rx_fuid.u.first[1].epochs,
                                   upper_instr: rx_fuid.u.first[1].upper_instr,
+                                  drop_instr: True,
                                   instpkt : tagged None
                                 `ifdef no_wawstalls 
                                   ,id: rx_fuid.u.first[1].id
@@ -461,16 +483,7 @@ module mkstage4#(parameter Bit#(`xlen) hartid)(Ifc_stage4);
       end
       // Drop upper instruction if lower instruction generates a trap.
       if (!fuid[0].upper_instr &&& fuid[0].instpkt matches tagged TRAP .t) begin
-        //fuid[1].epochs = ~fuid[1].epochs;
-        fuid[1].instpkt = tagged None;
-        //fuid[1].rd = 0;
-        //fuid[1].pc = ?;
-        //`ifdef spfpu
-        //  fuid[1].rdtype = IRF;
-        //`endif
-        `ifdef rtldump
-          commitlog[1] = default_commitlog;
-        `endif
+        fuid[1].drop_instr = True;
       end
       //tx_fuid.u.enq(unpack({pack(wr_fuid[1]), pack(wr_fuid[0])}));
       tx_fuid.u.enq(fuid);

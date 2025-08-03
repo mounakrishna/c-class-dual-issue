@@ -271,11 +271,27 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     every time a retirement to the same register occurs.*/
   Reg#(FwdType) rg_op3[2] <- mkCReg(2, unpack(0));
 
+  /*doc:reg:                                                                                     
+    This register holds the offset value of branch instruction being present in the second       
+    pipeline buffer.                                                                                
+  */                                                                                
+  Reg#(Bit#(32)) rg_op6 <- mkReg(unpack(0));
+
 `ifdef perfmonitors
   Wire#(Bit#(1)) wr_dual_issued <- mkDWire(0);
   Wire#(Bit#(1)) wr_raw_hazard <- mkDWire(0);
   /*doc: wire: Indicates that only one instruction is present in the instruction queue.*/
   Wire#(Bit#(1)) wr_one_instr <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mul_branch_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mul_mem_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mul_float_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mul_mul_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mem_mem_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mem_branch_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_mem_float_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_float_branch_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_float_float_hazard <- mkDWire(0);
+  Wire#(Bit#(1)) wr_branch_branch_hazard <- mkDWire(0); 
 `endif
 `ifdef simulate
   Wire#(Bit#(1)) wr_simulate_log_start <- mkDWire(0);
@@ -480,45 +496,75 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
         issue_two_inst = True;
       else if (instrType[0] == MEMORY && instrType[1] == ALU)
         issue_two_inst = True;
-      else if (instrType[0] == ALU && instrType[1] == BRANCH)
+      else if (instrType[0] == ALU && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
-      else if (instrType[0] == BRANCH && instrType[1] == ALU)
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == ALU)
         issue_two_inst = True;
-      else if (instrType[0] == ALU && instrType[1] == JAL)
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MULDIV)
         issue_two_inst = True;
-      else if (instrType[0] == JAL && instrType[1] == ALU)
+      else if (instrType[0] == MULDIV && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
-      else if (instrType[0] == ALU && instrType[1] == JALR)
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MEMORY)
         issue_two_inst = True;
-      else if (instrType[0] == JALR && instrType[1] == ALU)
+      else if (instrType[0] == MEMORY && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
         issue_two_inst = True;
+      else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == FLOAT)
+        issue_two_inst = True;
+      else if (instrType[0] == FLOAT && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR))
+        issue_two_inst = True;
+
       // For all other cases issue only one instruction.
-      else 
+      else  begin
+      `ifdef perfmonitors
+        if ((instrType[0] == MULDIV && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) || 
+          ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MULDIV)) begin
+          wr_mul_branch_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MUL BRANCH Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == FLOAT && instrType[1] == ALU) || (instrType[0] == ALU && instrType[1] == FLOAT)) begin
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: FLOAT ALU Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == MULDIV && instrType[1] == MEMORY) || (instrType[0] == MEMORY && instrType[1] == MULDIV)) begin
+          wr_mul_mem_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MUL MEMORY Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == MULDIV && instrType[1] == FLOAT) || (instrType[0] == FLOAT && instrType[1] == MULDIV)) begin
+          wr_mul_float_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MUL FLOAT Hazard", hartid), wr_simulate_log_start)
+        end
+        else if (instrType[0] == MULDIV && instrType[1] == MULDIV) begin
+          wr_mul_mul_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MUL MUL Hazard", hartid), wr_simulate_log_start)
+        end
+        else if (instrType[0] == MEMORY && instrType[1] == MEMORY) begin
+          wr_mem_mem_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MEMORY MEMORY Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == MEMORY && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) || 
+          ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == MEMORY)) begin
+          wr_mem_branch_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MEMORY BRANCH Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == MEMORY && instrType[1] == FLOAT) || (instrType[0] == FLOAT && instrType[1] == MEMORY)) begin
+          wr_mem_float_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: MEMORY FLOAT Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == FLOAT && (instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) || 
+          ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && instrType[1] == FLOAT)) begin
+          wr_float_branch_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: FLOAT BRANCH Hazard", hartid), wr_simulate_log_start)
+        end
+        else if (instrType[0] == FLOAT && instrType[1] == FLOAT) begin
+          wr_float_float_hazard <= 1;
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: FLOAT FLOAT Hazard", hartid), wr_simulate_log_start)
+        end
+        else if ((instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR) && (instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR)) begin
+          wr_branch_branch_hazard <= 1;    
+          `logLevel( stage2, perf, $format("[%2d]STAGE2: BRANCH BRANCH Hazard", hartid), wr_simulate_log_start)
+        end
+      `endif
         issue_two_inst = False;
-      //// When any of the instruction is a MULDIV.
-      //else if (instrType[0] == MULDIV || instrType[1] == MULDIV)
-      //  issue_two_inst = False;
-      //// When any of the instruction is a FLOAT.
-      //else if (instrType[0] == FLOAT || instrType[1] == FLOAT)
-      //  issue_two_inst = False;
-      //// When any of the instruction is a MEMORY.
-      //else if (instrType[0] == MEMORY || instrType[1] == MEMORY)
-      //  issue_two_inst = False;
-      //// When any of the instruction is a SYSTEM.
-      //else if (instrType[0] == SYSTEM_INSTR || instrType[1] == SYSTEM_INSTR)
-      //  issue_two_inst = False;
-      //// When any of the instructions is a BRANCH
-      //else if (instrType[0] == BRANCH || instrType[1] == BRANCH ||
-      //         instrType[0] == JAL || instrType[1] == JAL || 
-      //         instrType[0] == JALR || instrType[1] == JALR )
-      //  issue_two_inst = False;
-      //// When any of the instructions is a TRAP
-      //else if (instrType[0] == TRAP || instrType[1] == TRAP)
-      //  issue_two_inst = False;
-      //else if (instrType[0] == WFI || instrType[1] == WFI)
-      //  issue_two_inst = False;
-      //else
-      //  issue_two_inst = True;
+      end
     end
     else
       issue_two_inst = False;
@@ -531,8 +577,9 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     clogpkt = rx_commitlog.u.first;
   `endif
 
-    if (issue_two_inst && ((instrType[1] == MULDIV) || (instrType[1] == FLOAT) || instrType[1] == MEMORY ||
-                            instrType[1] == BRANCH || instrType[1] == JAL || instrType[1] == JALR)) begin
+    Bool instr_reversed = False;
+
+    if (issue_two_inst && (instrType[0] == ALU || (instrType[0] == BRANCH || instrType[0] == JAL || instrType[0] == JALR))) begin
       decoded_inst = reverse(decoded_inst);
       imm = reverse(imm);
       func_cause = reverse(func_cause);
@@ -542,11 +589,14 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       inst = reverse(inst);
       pc = reverse(pc);
       epochs = reverse(epochs);
+    `ifdef bpu
       btbresponse = reverse(btbresponse);
+    `endif
       instr_data = reverse(instr_data);
       highbyte_err = reverse(highbyte_err);
       instrType = reverse(instrType);
       upper_instr = reverse(upper_instr);
+      instr_reversed = True;
       `ifdef rtldump
         clogpkt = reverse(clogpkt);
       `endif
@@ -587,7 +637,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     Bit#(`elen) op2_inst1 =  (decoded_inst[1].op_type.rs2type == Constant2) ? 'd2: // constant2 only is C enabled.
                       (decoded_inst[1].op_type.rs2type == Constant4) ? 'd4:
                       (decoded_inst[1].op_type.rs2type == Immediate) ? signExtend(imm[1]) : rs5_from_rf;
-    Bit#(`elen) inst1_imm = signExtend(imm[1]);
+    Bit#(32) inst1_imm = signExtend(imm[1]);
     // -------------------------------------------------------------------------------------- //
 
     Vector#(`num_issue, Stage3Meta) stage3meta;
@@ -598,7 +648,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                               epochs : epochs[i],
                               rd: decoded_inst[i].op_addr.rd,
                               is_microtrap: rg_microtrap,
-                              upper_instr: upper_instr[i]
+                              upper_instr: upper_instr[i],
+                              instr_reversed: instr_reversed
            `ifdef hypervisor ,hlvx : decoded_inst[i].meta.hlvx
                              ,hvm_loadstore : decoded_inst[i].meta.hvm_loadstore
            `endif
@@ -746,7 +797,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
                         `ifdef no_wawstalls ,id: ? `endif
                         `ifdef spfpu ,rdtype: (decoded_inst[1].op_type.rs2type==FloatingRF)?FRF:IRF `endif
                         };
-                          
+      let _op6 = inst1_imm;                    
+
       rg_op1[0] <= _op1;
       rg_op2[0] <= _op2;
       //rg_op2type[0] <= decoded_inst[0].op_type.rs2type;
@@ -754,6 +806,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       rg_op3[0] <= _op3;
       rg_op4[0] <= _op4;
       rg_op5[0] <= _op5;
+      rg_op6 <= _op6;
       wr_op5type <= IntegerRF;
 
       `logLevel( stage2, 0, fstage2( hartid, 0, _op1, decoded_inst[0].op_type.rs1type, 
@@ -938,6 +991,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     method mv_op3 = rg_op3[0];
     method mv_op4 = rg_op4[0];
     method mv_op5 = rg_op5[0];
+    method mv_op6 = rg_op6;
   endinterface;
   method mv_wfi_detected = rg_wfi;
 	
@@ -956,6 +1010,16 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     method mv_dual_issued = wr_dual_issued;
     method mv_raw_hazard = wr_raw_hazard;
     method mv_one_instr = wr_one_instr;
+    method mv_mul_branch_hazard = wr_mul_branch_hazard;
+    method mv_mul_mem_hazard = wr_mul_mem_hazard;
+    method mv_mul_float_hazard = wr_mul_float_hazard;
+    method mv_mul_mul_hazard = wr_mul_mul_hazard;
+    method mv_mem_mem_hazard = wr_mem_mem_hazard;
+    method mv_mem_branch_hazard = wr_mem_branch_hazard;
+    method mv_mem_float_hazard = wr_mem_float_hazard;
+    method mv_float_branch_hazard = wr_float_branch_hazard;
+    method mv_float_float_hazard = wr_float_float_hazard;
+    method mv_branch_branch_hazard = wr_branch_branch_hazard;
   endinterface;
 `endif
 

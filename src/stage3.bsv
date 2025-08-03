@@ -145,11 +145,17 @@ endinterface:Ifc_stage3
 (*preempts="rl_exe_base_arith, rl_structural_stalls"*)
 (*preempts="rl_exe_base_memory, rl_structural_stalls"*)
 (*preempts="rl_exe_base_control, rl_structural_stalls"*)
+(*conflict_free="rl_exe_base_control, rl_exe_base_arith_1"*)
+(*conflict_free="rl_exe_base_control, rl_exe_base_arith"*)
+(*conflict_free="rl_exe_base_control, rl_exe_base_memory"*)
+(*conflict_free="rl_exe_base_control, rl_2nd_instruction_invalid"*)
 `ifdef muldiv
 (*preempts="rl_mbox, rl_structural_stalls"*)
+(*conflict_free="rl_exe_base_control, rl_mbox"*)
 `endif
 `ifdef spfpu
 (*preempts="rl_fbox, rl_structural_stalls"*)
+(*conflict_free="rl_exe_base_control, rl_fbox"*)
 `endif
 module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 
@@ -181,6 +187,8 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   Wire#(FwdType) wr_rf_op2 <- mkWire();
   /*doc:wire: reads operand-3/immediate from the registerfile which was indexed in the previous cycle*/
   Wire#(FwdType) wr_op3 <- mkWire();
+  /*doc:wire: reads operand-3/immediate from the registerfile which was indexed in the previous cycle*/
+  Wire#(Bit#(32)) wr_op6 <- mkWire();
   /*doc:wire: reads operand-1 from the registerfile which was indexed in the previous cycle*/
   Wire#(FwdType) wr_rf_op4 <- mkWire();
   /*doc:wire: reads operand-2 from the registerfile which was indexed in the previous cycle*/
@@ -363,9 +371,6 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                                           };
   Bool epochs_match = curr_epochs == meta[0].epochs;
   //Bool epochs_match_instr1 = (instr_type[1] != NONE) ? curr_epochs == meta[1].epochs : False;
-`ifdef bpu
-  let btbresponse = meta[0].btbresponse;
-`endif
   // ---------------------- Start local function definitions ----------------//
 
   // this function will deque the response received from the previous stage. Instead of replicating
@@ -546,13 +551,16 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
   */
   rule rl_operands_available(epochs_match);
     Bool ops_instr1_avail;
-    if (instr_type[1] == ALU) 
-      if (wr_op4_avail && wr_op5_avail) 
-        ops_instr1_avail = True;
-      else 
-        ops_instr1_avail = False;
-    else
+    if (instr_type[1] == ALU && wr_op4_avail && wr_op5_avail) 
       ops_instr1_avail = True;
+    else if ((instr_type[1] == BRANCH || instr_type[1] == JAL || instr_type[1] == JALR) `ifdef bpu && isValid(wr_next_pc) `endif
+            && wr_op4_avail && wr_op5_avail) begin
+    ops_instr1_avail = True;
+    end
+    else if (instr_type[1] == NONE)
+      ops_instr1_avail = True;
+    else
+      ops_instr1_avail = False;
 
     if (instr_type[0] == TRAP) begin
       wr_ops_avail <= True;
@@ -577,7 +585,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       wr_ops_avail_probe <= True;
     end
     else if (instr_type[0] == MULDIV && wr_op1_avail && wr_op2_avail && ops_instr1_avail &&
-              ( (meta[0].funct[2]==0 && wr_mul_ready) || 
+              ( (meta[0].funct[2]==0 && wr_mul_ready) ||
                 (meta[0].funct[2]==1 && wr_div_ready) )) begin
       wr_ops_avail <= True;
       wr_ops_avail_probe <= True;
@@ -589,7 +597,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     end
     else begin
       `logLevel( stage3, 4, $format("[%2d]STAGE3: SBD: ",hartid,fshow(sboard.mv_board)), wr_simulate_log_start)
-      `logLevel( stage3, stall, $format("[%2d]STAGE3: Waiting for operands to be available \n op1_avail: %h, op2_avail: %h, op3_avail: %h, op4_avail: %h, op5_avail: %h",hartid, wr_op1_avail, wr_op2_avail, wr_op3_avail, wr_op4_avail, wr_op5_avail), wr_simulate_log_start)
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Waiting for operands to be available \n op1_avail: %h, op2_avail: %h, op3_avail: %h, op4_avail: %h, op5_avail: %h",hartid, wr_op1_avail, wr_op2_avail, wr_op3_avail, wr_op4_avail, wr_op5_avail), wr_simulate_log_start)
       wr_ops_avail <= False;
       wr_ops_avail_probe <= False;
       `ifdef perfmonitors
@@ -659,6 +667,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                             epochs : meta[0].epochs[0],
                             upper_instr: meta[0].upper_instr,
                             insttype : SYSTEM,
+                            drop_instr: False,
                             instpkt: tagged SYSTEM systemout
                           `ifdef no_wawstalls 
                             ,id: ?
@@ -697,6 +706,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            epochs : meta[0].epochs[0],
                            upper_instr: meta[0].upper_instr,
                            insttype : TRAP,
+                           drop_instr: False,
                            instpkt : tagged TRAP trapout
                          `ifdef no_wawstalls 
                            ,id: ?
@@ -742,6 +752,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            epochs : meta[0].epochs[0],
                            upper_instr: meta[0].upper_instr,
                            insttype : BASE,
+                           drop_instr: False,
                            instpkt: tagged BASE baseoutput
                            `ifdef no_wawstalls 
                              ,id: ?
@@ -789,6 +800,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                            epochs : meta[1].epochs[0],
                            upper_instr: meta[1].upper_instr,
                            insttype : BASE,
+                           drop_instr: False,
                            instpkt: tagged BASE baseoutput
                            `ifdef no_wawstalls 
                              ,id: ?
@@ -882,6 +894,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                              epochs : meta[0].epochs[0],
                              upper_instr: meta[0].upper_instr,
                              insttype : NONE,
+                             drop_instr: False,
                              instpkt: tagged None
                            `ifdef no_wawstalls 
                              ,id: ?
@@ -954,22 +967,54 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
    * When the branch predictor is enabled, this rule will further send training informatino back
    * to the bpu for the control instruction.
   */
-  rule rl_exe_base_control((instr_type[0] == JALR || 
+  rule rl_exe_base_control(((instr_type[0] == JALR || 
                           instr_type[0] == JAL ||
-                          instr_type[0] == BRANCH )
+                          instr_type[0] == BRANCH ) || 
+                          (instr_type[1] == JALR ||
+                           instr_type[1] == JAL ||
+                           instr_type[1] == BRANCH ))
                           && epochs_match && tx_fuid.u.notFull && !wr_waw_stall && wr_ops_avail);
 
-    let inst_type = instr_type[0];
-    Bit#(`vaddr)  base = (inst_type == JALR) ? truncate(wr_fwd_op1) : meta[0].pc;
-    Bit#(TMax#(`vaddr,`flen))  offset = wr_op3.data;
-    
-    `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op received: ",hartid,fshow(inst_type)), wr_simulate_log_start)
+    Bit#(TLog#(`num_issue)) inst_num;
+    Instruction_type inst_type;
+    Stage3Meta lv_meta;
+    Bit#(TMax#(`vaddr,`flen))  offset;
+    BTBResponse btbresponse;
+    if (instr_type[0] == JALR || instr_type[0] == JAL || instr_type[0] == BRANCH) begin
+      inst_type = instr_type[0];
+      lv_meta = meta[0];
+      inst_num = 0;
+      btbresponse = meta[0].btbresponse;
+      offset = wr_op3.data;
+    end
+    else begin
+      inst_type = instr_type[1];
+      lv_meta = meta[1];
+      btbresponse = meta[1].btbresponse;
+      inst_num = 1;
+      offset = signExtend(wr_op6);
+    end
+
+    Bit#(`vaddr)  base;
+    if (inst_num == 0)
+      base = (inst_type == JALR) ? truncate(wr_fwd_op1) : lv_meta.pc;
+    else
+      base = (inst_type == JALR) ? truncate(wr_fwd_op4) : lv_meta.pc;
+
+
+   `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op received: ",hartid,fshow(inst_type)), wr_simulate_log_start)
 
     Bit#(`vaddr) jump_address = (base + truncate(offset)) & {'1, ~(pack(inst_type==JALR))};
-    Bit#(`xlen) incr = `ifdef compressed (meta[0].compressed)?2 : `endif 4;
-    Bit#(`xlen) nlogical_pc = meta[0].pc + incr;
+    Bit#(`xlen) incr = `ifdef compressed (lv_meta.compressed)?2 : `endif 4;
+    Bit#(`xlen) nlogical_pc = lv_meta.pc + incr;
 
-    let btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta[0].funct));
+    Bit#(1) btaken;
+    if (inst_num == 0)
+      btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(lv_meta.funct));
+    else
+      btaken = fn_bru(wr_fwd_op4, wr_fwd_op5, truncateLSB(lv_meta.funct));
+
+    //let btaken = fn_bru(wr_fwd_op1, wr_fwd_op2, truncateLSB(meta[0].funct));
 
     Bool trap = ( jump_address[1] != 0 && wr_misa_c == 0 &&
                 ( inst_type == JALR || inst_type == JAL ||
@@ -982,31 +1027,36 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
 	  	redirection = !trap;
   `else
     Bit#(`vaddr) nextpc;
-    if (instr_type[1] == NONE || meta[0].upper_instr)
-      nextpc = fromMaybe(?,wr_next_pc);
-    else
+    if ((inst_num == 1 && !lv_meta.instr_reversed) || (inst_num == 0 && instr_type[1] == NONE) || (inst_num == 0 && lv_meta.instr_reversed))
+      nextpc =  fromMaybe(?,wr_next_pc);
+    else if(inst_num == 0)
       nextpc = meta[1].pc;
+    else
+      nextpc = meta[0].pc;
+
     let prediction = btbresponse.prediction;
     if(inst_type == BRANCH && btaken == 0)begin
       redirect_pc = nlogical_pc;
     end
-    if( (inst_type == BRANCH  && btaken != prediction[`statesize-1]) ||
-        ( (inst_type == JALR || inst_type == JAL ) && nextpc != jump_address) )begin
-	    redirection = !trap;
-    end
-    let td = Training_data{pc : meta[0].pc,
+    if (nextpc != redirect_pc)
+      redirection = !trap;
+    //if( (inst_type == BRANCH  && btaken != prediction[`statesize-1]) ||
+    //    ( (inst_type == JALR || inst_type == JAL ) && nextpc != jump_address) )begin
+	  //  redirection = !trap;
+    //end
+    let td = Training_data{pc : lv_meta.pc,
                            target : jump_address,
                            state  : ?
                         `ifdef gshare
                            ,history   : btbresponse.history
                         `endif
                         `ifdef compressed
-                           ,instr16 : meta[0].compressed
+                           ,instr16 : lv_meta.compressed
                         `endif
                            ,ci         : ?
                            ,btbhit     : btbresponse.btbhit
                         };
-    if((inst_type == JAL || inst_type == JALR) && meta[0].rd ==1)
+    if((inst_type == JAL || inst_type == JALR) && lv_meta.rd ==1)
       td.ci = Call;
     else if(inst_type == JALR &&& opmeta.rs1addr matches 'b00?01)
       td.ci = Ret;
@@ -1038,25 +1088,30 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     if(redirection)
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Misprediction. NextPC in Pipe:%h ExpectedPC:%h",hartid,nextpc,redirect_pc), wr_simulate_log_start)
   `endif
-    TrapOut trapout = TrapOut {cause   : `Inst_addr_misaligned, is_microtrap: False, mtval : meta[0].pc
+    TrapOut trapout = TrapOut {cause   : `Inst_addr_misaligned, is_microtrap: False, mtval : lv_meta.pc
                                                                                             `ifdef hypervisor ,mtval2: ?
                                                                                             `endif
                                                                                             };
-    BaseOut baseoutput = BaseOut { rdvalue   : nlogical_pc, rd: meta[0].rd, epochs: curr_epochs[0]
-                                 `ifdef spfpu ,fflags    : 0 , rdtype: meta[0].rdtype `endif };
+    BaseOut baseoutput = BaseOut { rdvalue   : nlogical_pc, rd: lv_meta.rd, epochs: curr_epochs[0]
+                                 `ifdef spfpu ,fflags    : 0 , rdtype: lv_meta.rdtype `endif };
     //let _id <- sboard.ma_lock_rd(unpack({0, pack(SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif })}));
-    wr_lock[0] <= SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif };
-    let common_pkt = FUid{pc    : meta[0].pc,
-                             rd    : meta[0].rd,
-                             epochs : meta[0].epochs[0],
-                             upper_instr: meta[0].upper_instr,
+    //wr_lock[0] <= SBDUpd{rd: meta[0].rd `ifdef spfpu ,rdtype: meta[0].rdtype `endif };
+    if (inst_num == 0)
+      wr_lock[0] <= SBDUpd{rd: lv_meta.rd `ifdef spfpu ,rdtype: lv_meta.rdtype `endif };
+    else
+      wr_lock[1] <= SBDUpd{rd: lv_meta.rd `ifdef spfpu ,rdtype: lv_meta.rdtype `endif };
+    let common_pkt = FUid{pc    : lv_meta.pc,
+                             rd    : lv_meta.rd,
+                             epochs : lv_meta.epochs[0],
+                             upper_instr: lv_meta.upper_instr,
                              insttype : NONE,
+                             drop_instr: False,
                              instpkt : tagged None
                             `ifdef no_wawstalls 
                               ,id: ?
                             `endif
                             `ifdef spfpu
-                              ,rdtype : meta[0].rdtype
+                              ,rdtype : lv_meta.rdtype
                             `endif } ;
   //`ifdef no_wawstalls
   //  baseoutput.id = _id[0];
@@ -1074,15 +1129,27 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Base Control Op created trap: ",hartid,fshow(trapout)), wr_simulate_log_start)
     end
     //tx_fuid.u.enq(unpack({0, pack(common_pkt)}));
-    wr_fuid[0] <= common_pkt;
+    if (inst_num == 0)
+      wr_fuid[0] <= common_pkt;
+    else
+      wr_fuid[1] <= common_pkt;
+    //wr_fuid[0] <= common_pkt;
     //deq_rx;
     rg_eEpoch         <= pack(redirection)^rg_eEpoch;
     wr_redirect_pc    <= redirect_pc;
     wr_flush_from_exe <= redirection;
   `ifdef rtldump
-    let clogpkt = rx_commitlog.u.first[0];
+    if (inst_num == 0) begin
+      let clogpkt = rx_commitlog.u.first[0];
+      wr_commitlog[0] <= clogpkt;
+    end
+    else begin
+      let clogpkt = rx_commitlog.u.first[1];
+      wr_commitlog[1] <= clogpkt;
+    end
+    //let clogpkt = rx_commitlog.u.first[0];
     //tx_commitlog.u.enq(clogpkt);
-    wr_commitlog[0] <= clogpkt;
+    //wr_commitlog[0] <= clogpkt;
   `endif
   `ifdef bpu 
     if (!trap && redirection)
@@ -1122,6 +1189,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                       epochs : meta[0].epochs[0],
                       upper_instr: meta[0].upper_instr,
                       insttype : MULDIV,
+                      drop_instr: False,
                       instpkt: tagged None
                     `ifdef no_wawstalls 
                       ,id: ?
@@ -1186,6 +1254,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                       epochs : meta[0].epochs[0],
                       upper_instr: meta[0].upper_instr,
                       insttype : FLOAT,
+                      drop_instr: False,
                       instpkt : tagged None
                     `ifdef no_wawstalls 
                       ,id: ?
@@ -1213,6 +1282,7 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
                                 epochs: ?,
                                 upper_instr: meta[1].upper_instr,
                                 insttype: NONE,
+                                drop_instr: True,
                                 instpkt : tagged None
                               `ifdef no_wawstalls 
                                 ,id: ? 
@@ -1268,19 +1338,25 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     end
 
     // Drop upper instruction if lower instruction generates a trap.
-    if (!meta[0].upper_instr && (fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
+    if (!meta[0].upper_instr && (instr_type[0] == BRANCH || instr_type[0] == JAL || instr_type[0] == JALR)
+      && (fuid[0].insttype == TRAP || wr_flush_from_exe)) begin
       `logLevel( stage3, 0, $format("[%2d]STAGE3: Dropping upper instruction as lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
-      //fuid[1].epochs = ~fuid[1].epochs;
-      fuid[1].insttype = NONE;
-      fuid[1].instpkt = tagged None;
-      //fuid[1].rd = 0;
-      //fuid[1].pc = ?;
-      //`ifdef spfpu
-      //  fuid[1].rdtype = IRF;
+      fuid[1].drop_instr = True;
+      //fuid[1].insttype = NONE;
+      //fuid[1].instpkt = tagged None;
+      //`ifdef rtldump
+      //  commitlog[1] = default_commitlog;
       //`endif
-      `ifdef rtldump
-        commitlog[1] = default_commitlog;
-      `endif
+    end
+    else if (!meta[1].upper_instr && (instr_type[1] == BRANCH || instr_type[1] == JAL || instr_type[1] == JALR) 
+      && wr_flush_from_exe) begin
+      `logLevel( stage3, 0, $format("[%2d]STAGE3: Dropping upper instruction as lower instruction generated a TRAP/misprediction", hartid), wr_simulate_log_start)
+      fuid[0].drop_instr = True;
+      //fuid[0].insttype = NONE;
+      //fuid[0].instpkt = tagged None;
+      //`ifdef rtldump
+      //  commitlog[0] = default_commitlog;
+      //`endif
     end
 
     tx_fuid.u.enq(fuid);
@@ -1328,6 +1404,9 @@ module mkstage3#(parameter Bit#(`xlen) hartid) (Ifc_stage3);
     endmethod
     method Action ma_op5 (FwdType i);
       wr_rf_op5 <= i;
+    endmethod
+    method Action ma_op6 (Bit#(32) i);
+      wr_op6 <= i;
     endmethod
   endinterface;
   // -------------------------------------------------------------------------------------------//

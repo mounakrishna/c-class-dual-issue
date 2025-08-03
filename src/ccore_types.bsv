@@ -426,6 +426,7 @@ typedef struct{
   `endif
   BTBResponse btbresponse;
 `endif
+  Bool instr_reversed;
   Bool is_microtrap;
   Bit#(TMax#(`causesize, 7)) funct;
   Access_type memaccess;
@@ -616,6 +617,7 @@ typedef struct{
   EXEType     insttype;
   FUPacket    instpkt;
   Bool upper_instr;
+  Bool drop_instr;
 } FUid deriving(Bits, Eq);
 
 instance FShow#(FUid);
@@ -628,6 +630,7 @@ instance FShow#(FUid);
   `ifdef no_wawstalls
     result = result + $format(" id:%2s",value.id);
   `endif
+    result = result + $format(" upper_instr:%b drop_instr:%b", value.upper_instr, value.drop_instr);
     return result;
   endfunction
 endinstance
@@ -687,6 +690,7 @@ typedef struct{
   Bit#(1)      epochs;
   CUPacket     instpkt;
   Bool upper_instr;
+  Bool drop_instr;
 } CUid deriving(Bits, Eq);
 
 instance FShow#(CUid);
@@ -699,6 +703,7 @@ instance FShow#(CUid);
   `ifdef no_wawstalls
     result = result + $format(" id:%2s",value.id);
   `endif
+    result = result + $format(" upper_instr:%b drop_instr:%b", value.upper_instr, value.drop_instr);
     return result;
   endfunction
 endinstance

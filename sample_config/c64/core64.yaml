@@ -6,12 +6,12 @@ isb_sizes:
     isb_s4s5: 8
 num_harts: 1
 num_issue: 2
-instr_queue: 8
+instr_queue: 6
 merged_rf: False
 s_extension:
   itlb_size: 4
   dtlb_size: 4
-total_events : 40
+total_events : 50
 iepoch_size: 2
 m_extension:
   mul_stages_in : 1
@@ -74,7 +74,7 @@ bsc_compile_options:
 verilator_configuration:
   coverage: none
   trace: false
-  threads: 1
+  threads: 2
   verbosity: true
   opt_fast: "-O3"
   opt_slow: "-O3"
