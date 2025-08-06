@@ -345,8 +345,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     Vector#(`num_issue, Bit#(`vaddr)) pc = replicate(?);
     Vector#(`num_issue, Bit#(`iesize)) epochs = replicate(?);
     Vector#(`num_issue, Bool) upper_instr = replicate(?);
-    Bool trap = False;
-    Bit#(`causesize) trapcause = ?;
+    Vector#(`num_issue, Bool) trap = replicate(False);
+    Vector#(`num_issue, Bit#(`causesize)) trapcause = replicate(?);
     `ifdef compressed
       Vector#(`num_issue, Bool) highbyte_err = replicate(False);
       Vector#(`num_issue, Bool) compressed = replicate(False);
@@ -372,10 +372,10 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
       btbresponse[i] = instr_data[i].btbresponse;
     `endif
       upper_instr[i] = unpack(fromInteger(i));
+      trap[i] = instr_data[i].trap;
+      trapcause[i] = instr_data[i].cause;
     end
 
-    trap = instr_data[0].trap;
-    trapcause = instr_data[0].cause;
 
 
     // ---------------------------------------------------------------------------------------- //
@@ -395,8 +395,8 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
     //Vector#(`num_issue, Bit#(32)) inst;
     for (Integer i=0; i<`num_issue; i=i+1) begin
       if (!(i == 1 && !rx_pipe1.u.deqReady_2)) begin
-        decoded_inst[i] <- decoder_func(inst[i], trap, 
-                                    trapcause, wr_csrs,
+        decoded_inst[i] <- decoder_func(inst[i], trap[i], 
+                                    trapcause[i], wr_csrs,
                                     rg_microtrap, rg_microtrap_cause
                                     `ifdef compressed ,compressed[i] `endif
                                     `ifdef debug ,wr_debug_info, rg_step_done `endif );
