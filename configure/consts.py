@@ -52,34 +52,34 @@ include depends.mk
 
 dependency_yaml='''
 application-benchmarks:
-  url: git@github.com:mounakrishna/application-benchmarks.git
+  url: https://github.com/mounakrishna/application-benchmarks.git
   checkout: bitnet
 common_bsv:
-  url: git@github.com:mounakrishna/common_bsv.git
+  url: https://github.com/mounakrishna/common_bsv.git
   checkout: master
 devices:
-  url: git@github.com:mounakrishna/devices.git
+  url: https://github.com/mounakrishna/devices.git
   checkout: master
 fabrics:
-  url: git@github.com:mounakrishna/fabrics.git
+  url: https://github.com/mounakrishna/fabrics.git
   checkout: master
 common_verilog:
-  url: git@github.com:mounakrishna/common_verilog.git
+  url: https://github.com/mounakrishna/common_verilog.git
   checkout: master
 caches_mmu:
     url: git@github.com:mounakrishna/caches_mmu_dual_issue.git
     checkout: tagreg
 verification:
-  url: git@github.com:Mindgrove-Technologies/verification.git
+  url: https://gitlab.com/shaktiproject/verification_environment/verification.git
   checkout: master
   recursive: True
   patch:
     - [riscv-tests/env , verification/patches/riscv-tests-shakti-signature-machine.patch]
 benchmarks:
-  url: git@github.com:Mindgrove-Technologies/benchmarks.git
+  url: https://gitlab.com/shaktiproject/cores/benchmarks.git
   checkout: Logging_efficiency
 csrbox:
-  url: git@github.com:Mindgrove-Technologies/csrbox.git
+  url: https://gitlab.com/shaktiproject/cores/csrbox.git
   checkout: Logger_changes
 riscv-config:
   url: https://gitlab.com/shaktiproject/cores/riscv-config
