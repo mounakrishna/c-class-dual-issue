@@ -6,7 +6,7 @@ isb_sizes:
     isb_s4s5: 8
 num_harts: 1
 num_issue: 2
-instr_queue: 8
+instr_queue: 6
 merged_rf: False
 s_extension:
   itlb_size: 4
@@ -20,7 +20,7 @@ m_extension:
 branch_predictor:
   instantiate: true
   predictor: gshare
-  btb_depth: 16
+  btb_depth: 32
   bht_depth: 512
   history_len: 8
   history_bits: 5
