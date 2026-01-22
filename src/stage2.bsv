@@ -475,10 +475,7 @@ module mkstage2#(parameter Bit#(`xlen) hartid) (Ifc_stage2);
           `ifdef spfpu || dest_addr[0] == src3_addr[1] `endif )) begin
         issue_two_inst = False;
         wr_raw_hazard <= 1;
-        if (instrType[0] == ALU || instrType[1] == ALU 
-          || instrType[0] == BRANCH || instrType[1] == BRANCH
-          || instrType[0] == JAL || instrType[1] == JAL
-          || instrType[0] == JALR || instrType[1] == JALR) begin
+        if (instrType[0] == ALU || instrType[1] == ALU) begin
           wr_raw_hazard_dual <= 1;
           `logLevel( stage2, rawalu, $format("RAW ALU/BRANCH Hazard PC1: %h (", pc[0], fshow(instrType[0]), ") PC2: %h (", pc[1], fshow(instrType[1]), ")"), wr_simulate_log_start)
           `logLevel( stage2, rawalu2, $format("Instr1: RS1=%d ", decoded_inst[0].op_addr.rs1addr, fshow(decoded_inst[0].op_type.rs1type), 
